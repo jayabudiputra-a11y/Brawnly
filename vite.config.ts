@@ -1,8 +1,12 @@
 // D:\projects\fitapp-2025\vite.config.ts
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+
+// ✅ ambil Supabase URL dari env (AMAN)
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 
 export default defineConfig({
   plugins: [
@@ -44,7 +48,7 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            // Cache gambar saja
+            // Cache gambar umum
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
             handler: 'CacheFirst',
             options: {
@@ -58,14 +62,20 @@ export default defineConfig({
           },
 
           {
-            // Supabase: hanya cache GET, exclude Functions (POST)
+            // ✅ Supabase caching — tanpa hardcoded domain
+            // Hanya cache GET dan bukan Functions
             urlPattern: ({ url, request }) => {
-              const isSupabase = /^https:\/\/zlwhvkexgjisyhakxyoe\.supabase\.co\/.*/i.test(url.href)
+              if (!SUPABASE_URL) return false
+
+              const isSupabase = url.href.startsWith(SUPABASE_URL)
               const isFunction = url.pathname.startsWith('/functions/v1/')
               const isGET = request.method === 'GET'
+
               return isSupabase && !isFunction && isGET
             },
+
             handler: 'NetworkFirst',
+
             options: {
               cacheName: 'supabase',
               networkTimeoutSeconds: 10,
