@@ -16,10 +16,7 @@ export default function ScrollToTopButton() {
   }, [])
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
@@ -27,7 +24,7 @@ export default function ScrollToTopButton() {
       {visible && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-emerald-500 text-white p-4 rounded-full shadow-lg hover:bg-emerald-600 transition"
+          className="fixed bottom-4 right-4 bg-emerald-500 text-white p-4 rounded-full shadow-lg hover:bg-emerald-600 transition"
         >
           ⬆
         </button>

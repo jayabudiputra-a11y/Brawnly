@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import ScrollToTopButton from "./ScrollToTopButton" // pastikan file ini ada
+import ScrollToTopButton from "./ScrollToTopButton"
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
@@ -24,14 +24,14 @@ export default function Splash() {
   useEffect(() => {
     const timer = setInterval(() => {
       setTextIndex((prev) => (prev + 1) % texts.length)
-    }, 1400) // teks berganti tiap 1.4 detik
+    }, 1400)
     return () => clearInterval(timer)
   }, [])
 
   return (
-    <section className="fixed inset-0 bg-gradient-to-br from-emerald-50 to-white flex flex-col items-center justify-center z-50 overflow-y-auto">
+    <section className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex flex-col items-center justify-start z-50 overflow-y-auto py-12">
       {/* Teks + Video */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 mb-12">
         <div className="relative h-20 flex items-center justify-center">
           <h1
             key={textIndex}
@@ -53,7 +53,7 @@ export default function Splash() {
       </div>
 
       {/* Photos Grid */}
-      <div className="grid grid-cols-2 gap-6 mt-8 mb-20">
+      <div className="grid grid-cols-2 gap-6 mb-40">
         <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top delay-100">
           <img src={photos[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
         </div>
