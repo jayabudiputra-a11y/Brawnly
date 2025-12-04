@@ -1,40 +1,38 @@
+// src/lib/trackViews.ts
 export async function trackPageView(articleId: string) {
   try {
-    const base = import.meta.env.VITE_SUPABASE_URL ?? "";
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
+    if (!articleId) {
+      console.warn("TRACK: missing articleId");
+      return;
+    }
 
-    // URL with query fallback
-    const urlWithQuery = `${base.replace(/\/$/, "")}/functions/v1/track-view?article_id=${encodeURIComponent(
-      String(articleId)
-    )}`;
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    // Debug logs (hapus setelah sukses)
-    console.log("TRACK: urlWithQuery ->", urlWithQuery);
-    console.log("TRACK: anonKey present ->", !!anonKey);
-    console.log("TRACK: payload ->", { article_id: articleId });
+    if (!base || !anonKey) {
+      console.error("TRACK: missing Supabase env");
+      return;
+    }
 
-    // Send POST with:
-    // - query string fallback
-    // - header fallback x-article-id
-    // - JSON body
-    const res = await fetch(urlWithQuery, {
+    const endpoint = `${base.replace(/\/$/, "")}/functions/v1/track-view`;
+
+    const res = await fetch(`${endpoint}?article_id=${encodeURIComponent(articleId)}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-article-id": String(articleId),
+        "x-article-id": articleId,
         Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ article_id: articleId }),
     });
 
-    const text = await res.text();
-    console.log("TRACK: function response ->", res.status, text);
+    const txt = await res.text();
+    console.log("TRACK response:", res.status, txt);
 
     if (!res.ok) {
-      throw new Error(`trackPageView failed: ${res.status} ${text}`);
+      console.error("TRACK failed:", res.status, txt);
     }
   } catch (err) {
-    console.error("trackPageView error:", err);
+    console.error("TRACK error:", err);
   }
 }

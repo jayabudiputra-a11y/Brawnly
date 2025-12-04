@@ -1,20 +1,29 @@
 // src/components/layout/Layout.tsx
 import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
-import Splash from '../features/Splash' // ✅ buat komponen Splash.tsx seperti contoh sebelumnya
+import Splash from '../features/Splash'
 
 const Layout = () => {
-  const [showSplash, setShowSplash] = useState(true)
+  const location = useLocation()
+  const isHome = location.pathname === "/"  // ← hanya splash di halaman utama
+
+  const [showSplash, setShowSplash] = useState(isHome)
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 5000) // splash tampil 5 detik
-    return () => clearTimeout(timer)
-  }, [])
+    if (isHome) {
+      // Splash hanya berjalan jika di homepage
+      const timer = setTimeout(() => setShowSplash(false), 5000)
+      return () => clearTimeout(timer)
+    } else {
+      // Jika bukan homepage → splash langsung mati
+      setShowSplash(false)
+    }
+  }, [isHome])
 
   if (showSplash) {
-    return <Splash /> // ✅ tampilkan splash dulu
+    return <Splash />
   }
 
   return (
