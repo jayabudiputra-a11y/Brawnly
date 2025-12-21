@@ -1,17 +1,14 @@
-// hooks/useArticleViews.ts
-
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-// --- RPC FUNCTION ---
-async function trackPageView(articleId: string) {
+
+async function trackPageView(articleId: string, queryClient: any) { 
     if (!articleId) {
         console.warn("Tracking skipped: Article ID is empty or null.");
         return;
     }
     
-    // Debugging RLS context
     const { data: { session } } = await supabase.auth.getSession();
     console.log(`DEBUG AUTH: User Session Active? ${!!session}. (RLS check context)`);
     
@@ -29,6 +26,8 @@ async function trackPageView(articleId: string) {
         }
     } else {
         console.log(`🟢 View Tracked successfully for ID: ${articleId}`);
+        
+        queryClient.invalidateQueries({ queryKey: ['articles'] });
     }
 }
 // --------------------
@@ -50,11 +49,11 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
 
     useEffect(() => {
         if (articleId && initialViews !== liveViewCount) {
-            setLiveViewCount(initialViews);
+             setLiveViewCount(initialViews);
         }
-    }, [initialViews, articleId, liveViewCount]); 
+    }, [initialViews, articleId]); 
 
-    // 2. FETCH VIEW COUNT
+
     const { data: fetchedViewCount } = useQuery<number>({
         queryKey: ["viewCount", articleId],
         queryFn: async () => {
@@ -75,38 +74,40 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
 
     useEffect(() => {
         if (typeof fetchedViewCount === "number" && fetchedViewCount !== liveViewCount) {
+            console.log(`DEBUG QUERY: Updating live view count from query to ${fetchedViewCount}`);
             setLiveViewCount(fetchedViewCount);
-            if (articleId) {
-                queryClient.setQueryData(["viewCount", articleId], fetchedViewCount);
-            }
         }
-    }, [fetchedViewCount, articleId, queryClient]);
+    }, [fetchedViewCount, liveViewCount]); 
     
-    // 4. REALTIME SUBSCRIPTION (FIXED: Menggunakan nama channel statis)
+    
     useEffect(() => {
         if (!articleId) return;
         
-        // FIX: Mengganti nama channel dinamis menjadi statis
+        const channelName = `article_view_count_${articleId}`;
+
         const channel = supabase
-            .channel('article_view_counts_realtime_channel_fix') // Nama statis yang unik
+            .channel(channelName) 
             .on(
                 "postgres_changes",
                 { 
-                    event: "*", 
+                    event: "UPDATE", 
                     schema: "public", 
-                    table: "article_view_counts" 
+                    table: "article_view_counts", 
+                    filter: `article_id=eq.${articleId}` 
                 }, 
                 (payload) => {
                     console.log("DEBUG REALTIME: Received view update payload", payload); 
                     
-                    const rec = (payload as any).record ?? (payload as any).new;
+                    const rec = (payload as any).new;
                     
-                    // Filter manual tetap diterapkan di frontend
                     if (rec?.total_views && rec.article_id === articleId) { 
-                        setLiveViewCount(rec.total_views);
-                        queryClient.setQueryData(["viewCount", articleId], rec.total_views);
-                    } else if (rec?.article_id !== articleId) {
-                        console.log(`DEBUG REALTIME: Filtered out update for ID: ${rec.article_id}`);
+                        const newViews = rec.total_views;
+                        console.log(`DEBUG REALTIME: Updating live view count to ${newViews}`);
+                        setLiveViewCount(newViews); 
+                        
+                        queryClient.setQueryData(["viewCount", articleId], newViews);
+                        
+                        queryClient.invalidateQueries({ queryKey: ['articles'] });
                     }
                 }
             )
@@ -119,7 +120,7 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
         };
     }, [articleId, queryClient]);
 
-    // 5. TRACK PAGE VIEW (Effect)
+
     const hasTrackedRef = useRef<string | null>(null);
     useEffect(() => {
         if (!articleId) {
@@ -128,10 +129,10 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
         }
         if (hasTrackedRef.current === String(articleId)) return;
         
-        trackPageView(String(articleId)).catch(() => {}); 
+        trackPageView(String(articleId), queryClient).catch(() => {}); 
         
         hasTrackedRef.current = String(articleId);
-    }, [articleId]);
+    }, [articleId, queryClient]); 
 
-    return { liveViewCount };
+    return { viewCount: liveViewCount };
 };

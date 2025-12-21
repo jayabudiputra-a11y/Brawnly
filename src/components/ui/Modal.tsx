@@ -38,9 +38,16 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
             >
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                 {title && <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 mb-4">{title}</Dialog.Title>}
-                <button className="absolute top-4 right-4 text-gray-500 hover:text-gray-700" onClick={onClose}>
+                
+                <button 
+                  className="absolute top-4 right-4 text-gray-500 hover:text-gray-700" 
+                  onClick={onClose}
+                  aria-label="Tutup jendela dialog" 
+                  type="button" 
+                >
                   <X className="h-5 w-5" />
                 </button>
+                
                 {children}
               </Dialog.Panel>
             </Transition.Child>

@@ -1,4 +1,3 @@
-// src/components/features/ShareButtons.tsx
 import { useState } from 'react'
 import {
   Facebook,
@@ -27,9 +26,7 @@ const ShareButtons = ({ article }: ShareButtonsProps) => {
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Link copied to clipboard!', {
-        duration: 2000,
-      })
+      toast.success('Link copied to clipboard!', { duration: 2000 })
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Failed to copy link')
@@ -81,8 +78,14 @@ const ShareButtons = ({ article }: ShareButtonsProps) => {
       <button
         onClick={copyLink}
         className="flex items-center justify-center w-12 h-12 bg-gray-200 text-gray-700 rounded-full hover:bg-emerald-600 hover:text-white transition-all"
+        aria-label={copied ? 'Link sudah disalin' : 'Salin link artikel'}
+        type="button"
       >
-        {copied ? <CheckCircle className="w-6 h-6" /> : <Link2 className="w-6 h-6" />}
+        {copied ? (
+          <CheckCircle className="w-6 h-6" />
+        ) : (
+          <Link2 className="w-6 h-6" />
+        )}
       </button>
     </div>
   )

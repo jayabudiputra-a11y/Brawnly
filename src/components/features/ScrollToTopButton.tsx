@@ -1,18 +1,19 @@
-// D:\projects\fitapp-2025\src\components\features/ScrollToTopButton.tsx
+
 
 import { useEffect, useState } from "react";
-import { ChevronUp } from "lucide-react"; // Menggunakan ikon yang konsisten
+import { ChevronUp } from "lucide-react";
 
 export default function ScrollToTopButton() {
-  const [visible, setVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const toggleVisibility = () => {
-      // Tombol muncul setelah scroll 300px
-      setVisible(window.scrollY > 300);
+      setIsVisible(window.scrollY > 300);
     };
 
     window.addEventListener("scroll", toggleVisibility);
+    toggleVisibility(); 
+
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
@@ -23,36 +24,32 @@ export default function ScrollToTopButton() {
     });
   };
 
-  // Jika tidak visible, jangan render apa-apa
-  if (!visible) {
-    return null;
-  }
 
   return (
     <button
       onClick={scrollToTop}
-      aria-label="Scroll to top" // Aksesibilitas
-      className="
+      aria-label="Gulir ke atas halaman"
+      type="button" // ✅ PERBAIKAN: Mencegah submission formulir
+      className={`
         fixed
         bottom-6
         right-6
-        z-50 // <-- TAMBAHKAN INI untuk memastikan selalu di atas
+        z-50 
         bg-emerald-600
         hover:bg-emerald-700
         text-white
         p-3
         rounded-full
         shadow-lg
-        hover:shadow-xl
         transition-all
         duration-300
         ease-in-out
         group
-      "
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}
+      `}
     >
-      {/* Menggunakan ikon SVG untuk tampilan yang lebih baik */}
-      <ChevronUp 
-        className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-1" 
+      <ChevronUp
+        className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-1"
       />
     </button>
   );

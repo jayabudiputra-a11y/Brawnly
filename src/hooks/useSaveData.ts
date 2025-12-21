@@ -10,7 +10,6 @@ export const useSaveData = () => {
   })
 
   useEffect(() => {
-    // Check for Save-Data header support
     const connection = (navigator as any).connection
     const saveDataFromBrowser = connection?.saveData || false
 

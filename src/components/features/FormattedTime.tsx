@@ -1,4 +1,4 @@
-// src/components/features/FormattedTime.tsx
+
 import { format } from 'date-fns';
 import { enUS, type Locale } from 'date-fns/locale';
 
@@ -42,16 +42,16 @@ const FormattedTime: React.FC<FormattedTimeProps> = ({
       date = new Date(dateString);
     }
 
-    // Validate date
+
     if (isNaN(date.getTime())) {
       console.error('❌ Invalid date for time formatting:', dateString);
       return <span className={className}>{fallback}</span>;
     }
 
-    // Format the time
+
     const formattedTime = format(date, formatString, { locale });
     
-    // Apply variant-specific classes
+
     const variantClasses = {
       default: "",
       card: "text-emerald-600 font-medium",

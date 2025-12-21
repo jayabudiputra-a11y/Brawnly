@@ -1,4 +1,4 @@
-// src/components/layout/Navigation.tsx
+
 import { NavLink } from 'react-router-dom'
 
 const navItems = [

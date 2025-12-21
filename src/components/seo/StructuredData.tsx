@@ -1,4 +1,3 @@
-// src/components/seo/StructuredData.tsx
 import { Helmet } from "react-helmet-async"
 import masculineLogo from "@/assets/masculine-logo.svg"
 
@@ -7,7 +6,7 @@ interface ArticleStructuredData {
   excerpt?: string
   featured_image?: string | string[] | null
   published_at: string
-  author?: string | null   // ← dari Supabase, bisa kosong atau "Budi Putra Jaya"
+  author?: string | null
 }
 
 interface StructuredDataProps {
@@ -17,7 +16,6 @@ interface StructuredDataProps {
 const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
   if (!article) return null
 
-  // Ambil gambar pertama (support semua format di featured_image)
   const getFirstImage = () => {
     if (!article.featured_image) return undefined
     if (Array.isArray(article.featured_image)) return article.featured_image[0]
@@ -30,7 +28,7 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
 
   const authorName = article.author?.trim()
     ? article.author.trim()
-    : "Budi Putra Jaya"   // ← hanya fallback kalau kosong di DB
+    : "Budi Putra Jaya"
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -40,16 +38,16 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     datePublished: article.published_at,
     author: {
       "@type": "Person",
-      name: authorName   // ← 100% dari database, tidak hard-code!
+      name: authorName,
     },
     publisher: {
       "@type": "Organization",
       name: "Fitapp 2025",
       logo: {
         "@type": "ImageObject",
-        url: masculineLogo
-      }
-    }
+        url: masculineLogo,
+      },
+    },
   }
 
   return (

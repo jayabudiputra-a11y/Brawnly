@@ -1,6 +1,6 @@
-// src/components/features/AdvancedTranslate.tsx
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronDown, Loader2, X, Check, Globe } from "lucide-react";
 
 interface Language {
   code: string;
@@ -30,7 +30,8 @@ const AdvancedTranslate: React.FC = () => {
   const [visible, setVisible] = useState(false);
   const [changing, setChanging] = useState(false);
 
-  const current = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
+  const current =
+    LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
 
   const changeLang = async (code: string) => {
     if (changing || code === i18n.language) {
@@ -45,7 +46,9 @@ const AdvancedTranslate: React.FC = () => {
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (!(e.target as Element).closest(".advanced-translate")) setVisible(false);
+      if (!(e.target as Element).closest(".advanced-translate")) {
+        setVisible(false);
+      }
     };
     if (visible) document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
@@ -57,28 +60,53 @@ const AdvancedTranslate: React.FC = () => {
         className="translate-toggle"
         onClick={() => setVisible(!visible)}
         disabled={changing}
+        aria-label={
+          visible
+            ? "Tutup pemilih bahasa"
+            : `Ubah bahasa, saat ini: ${current.name}`
+        }
       >
         <span className="flag">{current.flag}</span>
-        {changing ? <span className="spinner">⏳</span> : <span className="arrow">▼</span>}
+        <Globe size={16} />
+        {changing ? (
+          <Loader2 size={16} className="animate-spin text-gray-400" />
+        ) : (
+          <ChevronDown size={16} className="arrow" />
+        )}
       </button>
 
       {visible && (
         <div className="translate-panel mini">
           <div className="panel-header">
             <h4>Select Language</h4>
-            <button className="close-btn" onClick={() => setVisible(false)}>×</button>
+            <button
+              className="close-btn"
+              onClick={() => setVisible(false)}
+              aria-label="Tutup pemilih bahasa"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           <div className="lang-list">
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
-                className={`lang-item ${i18n.language === lang.code ? "active" : ""}`}
+                className={`lang-item ${
+                  i18n.language === lang.code ? "active" : ""
+                }`}
                 onClick={() => changeLang(lang.code)}
+                disabled={changing}
+                aria-current={
+                  i18n.language === lang.code ? "page" : undefined
+                }
+                aria-label={`Pilih ${lang.name}`}
               >
                 <span className="flag">{lang.flag}</span>
                 <span className="name">{lang.name}</span>
-                {i18n.language === lang.code && <span className="check">✓</span>}
+                {i18n.language === lang.code && (
+                  <Check size={16} className="check" />
+                )}
               </button>
             ))}
           </div>

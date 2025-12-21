@@ -2,11 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* RESET */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  
+  /* User Select: Lengkap untuk semua browser */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Masking: Tambahkan -webkit- prefix untuk Edge 79+ */
+  -webkit-mask-image: var(--mask-image, none);
+  mask-image: var(--mask-image, none);
+  
+  -webkit-mask-position: var(--mask-position, center);
+  mask-position: var(--mask-position, center);
+  
+  -webkit-mask-repeat: var(--mask-repeat, no-repeat);
+  mask-repeat: var(--mask-repeat, no-repeat);
 }
 
 html,
@@ -19,18 +35,35 @@ body,
 body {
   font-family: Inter, system-ui, sans-serif;
   @apply bg-gray-50 text-gray-900 antialiased;
+  
+  /* Text Size Adjust: Lengkap untuk semua browser */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%; 
+  
+  /* Touch Action: Lengkap untuk semua browser */
+  -ms-touch-action: manipulation;
+  touch-action: manipulation;
+  
+  /* Scrollbar (Tidak didukung Safari, namun tetap dipertahankan) */
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
 }
 
-/* UNIVERSAL IMAGE RULE — ZERO GAP */
 img {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
+  
+  /* User Drag: Lengkap untuk semua browser (termasuk Firefox) */
   -webkit-user-drag: none;
+  user-drag: none;
+  
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
-/* NATURAL IMAGE */
 .img-natural {
   width: 100%;
   height: auto !important;
@@ -38,7 +71,6 @@ img {
   object-position: center !important;
 }
 
-/* DISABLE OLD ASPECT RULES */
 .article-img-fixed,
 .aspect-video,
 .aspect-square,
@@ -47,7 +79,6 @@ img {
   aspect-ratio: unset !important;
 }
 
-/* CLAMPS */
 .line-clamp-2,
 .line-clamp-3 {
   display: -webkit-box;
@@ -63,7 +94,7 @@ img {
   -webkit-line-clamp: 3;
 }
 
-/* NICE SCROLLBAR */
+/* Scrollbar Webkit */
 ::-webkit-scrollbar {
   width: 8px;
 }

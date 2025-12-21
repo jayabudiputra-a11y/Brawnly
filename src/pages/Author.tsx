@@ -1,4 +1,4 @@
-// D:\projects\fitapp-2025\src\pages\Author.tsx
+
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -46,21 +46,20 @@ const Author = () => {
   }
 
   return (
-    // Wrapper Utama: max-w-2xl untuk ringkas, mx-auto untuk pusatkan.
-    <div className="max-w-2xl mx-auto px-4 py-10 space-y-8 text-center"> 
+
+<div className="max-w-2xl mx-auto px-4 py-10 space-y-8 text-center"> 
       
-      {/* Nama Penulis */}
+              {/* */}
       <h1 className="text-5xl font-bold mb-6 text-emerald-600">
         {author.name}
       </h1>
 
-      {/* Bio Penulis */}
-      <p className="text-lg text-gray-700 leading-relaxed whitespace-pre-line mx-auto">
+                {/* */}      <p className="text-lg text-gray-700 leading-relaxed whitespace-pre-line mx-auto">
         {author.bio}
       </p>
 
-      {/* Tautan Gallery dan Linktree */}
-      {/* Menggunakan justify-center untuk memastikan tautan ada di tengah */}
+      {/*  */}
+      {/* */}
       <div className="flex justify-center space-x-6 mt-8">
         <a
           href={author.flickr_url}

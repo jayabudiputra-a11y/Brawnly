@@ -1,93 +1,270 @@
-import { supabase } from './supabase'
-import type { Article, Subscriber } from '../types'
+// src/lib/api.ts
+import { supabase } from "./supabase";
+import type {
+  Article,
+  AuthUser,
+  CommentWithUser,
+  SignUpData,
+} from "../types";
 
-// Articles API
+/* =====================================================
+   UTIL
+===================================================== */
+const handleSupabaseError = (
+  error: any,
+  context: string
+) => {
+  console.error(`Supabase Error [${context}]`, error);
+  throw error;
+};
+
+/* =====================================================
+   ARTICLES
+===================================================== */
 export const articlesApi = {
-  getAll: async (limit = 10, offset = 0) => {
+  getAll: async (
+    limit = 10,
+    offset = 0
+  ): Promise<Article[]> => {
     const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .order('published_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+      .from("articles")
+      .select("*")
+      .order("published_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    if (error) throw error
-    return data as Article[]
+    if (error) {
+      handleSupabaseError(
+        error,
+        "articlesApi.getAll"
+      );
+    }
+
+    return data ?? [];
   },
 
-  getBySlug: async (slug: string) => {
+  getBySlug: async (
+    slug: string
+  ): Promise<Article> => {
     const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('slug', slug)
-      .single()
+      .from("articles")
+      .select("*")
+      .eq("slug", slug)
+      .single();
 
-    if (error) throw error
-    
-    // Increment views
-    await supabase.rpc('increment_views', { article_id: data.id })
-    
-    return data as Article
+    if (error || !data) {
+      handleSupabaseError(
+        error,
+        "articlesApi.getBySlug"
+      );
+    }
+
+    /**
+     * 🔥 FIRE & FORGET RPC
+     * (TS-safe, tanpa .catch)
+     */
+    void (async () => {
+      const { error } = await supabase.rpc(
+        "increment_views",
+        { article_id: data.id }
+      );
+
+      if (error) {
+        console.warn(
+          "increment_views skipped:",
+          error.message
+        );
+      }
+    })();
+
+    return data;
   },
+};
 
-  getByCategory: async (category: string) => {
-    const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('category', category)
-      .order('published_at', { ascending: false })
-
-    if (error) throw error
-    return data as Article[]
-  },
-
-  search: async (query: string) => {
-    const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .textSearch('title', query, {
-        type: 'websearch',
-        config: 'english',
-      })
-      .order('published_at', { ascending: false })
-
-    if (error) throw error
-    return data as Article[]
-  },
-}
-
-// Subscribers API
+/* =====================================================
+   SUBSCRIBERS (ANON SAFE – INSERT ONLY)
+===================================================== */
 export const subscribersApi = {
-  subscribe: async (subscriber: Subscriber) => {
-    const { data, error } = await supabase
-      .from('subscribers')
-      .insert(subscriber)
-      .select()
-      .single()
+  /**
+   * ✔ Aman untuk anon / publishable key
+   * ✔ Hanya butuh policy INSERT
+   * ✔ Tidak trigger SELECT / UPDATE
+   */
+  insertIfNotExists: async (
+    email: string,
+    name?: string
+  ): Promise<void> => {
+    if (!email) return;
 
-    if (error) throw error
-    return data
+    const { error } = await supabase
+      .from("subscribers")
+      .insert({
+        email,
+        name: name ?? null,
+        is_active: true,
+      });
+
+    /**
+     * ❗ Jangan throw
+     * ❗ Subscriber bukan critical path
+     */
+    if (error) {
+      console.warn(
+        "subscribersApi.insert skipped:",
+        error.message
+      );
+    }
+  },
+};
+
+/* =====================================================
+   AUTH
+===================================================== */
+export const authApi = {
+  /**
+   * SIGN UP
+   * - full_name harus match trigger
+   * - emailRedirectTo → /auth/callback
+   */
+  signUp: async ({
+    email,
+    password,
+    name,
+  }: SignUpData) => {
+    if (!name || name.trim().length < 2) {
+      throw new Error("Name is required");
+    }
+
+    const { data, error } =
+      await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+          emailRedirectTo:
+            "http://localhost:5173/auth/callback",
+        },
+      });
+
+    if (error) {
+      handleSupabaseError(
+        error,
+        "authApi.signUp"
+      );
+    }
+
+    /**
+     * 🔁 NON-BLOCKING
+     */
+    if (data.user?.email) {
+      void subscribersApi.insertIfNotExists(
+        data.user.email,
+        name.trim()
+      );
+    }
+
+    return data;
   },
 
-  checkEmail: async (email: string) => {
-    const { data, error } = await supabase
-      .from('subscribers')
-      .select('email')
-      .eq('email', email)
-      .single()
+  signIn: async (
+    email: string,
+    password: string
+  ) => {
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    return { exists: !!data, error }
+    if (error) {
+      handleSupabaseError(
+        error,
+        "authApi.signIn"
+      );
+    }
+
+    if (data.user?.email) {
+      void subscribersApi.insertIfNotExists(
+        data.user.email,
+        data.user.user_metadata?.full_name
+      );
+    }
+
+    return data;
   },
-}
 
-// Categories API
-export const categoriesApi = {
-  getAll: async () => {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('order_index', { ascending: true })
+  signOut: async () => {
+    const { error } =
+      await supabase.auth.signOut();
 
-    if (error) throw error
-    return data
+    if (error) {
+      handleSupabaseError(
+        error,
+        "authApi.signOut"
+      );
+    }
   },
-}
+
+  getCurrentUser: async (): Promise<AuthUser | null> => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    return (user as AuthUser) ?? null;
+  },
+};
+
+/* =====================================================
+   COMMENTS
+===================================================== */
+export const commentsApi = {
+  getCommentsByArticle: async (
+    articleId: string
+  ): Promise<CommentWithUser[]> => {
+    const { data, error } =
+      await supabase.rpc(
+        "get_comments_with_users",
+        { p_article_id: articleId }
+      );
+
+    if (error) {
+      handleSupabaseError(
+        error,
+        "commentsApi.getCommentsByArticle"
+      );
+    }
+
+    return data ?? [];
+  },
+
+  addComment: async (
+    articleId: string,
+    content: string
+  ) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error(
+        "You must be logged in to comment"
+      );
+    }
+
+    const { error } = await supabase
+      .from("comments")
+      .insert({
+        article_id: articleId,
+        user_id: user.id,
+        content,
+      });
+
+    if (error) {
+      handleSupabaseError(
+        error,
+        "commentsApi.addComment"
+      );
+    }
+  },
+};

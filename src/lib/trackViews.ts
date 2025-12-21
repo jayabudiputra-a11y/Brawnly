@@ -1,4 +1,4 @@
-// src/lib/trackViews.ts
+
 export async function trackPageView(articleId: string) {
   try {
     if (!articleId) {

@@ -1,4 +1,4 @@
-// src/components/FormattedDate.tsx
+
 import { format } from 'date-fns';
 import { enUS, type Locale } from 'date-fns/locale'; 
 
@@ -63,7 +63,7 @@ const FormattedDate: React.FC<FormattedDateProps> = ({
       });
     }
     
-    // Apply variant-specific classes
+
     const variantClasses = {
       default: "",
       card: "text-emerald-600 font-medium",

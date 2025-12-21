@@ -29,8 +29,9 @@ export default function Splash() {
   }, [])
 
   return (
+    
     <section className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex flex-col items-center z-50 overflow-y-auto py-12">
-      {/* Teks + Video */}
+      
       <div className="flex items-center gap-6 mb-12">
         <div className="relative h-20 flex items-center justify-center">
           <h1
@@ -52,7 +53,7 @@ export default function Splash() {
         </div>
       </div>
 
-      {/* Photos Grid */}
+
       <div className="grid grid-cols-2 gap-6 mb-40">
         <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top delay-100">
           <img src={photos[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
@@ -73,7 +74,7 @@ export default function Splash() {
         </div>
       </div>
 
-      {/* Scroll to top toggle */}
+
       <ScrollToTopButton />
     </section>
   )

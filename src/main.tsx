@@ -5,10 +5,10 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from 'sonner'
-import App from './App.tsx'
+import App from '@/App'
 
 // Import i18n configuration
-import './lib/i18n'
+import '@/lib/i18n'
 
 // Import CSS
 import './index.css'

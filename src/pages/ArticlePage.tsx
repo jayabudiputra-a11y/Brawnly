@@ -1,4 +1,4 @@
-// src/pages/ArticlePage.tsx
+
 import ArticleDetail from '../components/features/ArticleDetail';
 import StructuredData from '../components/seo/StructuredData';
 import MetaTags from '../components/seo/MetaTags';

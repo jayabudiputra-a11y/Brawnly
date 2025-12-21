@@ -1,24 +1,19 @@
-// src/hooks/useSubscribe.ts
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { subscribersApi } from '../lib/api'
+import { subscribersApi } from '@/lib/api'
 import { toast } from 'sonner'
-import type { Subscriber } from '../types'
+import type { Subscriber } from '../types/index'
+
 
 export const useSubscribe = () => {
-  const queryClient = useQueryClient()
-
   return useMutation({
-    mutationFn: (data: Subscriber) => subscribersApi.subscribe(data),
+    mutationFn: async (email: string) => {
+      await subscribersApi.insertIfNotExists(email)
+    },
     onSuccess: () => {
       toast.success('Successfully subscribed!')
-      queryClient.invalidateQueries({ queryKey: ['subscribers'] })
     },
-    onError: (error: any) => {
-      if (error.code === '23505') {
-        toast.info('You\'re already subscribed!')
-      } else {
-        toast.error('Something went wrong. Please try again.')
-      }
+    onError: () => {
+      toast.error('Please login first')
     },
   })
 }
