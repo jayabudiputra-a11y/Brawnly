@@ -146,7 +146,7 @@ export const authApi = {
             full_name: name.trim(),
           },
           emailRedirectTo:
-            "https://fit-app-rime.vercel.app/auth/callback",
+            "https://fit-app-eight.vercel.app/auth/callback",
         },
       });
 
