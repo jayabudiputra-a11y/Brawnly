@@ -1,17 +1,62 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" /> 
-    
-    <title>fitapp</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     
-        <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
-    
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <!-- Tambahkan Content Security Policy untuk memperbaiki masalah media loading -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   media-src https://zlwhvkexgjisyhakxyoe.supabase.co;
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval';
+                   connect-src https://zlwhvkexgjisyhakxyoe.supabase.co">
+    
+    <title>fitapp</title>
+    
+    <!-- Pastikan path favicon benar untuk build -->
+    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Tambahkan Service Worker Registration -->
+    <script>
+      // Service Worker Registration dengan error handling
+      if ('serviceWorker' in navigator) {
+        console.log('🔧 Mencoba mendaftarkan service worker...');
+        
+        navigator.serviceWorker.register('/registerSW.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        })
+        .then(registration => {
+          console.log('✅ Service worker berhasil didaftarkan:', registration);
+          
+          // Listener untuk update
+          registration.addEventListener('updatefound', () => {
+            console.log('🔄 Service worker update ditemukan');
+            const newWorker = registration.installing;
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  console.log('🔄 Service worker baru telah diinstal, akan mengganti versi lama');
+                } else {
+                  console.log('🎉 Service worker pertama kali diinstal');
+                }
+              }
+            });
+          });
+        })
+        .catch(error => {
+          console.error('❌ Gagal mendaftarkan service worker:', error);
+        });
+      } else {
+        console.log('📵 Service worker tidak didukung di browser ini');
+      }
+    </script>
+    
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

@@ -1,4 +1,3 @@
-// D:\projects\fitapp-2025\vite.config.ts
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -31,6 +30,7 @@ export default defineConfig(({ mode }) => {
             }
           ]
         },
+        // Simplified workbox configuration
         workbox: {
           runtimeCaching: [
             {
@@ -39,23 +39,21 @@ export default defineConfig(({ mode }) => {
               options: {
                 cacheName: "images",
                 expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24 * 30
-                },
-                cacheableResponse: { statuses: [0, 200] }
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
+                }
               }
             },
+            // Simplified Supabase caching
             {
-              urlPattern: ({ url, request }) => {
-                if (!SUPABASE_URL) return false;
-                const isSupabase = url.href.startsWith(SUPABASE_URL);
-                const isFunction = url.pathname.startsWith("/functions/v1/");
-                const isGET = request.method === "GET";
-                return isSupabase && !isFunction && isGET;
+              urlPattern: ({ url }) => {
+                return url.href.startsWith(SUPABASE_URL) && 
+                       !url.pathname.includes("/auth/") &&
+                       !url.pathname.includes("/storage/");
               },
               handler: "NetworkFirst",
               options: {
-                cacheName: "supabase",
+                cacheName: "supabase-api",
                 networkTimeoutSeconds: 10
               }
             }
@@ -75,7 +73,10 @@ export default defineConfig(({ mode }) => {
       open: true,
       host: true,
       headers: {
-        'X-Content-Type-Options': 'nosniff', 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'X-Content-Type-Options': 'nosniff',
       }
     },
 
@@ -84,9 +85,9 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
-          entryFileNames: `assets/[name]-[hash].js`, 
-          chunkFileNames: `assets/[name]-[hash].js`, 
-          assetFileNames: `assets/[name]-[hash].[ext]`, 
+          entryFileNames: `assets/[name]-[hash].js`,
+          chunkFileNames: `assets/[name]-[hash].js`,
+          assetFileNames: `assets/[name]-[hash].[ext]`,
           
           manualChunks: id => {
             if (id.includes("node_modules")) {
@@ -104,6 +105,11 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
+    },
+
+    preview: {
+      port: 4173,
+      strictPort: true,
     }
   };
 });
