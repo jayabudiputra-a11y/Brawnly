@@ -58,11 +58,6 @@ export default defineConfig(({ mode }) => {
               }
             }
           ]
-        },
-        // Hapus seluruh devOptions jika tidak diperlukan
-        // atau gunakan hanya property yang valid
-        devOptions: {
-          enabled: true
         }
       })
     ],
@@ -82,14 +77,14 @@ export default defineConfig(({ mode }) => {
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'X-Content-Type-Options': 'nosniff',
-        // Tambahkan CSP yang lebih longgar untuk development
-        'Content-Security-Policy': "default-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://zlwhvkexgjisyhakxyoe.supabase.co; style-src 'self' 'unsafe-inline' https://zlwhvkexgjisyhakxyoe.supabase.co; img-src 'self' data: https://zlwhvkexgjisyhakxyoe.supabase.co; media-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co; connect-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co https://fit-app-kappa.vercel.app;"
+        // CSP lengkap yang Anda berikan
+        'Content-Security-Policy': "default-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://zlwhvkexgjisyhakxyoe.supabase.co; style-src 'self' 'unsafe-inline' https://zlwhvkexgjisyhakxyoe.supabase.co; img-src 'self' data: https://zlwhvkexgjisyhakxyoe.supabase.co; media-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co; connect-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co https://fit-app-rime.vercel.app *.map;"
       }
     },
 
     build: {
       outDir: "dist",
-      sourcemap: true,
+      sourcemap: true, // Kembalikan sourcemap karena CSP sudah mencakup *.map
       rollupOptions: {
         output: {
           entryFileNames: `assets/[name]-[hash].js`,

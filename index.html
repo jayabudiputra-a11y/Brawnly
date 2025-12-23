@@ -5,24 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     
-    <!-- Tambahkan Content Security Policy untuk memperbaiki masalah media loading -->
+    <!-- PERBAIKI CSP: Tambahkan semua domain yang diperlukan -->
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'self'; 
-                   media-src https://zlwhvkexgjisyhakxyoe.supabase.co;
-                   script-src 'self' 'unsafe-inline' 'unsafe-eval';
-                   connect-src https://zlwhvkexgjisyhakxyoe.supabase.co">
+                   script-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co 'unsafe-inline' 'unsafe-eval';
+                   style-src 'self' 'unsafe-inline' https://zlwhvkexgjisyhakxyoe.supabase.co;
+                   img-src 'self' data: https://zlwhvkexgjisyhakxyoe.supabase.co;
+                   media-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co;
+                   connect-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co https://fit-app-rime.vercel.app;
+                   font-src 'self' data:;
+                   frame-src 'self'">
     
     <title>fitapp</title>
     
-    <!-- Pastikan path favicon benar untuk build -->
-    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
+    <!-- Pastikan path favicon benar -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Tambahkan nonce untuk inline script -->
+    <meta id="csp-nonce" name="csp-nonce" content="">
   </head>
   <body>
     <div id="root"></div>
     
-    <!-- Tambahkan Service Worker Registration -->
-    <script>
-      // Service Worker Registration dengan error handling
+    <!-- Service Worker Registration dengan nonce -->
+    <script nonce="">
+      // Dapatkan nonce dari meta tag
+      const nonce = document.querySelector('meta[name="csp-nonce"]').content;
+      
       if ('serviceWorker' in navigator) {
         console.log('🔧 Mencoba mendaftarkan service worker...');
         
@@ -32,22 +41,6 @@
         })
         .then(registration => {
           console.log('✅ Service worker berhasil didaftarkan:', registration);
-          
-          // Listener untuk update
-          registration.addEventListener('updatefound', () => {
-            console.log('🔄 Service worker update ditemukan');
-            const newWorker = registration.installing;
-            
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed') {
-                if (navigator.serviceWorker.controller) {
-                  console.log('🔄 Service worker baru telah diinstal, akan mengganti versi lama');
-                } else {
-                  console.log('🎉 Service worker pertama kali diinstal');
-                }
-              }
-            });
-          });
         })
         .catch(error => {
           console.error('❌ Gagal mendaftarkan service worker:', error);
