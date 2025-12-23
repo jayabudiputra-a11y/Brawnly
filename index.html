@@ -8,30 +8,26 @@
     <!-- PERBAIKI CSP: Tambahkan semua domain yang diperlukan -->
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'self'; 
-                   script-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co 'unsafe-inline' 'unsafe-eval';
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://zlwhvkexgjisyhakxyoe.supabase.co;
                    style-src 'self' 'unsafe-inline' https://zlwhvkexgjisyhakxyoe.supabase.co;
                    img-src 'self' data: https://zlwhvkexgjisyhakxyoe.supabase.co;
                    media-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co;
                    connect-src 'self' https://zlwhvkexgjisyhakxyoe.supabase.co https://fit-app-rime.vercel.app;
-                   font-src 'self' data:;
-                   frame-src 'self'">
+                   font-src 'self' data:;">
     
     <title>fitapp</title>
     
     <!-- Pastikan path favicon benar -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
-    <!-- Tambahkan nonce untuk inline script -->
-    <meta id="csp-nonce" name="csp-nonce" content="">
+    <!-- Tambahkan manifest yang valid -->
+    <link rel="manifest" href="/manifest.webmanifest">
   </head>
   <body>
     <div id="root"></div>
     
-    <!-- Service Worker Registration dengan nonce -->
-    <script nonce="">
-      // Dapatkan nonce dari meta tag
-      const nonce = document.querySelector('meta[name="csp-nonce"]').content;
-      
+    <!-- Service Worker Registration -->
+    <script>
       if ('serviceWorker' in navigator) {
         console.log('🔧 Mencoba mendaftarkan service worker...');
         
