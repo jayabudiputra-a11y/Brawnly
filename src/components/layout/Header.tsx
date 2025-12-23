@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import logo from '@/assets/masculine-logo.svg'
 import MobileMenu from './MobileMenu'
 import Navigation from './Navigation'
-import { useAuth } from '@/hooks/useAuth' // Import useAuth
+import { useAuth } from '@/hooks/useAuth'
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false)
@@ -50,22 +50,12 @@ export default function Header() {
 
           {/* NAVIGATION AREA */}
           <div className="hidden md:flex items-center space-x-8">
-            
-            {/* Main Menu (Home, Articles, Subscribe) */}
+            {/* Main Menu (Home, Articles, Subscribe, Profile jika ada di Navigation) */}
             <Navigation />
-
-            {/* Profile Link (Only if logged in) */}
-            {user ? (
-              <Link 
-                to="/profile" 
-                className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition"
-              >
-                Profile
-              </Link>
-            ) : null}
           </div>
         </div>
 
+        {/* MOBILE MENU */}
         {isOpen && <MobileMenu onClose={closeMenu} />}
       </div>
     </header>
