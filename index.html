@@ -2,16 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Content Security Policy (META-SAFE VERSION) -->
+    <!-- Content Security Policy (Fallback / Dev Safe) -->
     <meta
       http-equiv="Content-Security-Policy"
       content="
         default-src 'self';
         script-src 'self' 'unsafe-eval';
         style-src 'self' 'unsafe-inline';
+        style-src-elem
+          'self'
+          https://fonts.googleapis.com
+          https://www.gstatic.com;
         img-src
           'self'
           data:
@@ -27,7 +31,8 @@
           wss://zlwhvkexgjisyhakxyoe.supabase.co;
         font-src
           'self'
-          data:;
+          data:
+          https://fonts.gstatic.com;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
