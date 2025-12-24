@@ -31,7 +31,7 @@ const AdvancedTranslate: React.FC = () => {
   const [changing, setChanging] = useState(false);
 
   const current =
-    LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
+    LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
 
   const changeLang = async (code: string) => {
     if (changing || code === i18n.language) {
@@ -55,64 +55,100 @@ const AdvancedTranslate: React.FC = () => {
   }, [visible]);
 
   return (
-    <div className="advanced-translate">
+    <div
+      className="
+        advanced-translate
+        fixed
+        right-4
+        top-[92px]
+        z-[9999]
+      "
+    >
+      {/* TOGGLE */}
       <button
-        className="translate-toggle"
-        onClick={() => setVisible(!visible)}
+        onClick={() => setVisible(v => !v)}
         disabled={changing}
-        aria-label={
-          visible
-            ? "Tutup pemilih bahasa"
-            : `Ubah bahasa, saat ini: ${current.name}`
-        }
+        aria-label="Change language"
+        className="
+          flex items-center gap-1.5
+          rounded-full
+          bg-white
+          border border-gray-300
+          px-2.5 py-1.5
+          shadow-md
+          text-sm text-gray-800
+          hover:bg-gray-50
+          active:scale-95
+        "
       >
-        <span className="flag">{current.flag}</span>
-        <Globe size={16} />
+        <span className="text-base leading-none">{current.flag}</span>
+        <Globe size={14} />
         {changing ? (
-          <Loader2 size={16} className="animate-spin text-gray-400" />
+          <Loader2 size={14} className="animate-spin opacity-60" />
         ) : (
-          <ChevronDown size={16} className="arrow" />
+          <ChevronDown size={14} />
         )}
       </button>
 
+      {/* PANEL */}
       {visible && (
-        <div className="translate-panel mini">
-          <div className="panel-header">
-            <h4>Select Language</h4>
+        <div
+          className="
+            absolute
+            right-0
+            mt-2
+            w-[240px]
+            rounded-xl
+            bg-white
+            border border-gray-300
+            shadow-2xl
+          "
+        >
+          {/* HEADER */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-800">
+              Select Language
+            </h4>
             <button
-              className="close-btn"
               onClick={() => setVisible(false)}
-              aria-label="Tutup pemilih bahasa"
+              aria-label="Close"
+              className="p-1 rounded hover:bg-gray-100"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
 
-          <div className="lang-list">
-            {LANGUAGES.map((lang) => (
+          {/* LIST */}
+          <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1">
+            {LANGUAGES.map(lang => (
               <button
                 key={lang.code}
-                className={`lang-item ${
-                  i18n.language === lang.code ? "active" : ""
-                }`}
                 onClick={() => changeLang(lang.code)}
                 disabled={changing}
-                aria-current={
-                  i18n.language === lang.code ? "page" : undefined
-                }
-                aria-label={`Pilih ${lang.name}`}
+                className={`
+                  w-full flex items-center gap-2
+                  px-2 py-2
+                  rounded-lg
+                  text-sm
+                  ${
+                    i18n.language === lang.code
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "hover:bg-gray-100 text-gray-800"
+                  }
+                `}
               >
-                <span className="flag">{lang.flag}</span>
-                <span className="name">{lang.name}</span>
+                <span className="text-base">{lang.flag}</span>
+                <span className="flex-1 text-left">{lang.name}</span>
                 {i18n.language === lang.code && (
-                  <Check size={16} className="check" />
+                  <Check size={14} className="text-emerald-600" />
                 )}
               </button>
             ))}
           </div>
 
-          <div className="panel-footer">
-            <small>FitApp Translate</small>
+          {/* FOOTER */}
+          <div className="px-3 py-2 border-t border-gray-200 text-center text-xs text-gray-500">
+            FitApp Translate
           </div>
         </div>
       )}
