@@ -29,7 +29,7 @@ export const useThemePreference = () => {
 
       // Jika login, pakai ID user. Jika belum, pakai Guest ID
       let identifier: string | null = session?.user?.id ?? null
-      
+
       if (!identifier) {
         identifier = getGuestId()
       }
@@ -37,12 +37,13 @@ export const useThemePreference = () => {
       setUserId(identifier)
 
       if (identifier) {
-        // Ambil data dari Supabase pakai identifier (User ID atau Guest ID)
-        const { data, error } = await supabase
+        // PERBAIKAN: Menggunakan .maybeSingle() agar tidak error 406 
+        // jika data visitor baru BELUM ADA di database.
+        const { data } = await supabase
           .from('user_preferences')
           .select('theme')
           .eq('user_id', identifier)
-          .single()
+          .maybeSingle()
 
         if (data?.theme) {
           applyTheme(data.theme as Theme)
@@ -81,7 +82,7 @@ export const useThemePreference = () => {
         },
         { onConflict: 'user_id' }
       )
-      
+
     if (error) {
       console.error("Gagal menyimpan preferensi tema:", error.message)
     }
