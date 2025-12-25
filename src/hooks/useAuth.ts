@@ -7,27 +7,19 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (!error && data.user) {
-          setUser(data.user);
-        }
-      } catch (err) {
-        console.warn("Auth check inactive");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUser();
-
+    // Kita hanya mendengarkan perubahan, tidak memaksa cek di awal
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Set loading false setelah jeda singkat tanpa paksa getUser
+    const timer = setTimeout(() => setLoading(false), 500);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   return { user, loading };

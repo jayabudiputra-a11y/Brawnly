@@ -11,17 +11,10 @@ export const supabase = createClient(
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
-      // Tambahkan ini untuk mencegah pengecekan awal yang tidak perlu
       storage: {
         getItem: () => null,
         setItem: () => {},
         removeItem: () => {},
-      },
-    },
-    global: {
-      headers: {
-        'apikey': supabaseAnonKey || "",
-        'Authorization': `Bearer ${supabaseAnonKey || ""}`
       }
     }
   }
