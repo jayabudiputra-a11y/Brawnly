@@ -1,28 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// JANGAN GUNAKAN import.meta.env SEMENTARA
+// Masukkan string langsung dari .env.local Anda
+const supabaseUrl = "https://zlwhvkexgjisyhakxyoe.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // PASTE KEY LENGKAP DI SINI
 
-// Logika untuk mengecek apakah kunci terbaca di browser
-if (!supabaseAnonKey || supabaseAnonKey === "undefined") {
-  console.error("CRITICAL: Kunci VITE_SUPABASE_ANON_KEY tidak ditemukan oleh Vite!");
-}
-
-export const supabase = createClient(
-  supabaseUrl || "", 
-  supabaseAnonKey || "",
-  {
-    global: {
-      headers: {
-        // Memaksa header apikey ada di setiap request
-        'apikey': supabaseAnonKey || "",
-        'Authorization': `Bearer ${supabaseAnonKey || ""}`
-      }
-    },
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false, // Matikan sesi agar error 403 berhenti looping
+    autoRefreshToken: false,
+  },
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`
+    }
   }
-);
+});
