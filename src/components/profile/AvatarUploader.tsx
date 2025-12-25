@@ -129,7 +129,7 @@ const AvatarUploader = ({
         </p>
       </div>
 
-      {/* USERNAME CARD - Perbaikan pada layout input & button */}
+      {/* USERNAME CARD */}
       <form
         onSubmit={handleUpdateName}
         className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3"
@@ -148,9 +148,9 @@ const AvatarUploader = ({
             className="
               flex-1 min-w-0 h-[44px] rounded-xl px-3
               bg-neutral-50 dark:bg-neutral-800
-              border border-neutral-300 dark:border-neutral-700
+              border border-neutral-300 dark:border-neutral-600
               text-sm font-bold
-              text-neutral-900 dark:white
+              text-neutral-900 dark:text-white
               placeholder:text-neutral-400 dark:placeholder:text-neutral-500
               focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500
               outline-none transition
