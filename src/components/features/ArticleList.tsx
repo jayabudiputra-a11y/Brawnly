@@ -19,7 +19,6 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     if (!allArticles) return []
     let currentArticles = allArticles
 
-    // ... (logic filtering tetap sama seperti punya Anda)
     if (selectedTag) {
       const lowerCaseSelectedTag = selectedTag.toLowerCase()
       currentArticles = currentArticles.filter((article: any) => 
@@ -37,46 +36,47 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     })
   }, [allArticles, selectedTag, searchTerm, lang])
 
-  // STATE LOADING
+  // 1. STATE LOADING: Menggunakan Teks Pelangi agar selaras dengan loading di ArticleDetail
   if (isLoading) {
     return (
-      <div className="text-center py-20">
-        {/* Spinner Emerald yang menyala di Dark/Light */}
-        <div className="w-10 h-10 mx-auto animate-spin rounded-full border-4 border-emerald-500 border-t-transparent shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
-        <p className="mt-4 text-[11px] text-gray-400 dark:text-neutral-500 font-black uppercase tracking-[.2em]">
-          {t("Loading articles...")}
+      <div className="text-center py-32 bg-transparent">
+        <div className="w-12 h-12 mx-auto mb-6 animate-spin rounded-full border-4 border-[#00a354] border-t-transparent shadow-[0_0_20px_rgba(0,163,84,0.2)]" />
+        <p className="text-lg font-black uppercase tracking-widest animate-pulse bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 bg-clip-text text-transparent">
+          {t("loading....babe")}
         </p>
       </div>
     )
   }
 
-  // STATE ERROR
+  // 2. STATE ERROR
   if (error) {
     return (
       <div className="text-center py-20">
-        <p className="text-red-500 text-xs font-bold uppercase tracking-widest">
-          {t("Failed to load data")}
+        <p className="text-red-500 text-[10px] font-black uppercase tracking-[.3em]">
+          {t("System Error: Failed to load articles")}
         </p>
       </div>
     )
   }
 
-  // STATE EMPTY
+  // 3. STATE EMPTY
   if (filteredArticles.length === 0) {
     return (
-      <div className="text-center py-20">
-        <p className="text-gray-400 dark:text-neutral-600 text-xs font-bold uppercase tracking-widest">
+      <div className="text-center py-32 bg-transparent">
+        <p className="text-neutral-400 dark:text-neutral-600 text-[11px] font-black uppercase tracking-[.4em] mb-4">
           {selectedTag || searchTerm.trim() !== ""
-            ? t("No results found")
-            : t("No articles available")}
+            ? t("NO MATCHING DATA FOUND")
+            : t("FEED IS EMPTY")}
         </p>
+        <div className="h-[1px] w-20 mx-auto bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-800 to-transparent" />
       </div>
     )
   }
 
   return (
     <>
-      <div className="flex flex-col max-w-[900px] mx-auto w-full px-2 transition-all duration-500">
+      {/* 4. CONTAINER: Menggunakan gap dan padding yang pas untuk Billboard Style */}
+      <div className="flex flex-col max-w-[900px] mx-auto w-full px-4 md:px-0 transition-all duration-500 divide-y divide-gray-100 dark:divide-neutral-900">
         {filteredArticles.map((a: any) => (
           <ArticleCard key={a.id} article={a} />
         ))}
