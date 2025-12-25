@@ -1,5 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
-import React from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom' // Ditambahkan useLocation
+import React, { useEffect } from 'react' // Ditambahkan useEffect
 
 import Layout from '@/components/layout/Layout'
 import Home from '@/pages/Home'
@@ -18,6 +18,9 @@ import SignUpForm from '@/components/SignUpForm'
 import SignInForm from '@/components/common/SignInForms'
 import IframeA11yFixer from '@/components/common/IframeA11yFixer'
 import AuthCallback from "@/pages/AuthCallback";
+
+// Import komponen tombol scroll kamu
+import ScrollToTopButton from '@/components/features/ScrollToTopButton'
 
 import type { AuthPageLayoutProps } from '@/types'
 
@@ -43,17 +46,28 @@ const AuthLayout: React.FC<AuthPageLayoutProps> = ({ children, title }) => {
     APP ROUTES
 ========================= */
 function App() {
+  // Ambil lokasi path saat ini (misal: /about, /contact)
+  const { pathname } = useLocation();
+
+  /**
+   * LOGIKA AUTO-SCROLL TO TOP
+   * Setiap kali visitor berpindah halaman (pathname berubah),
+   * fungsi ini akan memaksa browser kembali ke koordinat paling atas (0,0).
+   */
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
-    /**
-     * REVISI UTAMA:
-     * 1. Mengganti 'bg-black' menjadi 'bg-white dark:bg-black' agar background berubah.
-     * 2. Menambahkan 'text-black dark:text-white' agar semua teks default mengikuti tema.
-     * 3. Menambahkan 'transition-colors' agar perpindahan mode terasa halus (smooth).
-     */
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white selection:bg-green-500 selection:text-black transition-colors duration-300">
       
       {/* Fixer diletakkan paling atas agar tidak menumpuk event touch */}
       <IframeA11yFixer />
+
+      {/* TOMBOL SCROLL TO TOP 
+        Diletakkan di luar Routes agar selalu tersedia dan terpantau oleh logika pathname di atas.
+      */}
+      <ScrollToTopButton />
 
       <Routes>
         {/* MAIN SITE (Menggunakan Layout yang berisi Header, Footer, dan Outlet) */}
