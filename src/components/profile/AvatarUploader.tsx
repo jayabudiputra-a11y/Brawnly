@@ -97,8 +97,7 @@ const AvatarUploader = ({
 
   return (
     <div className="space-y-6 w-full max-w-md mx-auto">
-
-      {/* AVATAR */}
+      {/* AVATAR SECTION */}
       <div className="flex flex-col items-center gap-3">
         <div className="relative">
           <motion.img
@@ -130,7 +129,7 @@ const AvatarUploader = ({
         </p>
       </div>
 
-      {/* USERNAME CARD */}
+      {/* USERNAME CARD - Perbaikan pada layout input & button */}
       <form
         onSubmit={handleUpdateName}
         className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3"
@@ -140,18 +139,18 @@ const AvatarUploader = ({
           Username
         </label>
 
-        <div className="flex items-center gap-2 h-[44px]">
+        <div className="flex items-center gap-2 min-h-[44px]">
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
             className="
-              flex-1 h-full rounded-xl px-3
+              flex-1 min-w-0 h-[44px] rounded-xl px-3
               bg-neutral-50 dark:bg-neutral-800
               border border-neutral-300 dark:border-neutral-700
               text-sm font-bold
-              text-neutral-900 dark:text-white
+              text-neutral-900 dark:white
               placeholder:text-neutral-400 dark:placeholder:text-neutral-500
               focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500
               outline-none transition
@@ -163,11 +162,11 @@ const AvatarUploader = ({
             type="submit"
             disabled={updatingName || !username || username === currentUsername}
             className="
-              h-full px-5 rounded-xl
+              h-[44px] px-4 rounded-xl shrink-0
               bg-emerald-500 hover:bg-emerald-600
               text-white font-black uppercase text-[10px] tracking-widest
               disabled:opacity-40 disabled:cursor-not-allowed
-              flex items-center gap-2
+              flex items-center justify-center gap-2
               shadow-md
             "
           >
@@ -176,7 +175,7 @@ const AvatarUploader = ({
             ) : (
               <>
                 <Save size={14} />
-                Save
+                <span className="hidden xs:inline">Save</span>
               </>
             )}
           </motion.button>
