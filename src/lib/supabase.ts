@@ -16,6 +16,12 @@ export const supabase = createClient(
         setItem: () => {},
         removeItem: () => {},
       }
+    },
+    global: {
+      headers: {
+        'apikey': supabaseAnonKey || "",
+        'Authorization': `Bearer ${supabaseAnonKey || ""}`
+      }
     }
   }
 );
