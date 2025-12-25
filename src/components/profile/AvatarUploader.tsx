@@ -90,7 +90,7 @@ const AvatarUploader = ({
       </div>
 
       <form onSubmit={handleUpdateName} className="space-y-2">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-800 dark:text-neutral-200 flex items-center gap-2 ml-1">
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-800 dark:text-white flex items-center gap-2 ml-1">
           <User size={12} className="text-emerald-500" />
           Username
         </label>
@@ -101,14 +101,14 @@ const AvatarUploader = ({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-black dark:text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 shadow-sm"
+            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-700 rounded-lg px-3 h-full text-sm font-bold text-black dark:text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-600 shadow-sm"
           />
           
           <motion.button
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={updatingName || !username || username === currentUsername}
-            className="h-full px-5 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg font-black uppercase text-[10px] tracking-widest disabled:opacity-30 transition-all flex items-center justify-center gap-2 flex-shrink-0 shadow-sm border border-transparent dark:border-white/10"
+            className="h-full px-5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg font-black uppercase text-[10px] tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 flex-shrink-0 shadow-sm border border-transparent dark:border-neutral-200"
           >
             {updatingName ? (
               <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
