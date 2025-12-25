@@ -71,7 +71,6 @@ const AvatarUploader = ({
   return (
     <div className="space-y-6 w-full max-w-md mx-auto p-4 bg-transparent transition-colors duration-500 overflow-hidden">
       
-      {/* AVATAR SECTION */}
       <div className="flex flex-col items-center gap-3">
         <div className="relative">
           <motion.img
@@ -86,11 +85,10 @@ const AvatarUploader = ({
           </label>
         </div>
         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
-          {uploading ? "UPLOADING..." : "TAP THIS TO  ADD.."}
+          {uploading ? "UPLOADING..." : "TAP THIS TO ADD.."}
         </p>
       </div>
 
-      {/* USERNAME SECTION */}
       <form onSubmit={handleUpdateName} className="space-y-2">
         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-800 dark:text-neutral-200 flex items-center gap-2 ml-1">
           <User size={12} className="text-emerald-500" />
@@ -103,12 +101,7 @@ const AvatarUploader = ({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            /* REVISI FINAL: 
-               - dark:!text-white memaksa teks jadi putih di dark mode
-               - text-neutral-900 memastikan teks hitam di light mode
-               - background dipastikan kontras
-            */
-            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-neutral-900 dark:!text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 shadow-sm"
+            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-black dark:text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 shadow-sm"
           />
           
           <motion.button
@@ -129,10 +122,8 @@ const AvatarUploader = ({
         </div>
       </form>
 
-      {/* RAINBOW DIVIDER */}
       <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-700 to-transparent opacity-50" />
 
-      {/* ERROR MESSAGE */}
       {error && (
         <p className="text-[9px] font-bold uppercase text-red-500 text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-100 dark:border-red-900/30">
           {error}
