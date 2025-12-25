@@ -86,7 +86,7 @@ const AvatarUploader = ({
           </label>
         </div>
         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
-          {uploading ? "UPLOADING..." : "TAP CAMERA TO CHANGE"}
+          {uploading ? "UPLOADING..." : "TAP THIS TO  ADD.."}
         </p>
       </div>
 
@@ -103,12 +103,12 @@ const AvatarUploader = ({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            /* REVISI: 
-               - text-neutral-900 (light mode) 
-               - dark:text-neutral-100 (dark mode - lebih kontras daripada white murni)
-               - placeholder warna disesuaikan agar tidak hilang
+            /* REVISI FINAL: 
+               - dark:!text-white memaksa teks jadi putih di dark mode
+               - text-neutral-900 memastikan teks hitam di light mode
+               - background dipastikan kontras
             */
-            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-neutral-900 dark:text-neutral-100 focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 shadow-sm"
+            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-neutral-900 dark:!text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 shadow-sm"
           />
           
           <motion.button
