@@ -2,14 +2,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Theme = 'light' | 'dark'
-
 const GUEST_ID_KEY = 'fitapp_guest_id'
 
-// Helper untuk generate ID unik jika browser mendukungnya
 const getGuestId = () => {
   let guestId = localStorage.getItem(GUEST_ID_KEY)
   if (!guestId) {
-    // Generate UUID sederhana
     guestId = crypto.randomUUID()
     localStorage.setItem(GUEST_ID_KEY, guestId)
   }
@@ -17,44 +14,37 @@ const getGuestId = () => {
 }
 
 export const useThemePreference = () => {
-  const [theme, setTheme] = useState<Theme>('light')
+  // 1. Ambil dari localStorage SEGERA agar tidak ada 'flicker' putih
+  const [theme, setTheme] = useState<Theme>(() => {
+    return (localStorage.getItem('theme') as Theme) || 'light'
+  })
   const [userId, setUserId] = useState<string | null>(null)
 
-  // Init
+  // 2. Terapkan class 'dark' segera saat komponen dimuat
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
+  // Init Data dari Supabase (Latar Belakang)
   useEffect(() => {
     const init = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      // Jika login, pakai ID user. Jika belum, pakai Guest ID
-      let identifier: string | null = session?.user?.id ?? null
-
-      if (!identifier) {
-        identifier = getGuestId()
-      }
-
+      const { data: { session } } = await supabase.auth.getSession()
+      let identifier = session?.user?.id ?? getGuestId()
       setUserId(identifier)
 
       if (identifier) {
-        // PERBAIKAN: Menggunakan .maybeSingle() agar tidak error 406 
-        // jika data visitor baru BELUM ADA di database.
         const { data } = await supabase
           .from('user_preferences')
           .select('theme')
           .eq('user_id', identifier)
           .maybeSingle()
 
-        if (data?.theme) {
+        // Jika di DB berbeda dengan lokal, ikuti DB
+        if (data?.theme && data.theme !== theme) {
           applyTheme(data.theme as Theme)
-        } else {
-          // Fallback ke localStorage jika data di DB belum ada
-          const localTheme = localStorage.getItem('theme') as Theme | null
-          applyTheme(localTheme ?? 'light')
         }
       }
     }
-
     init()
   }, [])
 
@@ -66,26 +56,20 @@ export const useThemePreference = () => {
 
   const toggleTheme = async () => {
     const next = theme === 'light' ? 'dark' : 'light'
+    
+    // LANGKAH PENTING: Ubah UI secara instan dulu
     applyTheme(next)
 
-    // Jangan return dulu meski null, karena sekarang visitor punya ID
+    // Baru simpan ke database di latar belakang
     if (!userId) return
-
-    // Simpan ke Supabase (baik user login maupun visitor)
-    const { error } = await supabase
-      .from('user_preferences')
-      .upsert(
-        {
-          user_id: userId, // Ini bisa ID User atau Guest ID
-          theme: next,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
-
-    if (error) {
-      console.error("Gagal menyimpan preferensi tema:", error.message)
-    }
+    await supabase.from('user_preferences').upsert(
+      {
+        user_id: userId,
+        theme: next,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    )
   }
 
   return {

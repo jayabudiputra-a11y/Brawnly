@@ -2,112 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   1. LOGIKA GAMBAR (GRAYSCALE TO COLOR)
+   ============================================================ */
 
+/* Secara default, semua gambar (Logo, GIF Hero) berwarna asli */
+img {
+  display: block;
+  width: 100%;
+  height: auto;
+  -webkit-user-drag: none;
+  filter: none;
+  -webkit-filter: none;
+  transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+/* KHUSUS Gambar di dalam kartu artikel (ArticleCard) dibuat Hitam Putih */
+.group img, 
+article img {
+  filter: grayscale(100%);
+  -webkit-filter: grayscale(100%);
+}
+
+/* Hover di Desktop: Berubah jadi Berwarna */
+.group:hover img {
+  filter: grayscale(0%) saturate(1.2);
+  -webkit-filter: grayscale(0%) saturate(1.2);
+}
+
+/* Respons HP Samsung (Sentuhan): Berubah jadi Berwarna */
+@media (hover: none) {
+  .group:active img, 
+  .group:focus img {
+    filter: grayscale(0%) saturate(1.4) brightness(1.1) !important;
+    -webkit-filter: grayscale(0%) saturate(1.4) brightness(1.1) !important;
+    transform: scale(1.05) !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+}
+
+/* ============================================================
+   2. GLOBAL BEHAVIOR & THEME FIX
+   ============================================================ */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  
-  /* User Select: Lengkap untuk semua browser */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  
-  /* Masking: Tambahkan -webkit- prefix untuk Edge 79+ */
-  -webkit-mask-image: var(--mask-image, none);
-  mask-image: var(--mask-image, none);
-  
-  -webkit-mask-position: var(--mask-position, center);
-  mask-position: var(--mask-position, center);
-  
-  -webkit-mask-repeat: var(--mask-repeat, no-repeat);
-  mask-repeat: var(--mask-repeat, no-repeat);
+  -webkit-tap-highlight-color: transparent; /* Hapus kotak abu-abu saat tap di HP */
 }
 
-html,
-body,
-#root {
+html, body, #root {
   height: 100%;
   width: 100%;
 }
 
 body {
-  font-family: Inter, system-ui, sans-serif;
-  @apply bg-gray-50 text-gray-900 antialiased;
-  
-  /* Text Size Adjust: Lengkap untuk semua browser */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%; 
-  
-  /* Touch Action: Lengkap untuk semua browser */
-  -ms-touch-action: manipulation;
-  touch-action: manipulation;
-  
-  /* Scrollbar (Tidak didukung Safari, namun tetap dipertahankan) */
-  scrollbar-width: thin;
-  scrollbar-color: #10b981 #f3f4f6;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Mengikuti class dari tailwind (bg-white atau bg-black) */
+  @apply bg-white text-black dark:bg-black dark:text-white antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
-img {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  
-  /* User Drag: Lengkap untuk semua browser (termasuk Firefox) */
-  -webkit-user-drag: none;
-  user-drag: none;
-  
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  user-select: none;
+/* Biarkan teks konten tetap bisa di-copy */
+p, h1, h2, h3, span {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-.img-natural {
-  width: 100%;
-  height: auto !important;
-  object-fit: contain !important;
-  object-position: center !important;
-}
-
-.article-img-fixed,
-.aspect-video,
-.aspect-square,
-.aspect-\[4\/3\] {
-  height: auto !important;
-  aspect-ratio: unset !important;
-}
-
-.line-clamp-2,
-.line-clamp-3 {
+/* ============================================================
+   3. UTILITIES
+   ============================================================ */
+.line-clamp-2 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.line-clamp-2 {
   -webkit-line-clamp: 2;
 }
 
-.line-clamp-3 {
-  -webkit-line-clamp: 3;
-}
-
-/* Scrollbar Webkit */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f3f4f6;
-}
-
+/* Scrollbar Pelangi (PC Only) */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #10b981;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #059669;
+  background: linear-gradient(to bottom, #ff0000, #ffff00, #00ff00, #0000ff);
+  border-radius: 10px;
 }

@@ -1,14 +1,11 @@
-// D:\projects\fitapp-2025\src\components\features\ArticleDetail.tsx
-
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Calendar, Clock, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 
 import FormattedDate from "@/components/features/FormattedDate";
 import StructuredData from "../seo/StructuredData";
 import myAvatar from "@/assets/myAvatar.jpg";
-import Card from "@/components/ui/Card";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
 import CommentSection from "@/components/articles/CommentSection";
 
@@ -16,22 +13,6 @@ import { useArticleData } from "@/hooks/useArticleData";
 import { useArticleViews } from "@/hooks/useArticleViews";
 import ArticleImageGallery from "@/components/features/ArticleImageGallery";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
-
-export interface Article {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  featured_image: string;
-  featured_image_path_clean?: string;
-  featured_image_url_clean?: string;
-  published_at: string;
-  views: number;
-  reading_time: number;
-  tags: string[];
-  [key: string]: any;
-}
 
 export default function ArticleDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -50,8 +31,8 @@ export default function ArticleDetail() {
 
   if (isLoading)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-5xl font-black text-emerald-600 animate-pulse">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+        <p className="text-2xl font-black uppercase tracking-tighter animate-pulse bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
           {t("loading....babe")}
         </p>
       </div>
@@ -59,17 +40,14 @@ export default function ArticleDetail() {
 
   if (!processedData || !article)
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-7xl font-black text-red-600 mb-6">404</h1>
+      <div className="min-h-screen flex flex-col items-center justify-center text-center bg-white dark:bg-black px-4">
+        <h1 className="text-9xl font-black text-neutral-200 dark:text-neutral-800 mb-6">404</h1>
         <Link
           to="/"
-          className="bg-emerald-600 text-white px-10 py-4 rounded-full text-xl font-bold hover:bg-emerald-700 transition duration-200"
+          className="border-2 border-black dark:border-white text-black dark:text-white px-8 py-3 text-sm font-black uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition duration-200"
         >
           {t("back")}
         </Link>
-        <p className="mt-4 text-gray-500">
-          {t("Article not found or article data is incomplete.")}
-        </p>
       </div>
     );
 
@@ -82,14 +60,8 @@ export default function ArticleDetail() {
     bottomGallery: bottomGalleryString,
   } = processedData;
 
-  // --- PERUBAHAN: Tentukan posisi mid-gallery secara dinamis ---
-  // Cari posisi paragraf tengah untuk menyisipkan gallery.
-  // Jika artikel memiliki kurang dari 3 paragraf, letakkan di tengah.
-  // Jika lebih, letakkan setelah paragraf ketiga (indeks 2).
-  const midGalleryInsertionIndex = paragraphs.length > 2 ? 2 : Math.floor(paragraphs.length / 2);
-
   return (
-    <>
+    <main className="bg-white dark:bg-black min-h-screen pb-20 text-black dark:text-white transition-colors duration-300">
       <Helmet>
         <title>{title} — Fitapp 2025</title>
         <meta name="description" content={excerpt} />
@@ -106,116 +78,117 @@ export default function ArticleDetail() {
         }}
       />
 
-      <div className="min-h-screen flex justify-center">
-        <article className="bg-white rounded-2xl shadow-xl border overflow-hidden max-w-4xl w-full">
-          <div className="px-6 pt-8 pb-4 border-b border-gray-100">
-            <div className="flex items-center gap-3 mb-6">
-              <img
-                src={myAvatar}
-                alt={t("Author")}
-                className="w-12 h-12 rounded-full ring-2 ring-emerald-500 object-cover"
-              />
-              <div>
-                <p className="text-sm font-bold text-gray-900">
-                  {article.author ?? "Fitapp Contributor"}
-                </p>
-                <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <FormattedDate
-                      dateString={article.published_at}
-                      formatString="MMMM d, yyyy"
-                    />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {article.reading_time}m
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {viewCount}
-                  </span>
-                </div>
-              </div>
+      <div className="max-w-[800px] mx-auto px-4 sm:px-6">
+        <article className="pt-12">
+          
+          {/* HEADER SECTION */}
+          <header className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <span className="bg-[#00a354] text-white text-[10px] font-black px-2 py-0.5 tracking-[.15em] uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                Fitapp Selection
+              </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 mb-4 leading-tight">
+            <h1 className="text-[34px] md:text-[58px] leading-[1] font-black uppercase tracking-tighter mb-8 bg-gradient-to-r from-red-500 via-orange-400 via-yellow-500 via-green-500 via-blue-500 to-purple-600 bg-clip-text text-transparent">
               {title}
             </h1>
 
-            <p className="text-lg italic font-medium text-gray-600 mb-0">
-              {excerpt}
-            </p>
-          </div>
-
-          <div className="px-6 py-8">
-            <div className="prose max-w-none">
-              {paragraphs.map((line: string, originalIndex: number) => {
-                const processedLine = line
-                  .trim()
-                  .replace(
-                    /\*\*(.*?)\*\*/g,
-                    `<strong class="font-bold text-emerald-700">$1</strong>`
-                  )
-                  .replace(
-                    /\*(.*?)\*/g,
-                    `<em class="italic text-purple-600">$1</em>`
-                  );
-
-                return (
-                  <div key={originalIndex}>
-                    {originalIndex === 0 && (
-                      <div className="mb-8 mt-2 -mx-6 sm:-mx-6 md:-mx-8 lg:mx-0">
-                        <ArticleCoverImage
-                          imageUrl={coverImage}
-                          title={title}
-                          slug={slugValue}
-                        />
-                      </div>
-                    )}
-
-                    <p
-                      className="text-base sm:text-lg leading-relaxed mb-6 text-gray-800"
-                      dangerouslySetInnerHTML={{ __html: processedLine }}
-                    />
-
-                    {/* --- PERUBAHAN: Gunakan indeks dinamis untuk mid-gallery --- */}
-                    {originalIndex === midGalleryInsertionIndex && midGalleryString && (
-                      <ArticleImageGallery
-                        images={midGalleryString}
-                        title={t("Gallery")} // PERUBAHAN: Gunakan terjemahan
-                        slug={slugValue}
-                        containerClassName="my-10 -mx-6 px-6"
-                        downloadPrefix="mid"
-                        startIndex={1}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+            <div className="flex flex-col items-center border-y border-gray-100 dark:border-neutral-800 py-6">
+              <div className="flex items-center gap-3 mb-1">
+                <img src={myAvatar} alt="Author" className="w-10 h-10 rounded-full object-cover grayscale hover:grayscale-0 transition-all duration-300 shadow-md" />
+                <span className="text-[12px] font-black uppercase tracking-widest text-black dark:text-white">
+                  By {article.author ?? "Fitapp Contributor"}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest text-neutral-500 mt-2">
+                <FormattedDate dateString={article.published_at} formatString="MMMM d, yyyy" />
+                <span className="flex items-center gap-1"><Eye className="w-3 h-3 text-[#00a354]" /> {viewCount}</span>
+              </div>
             </div>
+          </header>
+
+          <p className="text-[20px] leading-relaxed font-medium text-neutral-500 italic text-center mb-10">
+            {excerpt}
+          </p>
+
+          <div className="max-w-none">
+            {paragraphs.map((line: string, index: number) => {
+              const processedLine = line.trim()
+                .replace(/\*\*(.*?)\*\*/g, `<strong class="font-black text-black dark:text-white">$1</strong>`)
+                .replace(/\*(.*?)\*/g, `<em class="italic">$1</em>`);
+
+              return (
+                <div key={index}>
+                  <p
+                    className="text-[18px] md:text-[20px] leading-[1.8] mb-8 text-neutral-700 dark:text-neutral-200 font-serif"
+                    dangerouslySetInnerHTML={{ __html: processedLine }}
+                  />
+
+                  {index === 0 && (
+                    <div className="my-10 max-w-[600px] mx-auto text-center">
+                      <ArticleCoverImage imageUrl={coverImage} title={title} slug={slugValue} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* --- PERUBAHAN: Tampilkan bottom-gallery hanya jika datanya ada --- */}
-          {bottomGalleryString && (
-            <ArticleImageGallery
-              images={bottomGalleryString}
-              title={t("More Photos")} // PERUBAHAN: Gunakan terjemahan
-              slug={slugValue}
-              downloadPrefix="bottom"
-              startIndex={7}
-            />
+          {/* GALLERY TENGAH DENGAN GARIS PELANGI */}
+          {midGalleryString && (
+            <div className="my-16 pt-10 relative">
+               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-600 shadow-[0_0_10px_rgba(255,0,0,0.3)]" />
+               <h3 className="text-[13px] font-black uppercase tracking-[.25em] mb-8 text-center bg-gradient-to-r from-red-500 via-green-500 to-blue-500 bg-clip-text text-transparent">
+                Highlights Gallery
+              </h3>
+              <ArticleImageGallery images={midGalleryString} title="" slug={slugValue} downloadPrefix="mid" startIndex={1} />
+            </div>
           )}
 
-          <div className="px-6 pb-6 pt-4 border-t border-gray-100">
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="font-semibold text-gray-500">
-                {t("Tags")}:
+          {/* MORE PHOTOS - PEMBATAS PELANGI MENYALA */}
+          {bottomGalleryString && (
+            <div className="mt-20 pt-12 relative">
+              <div className="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-red-500 via-orange-500 via-yellow-500 via-green-500 via-blue-500 via-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(0,163,84,0.3)]" />
+              
+              <h3 className="text-[14px] md:text-[18px] font-black uppercase tracking-[.4em] mb-10 text-center bg-gradient-to-r from-red-500 via-yellow-400 via-green-500 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+                More Photos Gallery
+              </h3>
+
+              <div className="max-w-[600px] mx-auto">
+                <ArticleImageGallery
+                  images={bottomGalleryString}
+                  title=""
+                  slug={slugValue}
+                  downloadPrefix="bottom"
+                  startIndex={7}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAGS PELANGI MENYALA (BILLBOARD STYLE) */}
+          <div className="mt-20 pt-10 relative">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gray-200 dark:bg-neutral-800" />
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-[14px] font-black uppercase tracking-[.3em] bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 bg-clip-text text-transparent">
+                EXPLORE TAGS:
               </span>
+            </div>
+            
+            <div className="flex flex-wrap gap-4">
               {(article.tags || []).map((tag: string, index: number) => (
                 <span
                   key={index}
-                  className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium"
+                  className="relative text-[11px] font-black uppercase tracking-[0.2em] px-5 py-2.5 transition-all duration-300
+                             text-black dark:text-white
+                             bg-white dark:bg-neutral-900
+                             hover:scale-105 active:scale-95 cursor-default
+                             shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.05)]"
+                  style={{ 
+                    border: '2px solid transparent',
+                    borderImageSource: 'linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #0000ff, #8800ff)',
+                    borderImageSlice: 1
+                  }}
                 >
                   {tag}
                 </span>
@@ -223,13 +196,13 @@ export default function ArticleDetail() {
             </div>
           </div>
 
-          <div className="mt-12">
+          <div className="mt-24 border-t border-gray-100 dark:border-neutral-900 pt-12">
             <CommentSection articleId={article.id} />
           </div>
         </article>
       </div>
 
-      <ScrollToTopButton aria-label={t("Scroll to top")} />
-    </>
+      <ScrollToTopButton />
+    </main>
   );
 }

@@ -22,16 +22,19 @@ const Layout = () => {
   if (showSplash) return <Splash />;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors">
+    /* PENTING: bg-white dark:bg-black adalah kunci Toggle bekerja.
+       transition-colors memastikan perpindahan mode terasa smooth (halus).
+    */
+    <div className="min-h-screen flex flex-col bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
 
+      {/* Header biasanya berisi ThemeToggle */}
       <Header />
 
       <AdvancedTranslate />
 
-      <main className="flex-1 py-6 sm:py-8 lg:py-10">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Outlet />
-        </div>
+      {/* Main Content: Dibuat bersih tanpa padding agar halaman internal yang mengatur spacing */}
+      <main className="flex-1">
+        <Outlet />
       </main>
 
       <Footer />
