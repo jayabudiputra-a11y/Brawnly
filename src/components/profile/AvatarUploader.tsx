@@ -80,19 +80,19 @@ const AvatarUploader = ({
             alt="Avatar"
             className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-neutral-800 shadow-md"
           />
-          <label className="absolute bottom-0 right-0 p-2 bg-black dark:bg-white text-white dark:text-black rounded-full cursor-pointer shadow-lg active:scale-90 transition-all">
+          <label className="absolute bottom-0 right-0 p-2 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black rounded-full cursor-pointer shadow-lg active:scale-90 transition-all border border-white/20 dark:border-black/10">
             <Camera size={18} />
             <input type="file" accept="image/*" hidden onChange={handleUpload} disabled={uploading} />
           </label>
         </div>
-        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-400">
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
           {uploading ? "UPLOADING..." : "TAP CAMERA TO CHANGE"}
         </p>
       </div>
 
-      {/* USERNAME SECTION - RAMPING & MOBILE FRIENDLY */}
+      {/* USERNAME SECTION */}
       <form onSubmit={handleUpdateName} className="space-y-2">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-black dark:text-white flex items-center gap-2 ml-1">
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-800 dark:text-neutral-200 flex items-center gap-2 ml-1">
           <User size={12} className="text-emerald-500" />
           Username
         </label>
@@ -103,20 +103,20 @@ const AvatarUploader = ({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-gray-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-black dark:text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-300"
+            className="flex-1 min-w-0 bg-white dark:bg-neutral-900 border-2 border-neutral-100 dark:border-neutral-800 rounded-lg px-3 h-full text-sm font-bold text-neutral-900 dark:text-white focus:border-emerald-500 outline-none transition-all placeholder:text-neutral-300 dark:placeholder:text-neutral-600 shadow-sm"
           />
           
           <motion.button
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={updatingName || !username || username === currentUsername}
-            className="h-full px-4 bg-black dark:bg-white text-white dark:text-black rounded-lg font-black uppercase text-[9px] tracking-widest disabled:opacity-20 transition-all flex items-center justify-center gap-1.5 flex-shrink-0"
+            className="h-full px-5 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg font-black uppercase text-[10px] tracking-widest disabled:opacity-30 transition-all flex items-center justify-center gap-2 flex-shrink-0 shadow-sm border border-transparent dark:border-white/10"
           >
             {updatingName ? (
               <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Save size={14} />
+                <Save size={14} className="text-emerald-400 dark:text-emerald-600" />
                 <span>Save</span>
               </>
             )}
@@ -125,11 +125,11 @@ const AvatarUploader = ({
       </form>
 
       {/* RAINBOW DIVIDER */}
-      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-red-500 via-green-500 via-blue-500 to-transparent opacity-30" />
+      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-700 to-transparent opacity-50" />
 
       {/* ERROR MESSAGE */}
       {error && (
-        <p className="text-[9px] font-black uppercase text-red-500 text-center bg-red-50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/20">
+        <p className="text-[9px] font-bold uppercase text-red-500 text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-100 dark:border-red-900/30">
           {error}
         </p>
       )}
