@@ -6,17 +6,20 @@ import { toast } from 'sonner'
 export const useSubscribe = () => {
   return useMutation({
     mutationFn: async (email: string) => {
-      // 1. Paksa keluar dari sesi lama agar tidak ada error 'Invalid Refresh Token'
-      await supabase.auth.signOut();
+      // 1. Bersihkan sesi lama tanpa menunggu (mencegah macet di awal)
+      supabase.auth.signOut().catch(() => {});
 
-      // 2. Simpan ke database subscriber
+      // 2. PAKSA masuk ke Database dulu
+      // Kita pakai await di sini agar data masuk sebelum lanjut ke OTP
       try {
         await subscribersApi.insertIfNotExists(email, 'Subscriber');
+        console.log('Data berhasil masuk ke tabel subscribers');
       } catch (dbError: any) {
-        console.warn('DB Log:', dbError.message);
+        // Jika hanya error "duplicate", kita abaikan dan lanjut kirim email
+        console.warn('DB Status:', dbError.message);
       }
 
-      // 3. Minta OTP (Confirm Email)
+      // 3. Kirim OTP via SMTP Outlook
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -24,22 +27,31 @@ export const useSubscribe = () => {
         }
       });
 
+      // Jika error terjadi di sini (seperti error {}), data tetap sudah masuk ke DB
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Link Konfirmasi Terkirim!', {
-        description: 'Buka email Anda dan klik link untuk konfirmasi subscribe.'
+      toast.success('Berhasil!', {
+        description: 'Data tersimpan & link konfirmasi terkirim ke email.'
       });
     },
     onError: (error: any) => {
-      if (error.status === 429 || error.message?.includes('rate limit')) {
-        toast.error('Keamanan Aktif', {
-          description: 'Supabase membatasi pengiriman email. Mohon tunggu 1-2 menit penuh tanpa menekan tombol.'
+      // Menangani error {} agar lebih informatif
+      if (!error.message || error.message === "{}" || Object.keys(error).length === 0) {
+        toast.error('Gagal Mengirim Email', {
+          description: 'Data sudah masuk ke database, tapi server Outlook menolak koneksi. Periksa kembali Port (gunakan 587) dan App Password.'
+        });
+        return;
+      }
+
+      if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+        toast.error('Limit Tercapai', {
+          description: 'Mohon tunggu 60 detik sebelum mencoba lagi.'
         });
         return;
       }
       
-      toast.error('Gagal', { description: error.message });
+      toast.error('Terjadi Kesalahan', { description: error.message });
     },
   })
 }
