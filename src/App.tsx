@@ -1,34 +1,28 @@
-import { Routes, Route, useLocation } from 'react-router-dom' // Ditambahkan useLocation
-import React, { useEffect } from 'react' // Ditambahkan useEffect
+import { Routes, Route, useLocation } from "react-router-dom";
+import React, { useEffect } from "react";
 
-import Layout from '@/components/layout/Layout'
-import Home from '@/pages/Home'
-import Articles from '@/pages/Articles'
-import ArticlePage from '@/pages/ArticlePage'
-import Category from '@/pages/Category'
-import About from '@/pages/About'
-import Contact from '@/pages/Contact'
-import Author from '@/pages/Author'
-import NotFound from '@/pages/NotFound'
+import Layout from "@/components/layout/Layout";
+import Home from "@/pages/Home";
+import Articles from "@/pages/Articles";
+import ArticlePage from "@/pages/ArticlePage";
+import Category from "@/pages/Category";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
+import Author from "@/pages/Author";
+import NotFound from "@/pages/NotFound";
 
-import Subscription from '@/pages/Subscription'
-import Profile from '@/pages/Profile' 
+import Subscription from "@/pages/Subscription";
+import Profile from "@/pages/Profile";
 
-import SignUpForm from '@/components/SignUpForm'
-import SignInForm from '@/components/common/SignInForms'
-import IframeA11yFixer from '@/components/common/IframeA11yFixer'
+import SignUpForm from "@/components/SignUpForm";
+import SignInForm from "@/components/common/SignInForms";
+import IframeA11yFixer from "@/components/common/IframeA11yFixer";
 import AuthCallback from "@/pages/AuthCallback";
 
-// Import komponen tombol scroll kamu
-import ScrollToTopButton from '@/components/features/ScrollToTopButton'
+import ScrollToTopButton from "@/components/features/ScrollToTopButton";
 
-import type { AuthPageLayoutProps } from '@/types'
+import type { AuthPageLayoutProps } from "@/types";
 
-/* =========================
-    AUTH LAYOUT (LOCAL)
-    Tetap menggunakan gaya gelap (Dark Style) untuk konsistensi branding
-    saat proses Login/Register.
-========================= */
 const AuthLayout: React.FC<AuthPageLayoutProps> = ({ children, title }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
@@ -39,44 +33,27 @@ const AuthLayout: React.FC<AuthPageLayoutProps> = ({ children, title }) => {
         {children}
       </div>
     </div>
-  )
-}
+  );
+};
 
-/* =========================
-    APP ROUTES
-========================= */
 function App() {
-  // Ambil lokasi path saat ini (misal: /about, /contact)
   const { pathname } = useLocation();
 
-  /**
-   * LOGIKA AUTO-SCROLL TO TOP
-   * Setiap kali visitor berpindah halaman (pathname berubah),
-   * fungsi ini akan memaksa browser kembali ke koordinat paling atas (0,0).
-   */
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white selection:bg-green-500 selection:text-black transition-colors duration-300">
-      
-      {/* Fixer diletakkan paling atas agar tidak menumpuk event touch */}
       <IframeA11yFixer />
-
-      {/* TOMBOL SCROLL TO TOP 
-        Diletakkan di luar Routes agar selalu tersedia dan terpantau oleh logika pathname di atas.
-      */}
       <ScrollToTopButton />
 
       <Routes>
-        {/* MAIN SITE (Menggunakan Layout yang berisi Header, Footer, dan Outlet) */}
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="articles" element={<Articles />} />
           <Route path="subscribe" element={<Subscription />} />
           <Route path="profile" element={<Profile />} />
-          
           <Route path="article/:slug" element={<ArticlePage />} />
           <Route path="category/:slug" element={<Category />} />
           <Route path="about" element={<About />} />
@@ -85,7 +62,6 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
         </Route>
 
-        {/* AUTH PAGES (Gaya Full Dark tetap dipertahankan di sini) */}
         <Route
           path="/signup"
           element={
@@ -104,11 +80,10 @@ function App() {
           }
         />
 
-        {/* FALLBACK */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

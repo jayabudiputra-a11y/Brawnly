@@ -1,34 +1,33 @@
-import Button from "@/components/ui/Button"
-import { useState } from "react"
+import Button from "@/components/ui/Button";
+import { useState } from "react";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     message: "",
-  })
+  });
 
-  const emailTarget = "budiputrajaya@outlook.com"
+  const emailTarget = "budiputrajaya@outlook.com";
 
   const buildOutlookUrl = () => {
-    // Memberikan kesan warna-warni di subjek menggunakan emoji karena email client tidak mendukung HTML via URL
-    const subject = encodeURIComponent("🌈 Question: Am I your ideal man? ✨")
-    
+    const subject = encodeURIComponent("🌈 Question: Am I your ideal man? ✨");
+
     const body = encodeURIComponent(
       `Hi Budi,\n\nMy name is ${formData.name} (${formData.email}).\n\n${formData.message}\n\n🌈 Stay Colorful! 🌈`
-    )
+    );
 
-    return `https://outlook.live.com/mail/0/deeplink/compose?to=${emailTarget}&subject=${subject}&body=${body}`
-  }
+    return `https://outlook.live.com/mail/0/deeplink/compose?to=${emailTarget}&subject=${subject}&body=${body}`;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) {
-      alert("Please fill in all fields.")
-      return
+      alert("Please fill in all fields.");
+      return;
     }
-    window.open(buildOutlookUrl(), "_blank")
-  }
+    window.open(buildOutlookUrl(), "_blank");
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -36,18 +35,16 @@ const Contact = () => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
-    }))
-  }
+    }));
+  };
 
   return (
     <div className="max-w-2xl mx-auto py-12 px-4 transition-colors duration-300">
-      {/* Judul Pelangi Per Kata */}
       <h1 className="text-4xl font-black mb-8 flex gap-x-2">
         <span className="text-red-500">Contact</span>
         <span className="text-blue-500">Me</span>
       </h1>
 
-      {/* Info Box yang Adaptif (Dark & Light Mode) */}
       <div className="p-6 mb-8 bg-white dark:bg-gray-800 border-2 border-dashed border-emerald-400 rounded-xl shadow-lg">
         <p className="text-lg font-bold flex flex-wrap gap-x-1">
           <span className="text-orange-500">Or</span>
@@ -70,7 +67,6 @@ const Contact = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Input fields dengan styling yang visible di dark mode */}
         <div className="space-y-4">
           <input
             name="name"
@@ -102,16 +98,15 @@ const Contact = () => {
           />
         </div>
 
-        {/* Tombol Submit Pelangi */}
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           className="w-full md:w-auto bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 hover:opacity-90 text-white font-black py-4 px-8 rounded-xl shadow-xl transform active:scale-95 transition-all"
         >
           🚀 Send Message via Outlook
         </Button>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default Contact
+export default Contact;

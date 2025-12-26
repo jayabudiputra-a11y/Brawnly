@@ -1,14 +1,12 @@
 const About = () => {
   return (
     <div className="container mx-auto py-8 prose dark:prose-invert transition-colors duration-300">
-      {/* Judul dengan Gradasi Pelangi */}
       <h1 className="font-black">
         <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
           About Fitapp
         </span>
       </h1>
 
-      {/* Paragraf dengan Warna Per Kata agar terlihat di semua mode */}
       <p className="text-lg font-bold leading-relaxed flex flex-wrap gap-x-1">
         <span className="text-red-500">This</span>
         <span className="text-orange-500">blog</span>
@@ -16,8 +14,7 @@ const About = () => {
         <span className="text-green-500">part</span>
         <span className="text-teal-500">of</span>
         <span className="text-blue-500">the</span>
-        
-        {/* Penekanan khusus pada LGBTQ+ community */}
+
         <span className="bg-gradient-to-r from-red-500 via-orange-500 via-yellow-500 via-green-500 via-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent px-1">
           LGBTQ+ community,
         </span>
@@ -29,7 +26,6 @@ const About = () => {
         <span className="text-orange-500">and</span>
         <span className="text-green-500">wellness.</span>
 
-        {/* Kalimat terakhir dengan gradasi yang berbeda */}
         <span className="w-full block mt-4 bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 bg-clip-text text-transparent italic">
           Join me for inspiration and motivation!
         </span>
