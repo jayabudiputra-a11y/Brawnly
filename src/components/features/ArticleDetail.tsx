@@ -186,7 +186,6 @@ export default function ArticleDetail() {
             </section>
           )}
 
-          {/* PERBAIKAN: Menghapus mb-4 agar tidak ada jarak bawah */}
           {bottomGalleryString && (
             <section className="-mt-4 mb-0">
               <ArticleImageGallery
@@ -200,8 +199,11 @@ export default function ArticleDetail() {
             </section>
           )}
 
-          {/* PERBAIKAN: mt-0 dan pt-0 agar benar-benar menempel pada section galeri di atasnya */}
-          <section className="mt-0 border-t border-gray-100 dark:border-neutral-900 pt-0">
+          {/* REVISI PADA SECTION DISCUSSION:
+              1. mt-10: Memberikan jarak yang pas dari foto terakhir agar garis border terlihat jelas.
+              2. pt-10: Memberikan ruang di bawah garis border agar teks Discussion (yang ditarik ke atas oleh -mt-4 di komponennya) tidak menempel mati pada border.
+          */}
+          <section className="mt-10 border-t border-gray-100 dark:border-neutral-900 pt-10">
             <CommentSection articleId={article.id} />
           </section>
         </article>

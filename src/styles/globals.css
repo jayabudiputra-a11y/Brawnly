@@ -26,7 +26,6 @@ body {
 }
 
 img {
-  /* Diubah ke block tapi dengan vertical-align untuk membuang gap bawah */
   display: block;
   vertical-align: middle; 
   width: 100%;
@@ -35,30 +34,35 @@ img {
   content-visibility: auto;
 }
 
-/* INTERVENSI KERAPATAN KONTEN */
-/* Memaksa kontainer galeri agar tidak punya margin bawah sama sekali */
-section, .grid {
+/* --- INTERVENSI KERAPATAN KONTEN --- */
+
+/* Menghilangkan margin bawah pada grid galeri artikel agar menempel ke section bawah */
+article .grid {
   margin-bottom: 0 !important;
 }
 
-article .max-w-none div:last-child p {
+/* Menghilangkan spasi pada paragraf terakhir di dalam artikel */
+article .max-w-none div:last-child p,
+article section:last-of-type {
   margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
-/* Menghilangkan elemen p yang kosong */
+/* Menghilangkan elemen p kosong atau hanya berisi <br> */
 p:empty, p:has(br:only-child) {
   display: none;
 }
 
-/* EFEK VISUAL GAMBAR DENGAN AKSELERASI HARDWARE */
-/* Selektor diperketat agar tidak merusak layout avatar di komentar */
+/* --- EFEK VISUAL GAMBAR (HARDWARE ACCELERATED) --- */
+
+/* Selektor spesifik untuk gambar konten agar tidak mengenai UI/Avatar secara tidak sengaja */
 .group img, 
 article .max-w-none img,
 article .my-6 img {
   filter: grayscale(100%);
   -webkit-filter: grayscale(100%);
-  transform: translateZ(0); 
-  transition: filter 0.5s ease-in-out, transform 0.5s ease-in-out;
+  transform: translateZ(0); /* Force GPU Rendering */
+  transition: filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: filter, transform;
 }
 
@@ -67,29 +71,28 @@ article .my-6 img {
   -webkit-filter: grayscale(0%) saturate(1.2);
 }
 
-/* Mematikan efek grayscale khusus untuk avatar komentar agar tidak kontras dengan teks */
-.group\/comment img {
+/* Reset filter untuk avatar di kolom komentar agar tetap berwarna */
+.group\/comment img,
+.comment-avatar {
   filter: none !important;
   -webkit-filter: none !important;
+  will-change: auto;
 }
 
+/* Optimasi Touch Device */
 @media (hover: none) {
   .group:active img {
     filter: grayscale(0%) saturate(1.4) brightness(1.1) !important;
     -webkit-filter: grayscale(0%) saturate(1.4) brightness(1.1) !important;
-    transform: scale(1.03) translateZ(0) !important;
+    transform: scale(1.02) translateZ(0) !important;
   }
 }
+
+/* --- TYPOGRAPHY & UTILITIES --- */
 
 p, h1, h2, h3, span {
   user-select: text;
   -webkit-user-select: text;
-}
-
-/* Membuang spasi liar di akhir artikel sebelum diskusi */
-article > div:last-of-type {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
 }
 
 .line-clamp-2 {
@@ -99,9 +102,20 @@ article > div:last-of-type {
   -webkit-line-clamp: 2;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
+/* --- CUSTOM SCROLLBAR --- */
+::-webkit-scrollbar { 
+  width: 4px; 
+}
+
+::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  @apply bg-neutral-300 dark:bg-neutral-800;
   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-neutral-400 dark:bg-neutral-700;
 }

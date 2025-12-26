@@ -33,18 +33,23 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
   if (imagePaths.length === 0) return null;
 
   return (
-    <div className={`${containerClassName} leading-[0] block`}>
+    /* REVISI: 
+      1. Menambahkan 'overflow-hidden' agar transformasi gambar tidak membuat scrollbar liar.
+      2. Memastikan leading-[0] untuk mematikan celah font descender.
+    */
+    <div className={`${containerClassName} leading-[0] block overflow-hidden`}>
       {title && title.trim() !== "" && (
         <h2 className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white tracking-tight leading-normal">
           {t(title)}
         </h2>
       )}
       
-      {/* PERBAIKAN: 
-         1. Menghapus max-w-[600px] agar grid melebar penuh mengikuti artikel (800px)
-         2. Menambahkan mb-0 dan pb-0 untuk memastikan tidak ada sisa ruang di bawah grid
+      {/* REVISI GRID:
+        1. Menghapus max-w-[600px] agar gallery memenuhi 800px (lebar artikel).
+        2. Menggunakan 'place-items-start' untuk memastikan tidak ada stretch otomatis yang aneh.
+        3. mb-0 dan pb-0 untuk merapatkan ke komponen berikutnya.
       */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3 w-full mb-0 pb-0">
+      <div className="grid grid-cols-2 gap-2 md:gap-3 w-full mb-0 pb-0 place-items-start">
         {imagePaths.map((relativePath: string, i: number) => {
           const highQualityUrl = generateFullImageUrl(relativePath); 
           if (!highQualityUrl) return null;
@@ -54,7 +59,10 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           const displayUrl = getOptimizedImage(highQualityUrl, targetWidth);
 
           return (
-            <div key={i} className="aspect-[3/4] overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 group relative">
+            <div 
+              key={i} 
+              className="w-full aspect-[3/4] overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 group relative"
+            >
               <a 
                 href={highQualityUrl} 
                 download={`fitapp_${slug}_${downloadPrefix}_${startIndex + i}.jpg`} 
@@ -70,8 +78,12 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                   onLoad={(e) => {
                     e.currentTarget.style.opacity = '1';
                   }}
-                  style={{ opacity: 0, transition: 'opacity 0.5s' }}
+                  /* Inline style untuk smooth fade-in saat load */
+                  style={{ opacity: 0, transition: 'opacity 0.5s', display: 'block' }}
                 />
+                
+                {/* Overlay tipis saat hover agar efek interaktif lebih terasa */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
               </a>
             </div>
           );

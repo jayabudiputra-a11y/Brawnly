@@ -44,13 +44,13 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
   };
 
   const rootComments = comments.filter(c => !c.parent_id);
-  const getReplies = (parentId: string) =>
-    comments.filter(c => c.parent_id === parentId);
-
   const indexOfLastComment = currentPage * commentsPerPage;
   const indexOfFirstComment = indexOfLastComment - commentsPerPage;
   const currentRootComments = rootComments.slice(indexOfFirstComment, indexOfLastComment);
   const totalPages = Math.ceil(rootComments.length / commentsPerPage);
+
+  const getReplies = (parentId: string) =>
+    comments.filter(c => c.parent_id === parentId);
 
   if (loading) {
     return (
@@ -61,23 +61,24 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
   }
 
   return (
-    <section className="mt-0 pt-0">
-      {/* PENYEBAB JARAK: Elemen sebelumnya (galeri) kemungkinan memiliki margin bawah.
-          SOLUSI: Gunakan -mt-20 (atau lebih) untuk menarik paksa header ke atas.
+    <section className="relative w-full">
+      {/* PERBAIKAN UTAMA: 
+          Mengganti margin negatif ekstrim dengan nilai yang lebih kecil (-mt-4)
+          agar judul Discussion berada tepat di bawah galeri tanpa menabrak gambar.
       */}
-      <div className="flex justify-between items-end mb-6 -mt-16 md:-mt-24 relative z-10"> 
-        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight dark:text-white leading-none">
+      <div className="flex justify-between items-baseline mb-8 -mt-4 relative z-20"> 
+        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter dark:text-white leading-none">
           Discussion ({comments.length})
         </h2>
         {totalPages > 1 && (
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest leading-none">
-            Page {currentPage} of {totalPages}
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+            Page {currentPage} / {totalPages}
           </span>
         )}
       </div>
 
       {isAuthenticated ? (
-        <form ref={formRef} onSubmit={handleSubmit} className="mb-8 scroll-mt-32">
+        <form ref={formRef} onSubmit={handleSubmit} className="mb-10 scroll-mt-32">
           {replyTo && (
             <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 p-3 mb-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
               <p className="text-sm text-emerald-800 dark:text-emerald-400 font-medium">
@@ -126,17 +127,16 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
         </div>
       )}
 
-      <div className="space-y-8">
+      {/* Daftar Komentar */}
+      <div className="space-y-10">
         {currentRootComments.length > 0 ? (
           currentRootComments.map((c) => (
             <div key={c.id} className="group/comment">
               <article className="flex gap-4">
                 <img
                   src={c.user_avatar_url ? getOptimizedImage(c.user_avatar_url, 100) : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.user_name)}&background=random`}
-                  className="w-10 h-10 rounded-xl object-cover ring-2 ring-neutral-50 dark:ring-neutral-900"
+                  className="w-10 h-10 rounded-xl object-cover ring-2 ring-neutral-50 dark:ring-neutral-900 shrink-0"
                   alt={c.user_name}
-                  width="40"
-                  height="40"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
@@ -164,28 +164,30 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
               </article>
 
               {/* Replies Section */}
-              <div className="ml-10 md:ml-14 mt-4 space-y-5 border-l-2 border-neutral-50 dark:border-neutral-900 pl-5">
-                {getReplies(c.id).map((reply) => (
-                  <div key={reply.id} className="flex gap-3 items-start">
-                    <img 
-                       src={reply.user_avatar_url ? getOptimizedImage(reply.user_avatar_url, 60) : `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user_name)}&background=random`}
-                       className="w-7 h-7 rounded-lg object-cover"
-                       alt=""
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-bold text-[13px] dark:text-white">{reply.user_name}</span>
-                        <span className="text-[8px] font-bold text-neutral-400 uppercase">
-                          <FormattedDate dateString={reply.created_at} formatString="MMM d" />
-                        </span>
+              {getReplies(c.id).length > 0 && (
+                <div className="ml-10 md:ml-14 mt-6 space-y-6 border-l-2 border-neutral-100 dark:border-neutral-900 pl-6">
+                  {getReplies(c.id).map((reply) => (
+                    <div key={reply.id} className="flex gap-3 items-start">
+                      <img 
+                         src={reply.user_avatar_url ? getOptimizedImage(reply.user_avatar_url, 60) : `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user_name)}&background=random`}
+                         className="w-7 h-7 rounded-lg object-cover shrink-0"
+                         alt=""
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-[13px] dark:text-white">{reply.user_name}</span>
+                          <span className="text-[8px] font-bold text-neutral-400 uppercase">
+                            <FormattedDate dateString={reply.created_at} formatString="MMM d" />
+                          </span>
+                        </div>
+                        <p className="text-[13px] text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                          {reply.content}
+                        </p>
                       </div>
-                      <p className="text-[13px] text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                        {reply.content}
-                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))
         ) : (
@@ -197,8 +199,9 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
         )}
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <nav className="mt-12 flex justify-center items-center gap-4" aria-label="Pagination">
+        <nav className="mt-16 flex justify-center items-center gap-4" aria-label="Pagination">
           <button
             disabled={currentPage === 1}
             onClick={() => {
@@ -210,7 +213,7 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
             <ChevronLeft size={18} />
           </button>
           <span className="text-[9px] font-black uppercase tracking-[.2em] text-neutral-500">
-            {currentPage} <span className="mx-1">/</span> {totalPages}
+            {currentPage} / {totalPages}
           </span>
           <button
             disabled={currentPage === totalPages}
