@@ -43,9 +43,10 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     });
   }, [allArticles, selectedTag, searchTerm, lang]);
 
+  /* REVISI LOADING: Mengurangi py-32 ke py-12 agar layout tidak melompat terlalu jauh */
   if (isLoading) {
     return (
-      <div className="text-center py-32 bg-transparent">
+      <div className="text-center py-12 bg-transparent" aria-live="polite">
         <div className="w-12 h-12 mx-auto mb-6 animate-spin rounded-full border-4 border-[#00a354] border-t-transparent shadow-[0_0_20px_rgba(0,163,84,0.2)]" />
         <p className="text-lg font-black uppercase tracking-widest animate-pulse bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 bg-clip-text text-transparent">
           Loading articles...
@@ -56,7 +57,7 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
 
   if (error) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-10">
         <p className="text-red-500 text-[10px] font-black uppercase tracking-[.3em]">
           System error: failed to load articles
         </p>
@@ -64,9 +65,10 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     );
   }
 
+  /* REVISI EMPTY STATE: Mengurangi py-32 ke py-16 */
   if (filteredArticles.length === 0) {
     return (
-      <div className="text-center py-32 bg-transparent">
+      <div className="text-center py-16 bg-transparent">
         <p className="text-neutral-400 dark:text-neutral-600 text-[11px] font-black uppercase tracking-[.4em] mb-4">
           {selectedTag || searchTerm.trim() !== ""
             ? "No matching data found"
@@ -79,9 +81,21 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
 
   return (
     <>
-      <div className="flex flex-col max-w-[900px] mx-auto w-full px-4 md:px-0 transition-all duration-500 divide-y divide-gray-100 dark:divide-neutral-900">
-        {filteredArticles.map((a: any) => (
-          <ArticleCard key={a.id} article={a} />
+      {/* REVISI LIST CONTAINER: 
+          - Menghapus px-4 pada mobile (px-0) agar sejajar dengan container di Articles.tsx
+          - Memastikan margin-top bersih (mt-0) agar menempel pada header
+      */}
+      <div 
+        role="list"
+        className="flex flex-col max-w-[900px] mx-auto w-full px-0 transition-all duration-500 divide-y divide-gray-100 dark:divide-neutral-900 mt-0"
+      >
+        {filteredArticles.map((a: any, index: number) => (
+          <div key={a.id} role="listitem" className="w-full">
+            <ArticleCard 
+              article={a} 
+              priority={index < 2} 
+            />
+          </div>
         ))}
       </div>
       <ScrollToTopButton />
