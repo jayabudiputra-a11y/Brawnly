@@ -160,7 +160,7 @@ export default function ArticleDetail() {
                   />
 
                   {index === 0 && (
-                    <div className="my-6 max-w-[700px] mx-auto text-center">
+                    <div className="my-10 max-w-[700px] mx-auto text-center">
                       <ArticleCoverImage
                         imageUrl={coverImage}
                         title={title}
@@ -174,7 +174,7 @@ export default function ArticleDetail() {
           </div>
 
           {midGalleryString && (
-            <section className="-mt-4 mb-8">
+            <section className="mt-8 mb-12">
               <ArticleImageGallery
                 images={midGalleryString}
                 title=""
@@ -187,7 +187,7 @@ export default function ArticleDetail() {
           )}
 
           {bottomGalleryString && (
-            <section className="-mt-4 mb-0">
+            <section className="mt-8 mb-16">
               <ArticleImageGallery
                 images={bottomGalleryString}
                 title=""
@@ -199,11 +199,11 @@ export default function ArticleDetail() {
             </section>
           )}
 
-          {/* REVISI PADA SECTION DISCUSSION:
-              1. mt-10: Memberikan jarak yang pas dari foto terakhir agar garis border terlihat jelas.
-              2. pt-10: Memberikan ruang di bawah garis border agar teks Discussion (yang ditarik ke atas oleh -mt-4 di komponennya) tidak menempel mati pada border.
+          {/* PERBAIKAN SPACING:
+              1. mt-20: Memberikan jarak yang sangat lega setelah galeri terakhir.
+              2. pt-12: Memberikan padding top di dalam border agar teks Discussion tidak menempel ke garis.
           */}
-          <section className="mt-10 border-t border-gray-100 dark:border-neutral-900 pt-10">
+          <section className="mt-20 border-t border-gray-100 dark:border-neutral-900 pt-12">
             <CommentSection articleId={article.id} />
           </section>
         </article>
