@@ -1,41 +1,55 @@
 import React, { useState } from 'react'
-import { useSubscribe } from '@/hooks/useSubscribe'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 const Subscription = () => {
   const [email, setEmail] = useState('')
-  const { mutate, isPending } = useSubscribe()
+  const navigate = useNavigate()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (email) {
-      mutate(email)
-      setEmail('') 
-    }
+    if (!email) return
+
+    // 1. Simpan email ke LocalStorage agar ditangkap oleh SignUpForm
+    localStorage.setItem("pending_subscribe_email", email)
+
+    // 2. Beri pesan manis kepada user
+    toast.success("Hampir selesai!", {
+      description: "Lengkapi nama Anda untuk mengaktifkan fitur diskusi."
+    })
+
+    // 3. Arahkan ke /signup, bukan cuma submit newsletter
+    // Dengan begini user akan melewati proses pembuatan akun otomatis
+    navigate('/signup')
   }
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-lg shadow-md border border-gray-100">
+    <div className="min-h-[70vh] flex items-center justify-center py-12 px-4 bg-gray-50 dark:bg-black">
+      <div className="max-w-md w-full space-y-8 bg-white dark:bg-neutral-900 p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-neutral-800">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">Subscribe</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Dapatkan artikel dan update terbaru langsung ke email Anda.
+          {/* Badge Design */}
+          <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full">
+            Fitapp 2025
+          </span>
+          <h2 className="mt-4 text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+            Subscribe
+          </h2>
+          <p className="mt-2 text-sm text-gray-500 font-medium">
+            Dapatkan update artikel & mulai berdiskusi dengan member lainnya.
           </p>
         </div>
         
-        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="email" className="sr-only">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-1">
+            <label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">
               Email address
             </label>
             <input
               id="email"
-              name="email"
               type="email"
-              autoComplete="email"
               required
-              className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
-              placeholder="Email address"
+              className="w-full px-5 py-4 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-300"
+              placeholder="nama@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -44,11 +58,16 @@ const Subscription = () => {
           <div>
             <button
               type="submit"
-              disabled={isPending}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex justify-center py-4 px-4 bg-emerald-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all"
             >
-              {isPending ? 'Subscribing...' : 'Subscribe Now'}
+              Get Access Now
             </button>
+          </div>
+          
+          <div className="text-center">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+              ⚡ No Password Required • Fast Setup
+            </p>
           </div>
         </form>
       </div>

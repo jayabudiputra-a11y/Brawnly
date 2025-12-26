@@ -29,13 +29,13 @@ export interface Category {
 }
 
 /* =========================
-   Subscriber (Selaras dengan Column: subscribed_at)
+   Subscriber
 ========================= */
 export interface Subscriber {
   id?: string;
   email: string;
   name?: string | null;
-  subscribed_at?: string; // Sesuai dengan database trigger
+  subscribed_at?: string; 
   is_active?: boolean;
   preferences?: {
     categories: string[];
@@ -44,11 +44,11 @@ export interface Subscriber {
 }
 
 /* =========================
-   Profile (Selaras dengan Column: username)
+   Profile
 ========================= */
 export interface UserProfile {
   id?: string;
-  username: string; // Bukan display_name
+  username: string; 
   avatar_url: string | null;
   updated_at?: string;
 }
@@ -66,19 +66,22 @@ export interface AuthUser {
   };
 }
 
+/**
+ * REVISI: SignUpData disesuaikan dengan skema Tanpa Password.
+ * Password dihapus dari interface ini karena dihandle secara internal di api.ts
+ */
 export interface SignUpData {
   email: string;
-  password: string;
   name: string;
 }
 
 export interface AuthPageLayoutProps {
-  children: ReactNode; // Menggunakan import ReactNode di atas
+  children: ReactNode;
   title: string;
 }
 
 /* =========================
-   Comments (Selaras dengan Relasi user_profiles)
+   Comments
 ========================= */
 export interface Comment {
   id: string;
@@ -86,7 +89,6 @@ export interface Comment {
   user_id: string;
   content: string;
   created_at: string;
-  // Join ke user_profiles, bukan schema auth internal
   user_profiles: {
     username: string;
     avatar_url: string | null;
@@ -104,7 +106,7 @@ export interface CommentWithUser {
   user_id: string;
   content: string;
   created_at: string;
-  user_name: string; // Dipetakan dari user_profiles.username
+  user_name: string; 
   user_avatar_url: string | null;
 }
 

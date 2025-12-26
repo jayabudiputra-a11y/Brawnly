@@ -18,43 +18,46 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
+  const origin = url.origin;
 
   if (!code) {
-    return Response.redirect(`${url.origin}/subscribe?error=missing_code`, 302);
+    return Response.redirect(`${origin}/signup?error=missing_code`, 302);
   }
 
   try {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !data.session) {
-      return Response.redirect(`${url.origin}/subscribe?error=auth_failed`, 302);
+      return Response.redirect(`${origin}/signup?error=auth_failed`, 302);
     }
 
     const { user } = data;
 
-    if (user?.email) {
-      // Kita abaikan hasilnya (silent fail) agar login tetap jalan walau insert gagal
-      await supabase.from("subscribers").insert({
-        email: user.email.toLowerCase(),
-        name: user.user_metadata?.full_name ?? "Subscriber",
-      });
-    }
+    if (user) {
+      const fullName = user.user_metadata?.full_name || 'Member Fitapp';
 
-    if (user?.id) {
-      const generatedUsername = 'user_' + user.id.substring(0, 8);
+      // 1. Sinkronisasi Newsletter (Selaras dengan subscribersApi)
+      if (user.email) {
+        await supabase.from("subscribers").upsert({
+          email: user.email.toLowerCase(),
+          name: fullName,
+        }, { onConflict: 'email' });
+      }
+
+      // 2. Sinkronisasi Profil (Selaras dengan authApi.ts)
+      // REVISI: Menggunakan fullName langsung agar konsisten dengan CommentSection
       await supabase.from("user_profiles").upsert({
         id: user.id,
-        username: generatedUsername,
+        username: fullName, // Tidak lagi menggunakan random suffix agar nama di komen sesuai input
         avatar_url: user.user_metadata?.avatar_url ?? null,
-      });
+      }, { onConflict: 'id' });
     }
 
-    const responseHeaders = new Headers();
-    responseHeaders.set("Location", `${url.origin}/`); 
+    // Berhasil: Arahkan ke homepage
+    return Response.redirect(`${origin}/`, 302);
 
-    return new Response(null, { status: 302, headers: responseHeaders });
   } catch (err: unknown) {
     console.error("Callback fatal error:", err);
-    return Response.redirect(`${url.origin}/subscribe?error=server_error`, 302);
+    return Response.redirect(`${origin}/signup?error=server_error`, 302);
   }
 }

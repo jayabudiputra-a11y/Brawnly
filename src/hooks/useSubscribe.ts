@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
 import { subscribersApi } from '@/lib/api'
-import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 const LIMIT_KEY = 'fitapp_v1_limit';
@@ -8,7 +7,7 @@ const LIMIT_KEY = 'fitapp_v1_limit';
 export const useSubscribe = () => {
   return useMutation({
     mutationFn: async (email: string) => {
-      // 1. Rate Limit Lokal (4x per jam)
+      // 1. Cek Limit Lokal (Proteksi Anti-Spam)
       const now = Date.now();
       const storage = JSON.parse(localStorage.getItem(LIMIT_KEY) || '[]');
       const recentAttempts = storage.filter((ts: number) => now - ts < 3600000);
@@ -17,56 +16,32 @@ export const useSubscribe = () => {
         throw new Error('LIMIT_LOKAL');
       }
 
-      // 2. Clean up Session
-      localStorage.removeItem('fitapp-auth-token');
-      await supabase.auth.signOut().catch(() => {});
-
-      // 3. Simpan ke Database Subscribers
+      // 2. Simpan ke Database (Upsert)
+      // Kita gunakan nama 'Subscriber' sebagai default karena belum ada input nama di sini
       await subscribersApi.insertIfNotExists(email, 'Subscriber');
 
-      // 4. Request OTP
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
-      });
-
-      // 5. Handle Server Rate Limit (429)
-      if (authError) {
-        if (authError.status === 429 || authError.message.toLowerCase().includes('rate limit')) {
-          return { status: 'pending' };
-        }
-        throw authError;
-      }
-
-      // Record success
+      // 3. Update limit record
       recentAttempts.push(now);
       localStorage.setItem(LIMIT_KEY, JSON.stringify(recentAttempts));
+      
       return { status: 'success' };
     },
-    onSuccess: (res) => {
-      if (res?.status === 'pending') {
-        toast.info('Pendaftaran Diterima', {
-          description: 'Data sudah masuk. Jika email konfirmasi belum ada, mohon tunggu 60 detik.'
-        });
-        return;
-      }
-
-      // PESAN AWAL ANDA
-      toast.success('Pendaftaran Berhasil!', {
-        description: 'Silakan cek kotak masuk email Anda untuk konfirmasi.'
+    onSuccess: () => {
+      // Selaras dengan skema "Tanpa Password": Tidak perlu cek email
+      toast.success('Berhasil Berlangganan!', {
+        description: 'Email Anda telah terdaftar dalam daftar newsletter kami.'
       });
     },
     onError: (error: any) => {
       if (error.message === 'LIMIT_LOKAL') {
-        toast.warning('Batas Tercapai', {
-          description: 'Maksimal 4 kali pendaftaran per jam. Silakan coba lagi nanti.'
+        toast.warning('Terlalu Banyak Mencoba', {
+          description: 'Demi keamanan, silakan coba berlangganan lagi dalam 1 jam.'
         });
         return;
       }
+
       toast.error('Gagal', { 
-        description: error.message || 'Terjadi kesalahan sistem.' 
+        description: 'Email ini mungkin sudah terdaftar atau ada gangguan koneksi.' 
       });
     },
   })
