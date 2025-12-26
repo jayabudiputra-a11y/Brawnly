@@ -108,6 +108,7 @@ export interface CommentWithUser {
   created_at: string;
   user_name: string; 
   user_avatar_url: string | null;
+  parent_id?: string | null;
 }
 
 /* =========================
