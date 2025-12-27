@@ -3,104 +3,69 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
 
-
-    <meta
-      name="keywords"
-      content="fitness app, workout tracker, health journal, react app, supabase backend, progressive web app, tailwind ui, personal fitness, exercise planner, wellness platform"
-    />
+    <meta name="keywords" content="fitness, workout, wellness, training, health, tracking, performance, journal, routine, lifestyle" />
     <meta name="robots" content="index, follow" />
 
-    <!--  -->
     <script>
-      ;(function () {
+      (function () {
         try {
-          /* ===  === */
-          var p = [
+          var a = [
             'aHR0cHM6Ly8=',
             'emx3aHZrZXhnamlzeWhha3h5b2U=',
-            'LnN1YmFiYXNlLmNv'
+            'LnN1cGFiYXNlLmNv'
           ]
+          var d = function (x) { return atob(x) }
+          var o = d(a[0]) + d(a[1]) + d(a[2])
 
-          var d = function (x) {
-            return atob(x)
-          }
+          var l = document.createElement('link')
+          l.rel = 'preconnect'
+          l.href = o
+          l.crossOrigin = 'anonymous'
+          document.head.appendChild(l)
 
-          var ORIGIN = d(p[0]) + d(p[1]) + d(p[2])
+          var l2 = document.createElement('link')
+          l2.rel = 'dns-prefetch'
+          l2.href = o
+          document.head.appendChild(l2)
 
-          /* ===  === */
-          ;['preconnect', 'dns-prefetch'].forEach(function (r) {
-            var l = document.createElement('link')
-            l.rel = r
-            l.href = ORIGIN
-            l.crossOrigin = 'anonymous'
-            document.head.appendChild(l)
-          })
-
-          /* == === */
-          var csp =
+          var c =
             "default-src 'self';" +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;" +
-            "img-src 'self' data: blob: " +
-            ORIGIN +
-            " https://*.supabase.co https://ui-avatars.com;" +
-            "media-src 'self' " +
-            ORIGIN +
-            " https://*.supabase.co;" +
-            "connect-src 'self' " +
-            ORIGIN +
-            " https://*.supabase.co wss://*.supabase.co https://api64.ipify.org;" +
+            "img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com;" +
+            "media-src 'self' https://*.supabase.co;" +
+            "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api64.ipify.org;" +
             "font-src 'self' data: https://fonts.gstatic.com;" +
             "object-src 'none';" +
             "base-uri 'self';" +
             "form-action 'self';"
 
-          var meta = document.createElement('meta')
-          meta.httpEquiv = 'Content-Security-Policy'
-          meta.content = csp
-          document.head.appendChild(meta)
-        } catch (e) {
-          console.warn('CSP bootstrap skipped')
-        }
+          var m = document.createElement('meta')
+          m.httpEquiv = 'Content-Security-Policy'
+          m.content = c
+          document.head.appendChild(m)
+        } catch (e) {}
       })()
     </script>
 
-    <!-- -->
-    <meta
-      name="theme-color"
-      content="#ffffff"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      
-      content="#000000"
-      media="(prefers-color-scheme: dark)"
-    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 
-    <!--  -->
     <script>
-      ;(function () {
+      (function () {
         try {
           var t = localStorage.getItem('theme') || 'light'
-          if (
-            t === 'dark' ||
-            (t === 'system' &&
-              window.matchMedia('(prefers-color-scheme: dark)').matches)
-          ) {
+          if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark')
           }
         } catch (e) {}
       })()
     </script>
 
-<script>
-      ;(function () {
+    <script>
+      (function () {
         try {
           if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
             for (var k in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
@@ -110,10 +75,9 @@
                   : null
             }
           }
-           } catch (e) {}
+        } catch (e) {}
       })()
-       
-            </script>
+    </script>
 
     <title>Fitapp 2025</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -121,13 +85,6 @@
 
   <body class="antialiased bg-white dark:bg-black">
     <div id="root"></div>
-
-    <!-- 
-
-    -->
-
-
-
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
