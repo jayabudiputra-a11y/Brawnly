@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useArticles } from "@/hooks/useArticles";
 import ArticleCard from "./ArticleCard";
 import ScrollToTopButton from "./ScrollToTopButton";
 import { type LangCode } from "@/utils/helpers";
+import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 
 interface Props {
   selectedTag: string | null;
@@ -14,6 +15,9 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
   const { i18n } = useTranslation();
   const lang = (i18n.language as LangCode) || "en";
   const { data: allArticles, isLoading, error } = useArticles(null);
+  
+  // State untuk melacak item yang sedang di-hover (Rahasia Lasso)
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const filteredArticles = useMemo(() => {
     if (!allArticles) return [];
@@ -43,7 +47,6 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     });
   }, [allArticles, selectedTag, searchTerm, lang]);
 
-  /* REVISI LOADING: Mengurangi py-32 ke py-12 agar layout tidak melompat terlalu jauh */
   if (isLoading) {
     return (
       <div className="text-center py-12 bg-transparent" aria-live="polite">
@@ -65,7 +68,6 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     );
   }
 
-  /* REVISI EMPTY STATE: Mengurangi py-32 ke py-16 */
   if (filteredArticles.length === 0) {
     return (
       <div className="text-center py-16 bg-transparent">
@@ -81,23 +83,51 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
 
   return (
     <>
-      {/* REVISI LIST CONTAINER: 
-          - Menghapus px-4 pada mobile (px-0) agar sejajar dengan container di Articles.tsx
-          - Memastikan margin-top bersih (mt-0) agar menempel pada header
-      */}
-      <div 
-        role="list"
-        className="flex flex-col max-w-[900px] mx-auto w-full px-0 transition-all duration-500 divide-y divide-gray-100 dark:divide-neutral-900 mt-0"
-      >
-        {filteredArticles.map((a: any, index: number) => (
-          <div key={a.id} role="listitem" className="w-full">
-            <ArticleCard 
-              article={a} 
-              priority={index < 2} 
-            />
-          </div>
-        ))}
-      </div>
+      {/* LayoutGroup adalah "library rahasia" agar animasi antar item tersinkronisasi */}
+      <LayoutGroup id="article-lasso">
+        <div 
+          role="list"
+          onMouseLeave={() => setHoveredIndex(null)}
+          className="flex flex-col max-w-[900px] mx-auto w-full px-0 divide-y divide-gray-100 dark:divide-neutral-900 mt-0 relative"
+        >
+          {filteredArticles.map((a: any, index: number) => (
+            <div 
+              key={a.id} 
+              role="listitem" 
+              className="relative w-full group transition-all duration-300"
+              onMouseEnter={() => setHoveredIndex(index)}
+            >
+              <AnimatePresence>
+                {hoveredIndex === index && (
+                  <motion.div
+                    layoutId="highlight"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 35
+                    }}
+                    className="absolute inset-0 z-0 bg-yellow-400/5 dark:bg-yellow-400/10 border-y-2 border-yellow-400/50 dark:border-yellow-400"
+                    style={{
+                      boxShadow: "0 0 15px rgba(250, 204, 21, 0.2)",
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Tambahkan padding agar lasso terlihat lebih luas dari konten */}
+              <div className="relative z-10 py-1">
+                <ArticleCard 
+                  article={a} 
+                  priority={index < 2} 
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </LayoutGroup>
       <ScrollToTopButton />
     </>
   );
