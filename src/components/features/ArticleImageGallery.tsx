@@ -63,6 +63,8 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
               >
                 <img 
                   src={displayUrl} 
+                  width="400"
+                  height="533"
                   loading="lazy" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                   alt={`${t("Gallery image")} ${startIndex + i}`} 

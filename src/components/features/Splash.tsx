@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import ScrollToTopButton from "./ScrollToTopButton";
-import { getOptimizedImage } from "@/lib/utils"; // Pastikan path benar
+import { getOptimizedImage } from "@/lib/utils";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -26,13 +26,24 @@ export default function Splash() {
     const timer = setInterval(() => {
       setTextIndex((prev) => (prev + 1) % texts.length);
     }, 1400);
-    return () => clearInterval(timer);
+
+    const script = document.createElement("script");
+    script.src = "https://pl28680659.effectivegatecpm.com/c57d71c78e6c823d7af356008a2e25b5/invoke.js";
+    script.async = true;
+    script.setAttribute("data-cfasync", "false");
+    document.body.appendChild(script);
+
+    return () => {
+      clearInterval(timer);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, []);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex flex-col items-center z-50 overflow-y-auto py-12">
-      
-      <div className="flex flex-col md:flex-row items-center gap-6 mb-12 px-4">
+      <div className="flex flex-col md:flex-row items-center gap-6 mb-12 px-4 min-h-[128px]">
         <div className="relative h-20 flex items-center justify-center min-w-[300px]">
           <h1
             key={textIndex}
@@ -42,19 +53,23 @@ export default function Splash() {
           </h1>
         </div>
 
-        <div className="video-card shadow-xl transform rotate-3 border-4 border-white dark:border-neutral-900 rounded-2xl overflow-hidden bg-black">
+        <div className="video-card shadow-xl transform rotate-3 border-4 border-white dark:border-neutral-900 rounded-2xl overflow-hidden bg-black w-48 h-32">
           <video
             src={videoSrc}
             autoPlay
             loop
             muted
             playsInline
-            className="w-48 h-32 object-cover"
+            className="w-full h-full object-cover"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-40">
+      <div className="w-full max-w-[320px] mb-10 flex flex-col items-center justify-center min-h-[250px] bg-neutral-50/50 rounded-xl border border-dashed border-neutral-200 text-black dark:text-white font-sans text-sm">
+        <div id="container-c57d71c78e6c823d7af356008a2e25b5" className="w-full min-h-[250px]"></div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6 mb-40 min-h-[300px]">
         <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top delay-100 bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[0], 250)} 
@@ -62,12 +77,12 @@ export default function Splash() {
             width="128"
             height="128"
             className="w-full h-full object-cover rounded-full" 
-            loading="eager"
+            {...{ fetchpriority: "high" }} 
           />
         </div>
 
-        <div className="w-32 h-32 relative overflow-hidden animate-from-right delay-200">
-          <div className="absolute inset-0 clip-hexagon shadow-lg bg-neutral-100">
+        <div className="w-32 h-32 relative overflow-hidden animate-from-right delay-200 bg-neutral-100">
+          <div className="absolute inset-0 clip-hexagon shadow-lg">
             <img 
               src={getOptimizedImage(photos[1], 250)} 
               alt="Hex" 

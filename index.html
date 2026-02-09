@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
 
     <title>Brawnly - Smart Fitness & Wellness Tracker</title>
     <meta name="description" content="Tingkatkan performa fisik Anda dengan Brawnly. Jurnal latihan, pelacakan kesehatan, dan manajemen gaya hidup sehat dalam satu aplikasi modern." />
@@ -59,12 +60,13 @@
 
           var c =
             "default-src 'self';" +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com;" +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com;" +
-            "img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com https://www.gstatic.com https://translate.google.com;" +
-            "media-src 'self' https://*.supabase.co;" +
-            "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api64.ipify.org https://translate.googleapis.com https://www.brawnly.online;" +
-            "font-src 'self' data: https://fonts.gstatic.com;" +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:;" +
+            "style-src 'self' 'unsafe-inline' https: http:;" +
+            "img-src 'self' data: blob: https: http:;" +
+            "media-src 'self' https: http:;" +
+            "connect-src 'self' https: http: wss: ws: https://*.supabase.co wss://*.supabase.co;" +
+            "font-src 'self' data: https: http:;" +
+            "frame-src 'self' https: http:;" +
             "object-src 'none';" +
             "base-uri 'self';" +
             "form-action 'self';"
@@ -108,9 +110,7 @@
 
     <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
     <link rel="alternate icon" type="image/svg+xml" href="/src/assets/Brawnly-favicon.svg" />
-    
-    </head>
-
+  </head>
   <body class="antialiased bg-white dark:bg-black">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
