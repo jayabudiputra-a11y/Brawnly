@@ -1,12 +1,14 @@
 import React, { useState as _s, useEffect as _e } from "react";
 import { Link as _L } from "react-router-dom";
-import { Bookmark as _Bm, Trash2 as _T2, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl } from "lucide-react";
+import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useArticles as _uA } from "@/hooks/useArticles";
 import { songsApi as _sa, type Song as _S } from "@/lib/api";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
+import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 export default function Library() {
+  const { isDark: _iD } = _uTP(); // Inisialisasi logika tema
   const { data: _aD, isLoading: _aL } = _uA();
   const [_sA, _ssA] = _s<any[]>([]);
   const [_sL, _ssL] = _s<_S[]>([]);
@@ -52,15 +54,19 @@ export default function Library() {
   };
 
   const _x = {
-    r: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-10 pb-24 text-black dark:text-white",
+    r: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-10 pb-24 text-black dark:text-white transition-colors duration-500",
     c: "max-w-[1320px] mx-auto px-5 md:px-10",
     g: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-    cd: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full",
+    cd: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full transition-all duration-300",
     st: "text-2xl font-black uppercase tracking-tighter mb-10 flex items-center gap-3",
     e: "flex flex-col items-center justify-center py-20 text-center"
   };
 
-  if (_aL || _lL) return <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]"><div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (_aL || _lL) return (
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
+      <div className={`w-12 h-12 border-4 ${_iD ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`} />
+    </div>
+  );
 
   return (
     <main className={_x.r}>
@@ -72,13 +78,14 @@ export default function Library() {
             </_L>
             <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">LIBRARY</h1>
           </div>
-          <div className="flex items-center gap-4 bg-black text-white dark:bg-white dark:text-black px-6 py-4 rounded-xl shadow-xl border border-neutral-800">
+          <div className={`flex items-center gap-4 ${ _iD ? 'bg-white text-black' : 'bg-black text-white' } px-6 py-4 rounded-xl shadow-xl border border-neutral-800 transition-colors duration-300`}>
             <_Bm size={20} fill="currentColor" />
             <span className="text-2xl font-black italic">{_sA.length + _sL.length}</span>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-50">ASSETS_BOUND</span>
           </div>
         </div>
 
+        {/* --- MUSIC SECTION --- */}
         <section className="mb-20">
           <h2 className={_x.st}><_Ms className="text-emerald-500" /> BRAWNLY_BEATS</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -101,6 +108,7 @@ export default function Library() {
           </div>
         </section>
 
+        {/* --- ARTICLES SECTION --- */}
         <section>
           <h2 className={_x.st}><_Bo className="text-emerald-500" /> SAVED_INTELLIGENCE</h2>
           {_sA.length === 0 ? (
@@ -120,9 +128,26 @@ export default function Library() {
                     <div className="p-6 flex flex-col flex-1">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3 block">{a.category || "INTEL"}</span>
                       <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2">{a.title}</h3>
-                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800 relative">
                         <_L to={`/article/${a.slug}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} /> OPEN_ENTRY</_L>
-                        <button onClick={() => _rI(a.slug)} className="text-neutral-400 hover:text-red-600 transition-colors"><_T2 size={16} /></button>
+                        
+                        {/* REVISI LOGIKA HOVER & THEME: Ikon Bookmark baru muncul (opacity-100) saat kartu di-hover */}
+                        <button 
+                          onClick={() => _rI(a.slug)} 
+                          className={`
+                            absolute right-0 top-1/2 -translate-y-1/2 md:relative md:top-0 md:translate-y-0
+                            flex items-center justify-center p-2.5 rounded-lg border transition-all duration-300
+                            opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100
+                            ${_iD 
+                              ? 'bg-white text-black border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)]' 
+                              : 'bg-black text-white border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)]'
+                            }
+                            hover:bg-red-600 hover:text-white hover:border-red-600 active:scale-90
+                          `}
+                          title="Remove from saved"
+                        >
+                          <_Bm size={16} fill="currentColor" />
+                        </button>
                       </div>
                     </div>
                   </_m.div>

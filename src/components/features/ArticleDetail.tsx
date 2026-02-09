@@ -14,8 +14,10 @@ import ArticleImageGallery from "@/components/features/ArticleImageGallery";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useArticles as _uAs } from "@/hooks/useArticles";
+import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 export default function ArticleDetail() {
+  const { isDark: _iD } = _uTP(); // Inisialisasi logika tema
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
 
@@ -124,7 +126,7 @@ export default function ArticleDetail() {
       </_Hm>
       <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
 
-      <div className={`fixed bottom-8 right-5 md:right-10 z-[999] bg-white dark:bg-[#111] text-black dark:text-white border-[3px] border-black dark:border-white px-6 py-5 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-500 transform flex items-center gap-4 ${_nt.show ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}>
+      <div className={`fixed bottom-8 right-5 md:right-10 z-[999] bg-white dark:bg-[#111] text-black dark:text-white border-[3px] border-black dark:border-white px-6 py-5 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] transition-all duration-500 transform flex items-center gap-4 ${_nt.show ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}>
         <div className={`p-2 rounded-full ${_nt.type === 'success' ? 'bg-green-500' : 'bg-black dark:bg-white'} text-white dark:text-black`}>
           {_nt.type === 'success' ? <_Ck size={16} strokeWidth={4} /> : <_Ey size={16} strokeWidth={3} />}
         </div>
@@ -163,10 +165,20 @@ export default function ArticleDetail() {
             </div>
 
             <div className={_x.rl}>
-              <button onClick={_hCL} className="group w-12 h-12 flex items-center justify-center bg-white dark:bg-[#0a0a0a] border border-black dark:border-white hover:bg-black hover:text-white transition-all shadow-md active:scale-95">
+              <button 
+                onClick={_hCL} 
+                className={`group w-12 h-12 flex items-center justify-center border border-black dark:border-white transition-all shadow-md active:scale-95 ${_iD ? 'bg-[#0a0a0a] text-white' : 'bg-white text-black'} hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black`}
+              >
                 <_An size={20} className="group-hover:rotate-45 transition-transform" />
               </button>
-              <button onClick={_hSv} className={`group w-12 h-12 flex items-center justify-center border border-black dark:border-white transition-all shadow-md active:scale-95 ${_iS ? "bg-red-600 text-white" : "bg-white hover:bg-black hover:text-white"}`}>
+
+              <button 
+                onClick={_hSv} 
+                className={`group w-12 h-12 flex items-center justify-center border border-black dark:border-white transition-all shadow-md active:scale-95 
+                  ${_iS ? "bg-red-600 text-white border-red-600" : (_iD ? "bg-[#0a0a0a] text-white" : "bg-white text-black")} 
+                  hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black`
+                }
+              >
                 <_Bm size={20} fill={_iS ? "currentColor" : "none"} />
               </button>
             </div>
