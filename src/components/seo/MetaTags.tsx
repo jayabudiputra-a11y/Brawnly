@@ -8,7 +8,7 @@ interface MetaTagsProps {
 const MetaTags = ({ title, description, url, image }: MetaTagsProps) => {
   return (
     <>
-      <title>{title} | Fitapp</title>
+      <title>{title} | Brawnly</title>
       {description && <meta name="description" content={description} />}
       <meta property="og:title" content={title} />
       {description && <meta property="og:description" content={description} />}

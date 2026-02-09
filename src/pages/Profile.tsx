@@ -108,7 +108,6 @@ const Profile = () => {
         <div className="flex justify-center">
           <AvatarUploader
             userId={user.id}
-            // OPTIMASI: Gunakan versi kecil untuk tampilan profil (misal 200px)
             currentAvatarUrl={profile?.avatar_url ? getOptimizedImage(profile.avatar_url, 200) : null}
             currentUsername={profile?.username}
             onUploaded={handleAvatarUpdate}
@@ -117,7 +116,7 @@ const Profile = () => {
         </div>
 
         <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
-          Changes are synced with fitapp cloud
+          Changes are synced with brawnly cloud
         </div>
       </div>
     </div>

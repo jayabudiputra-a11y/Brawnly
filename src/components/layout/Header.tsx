@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import logo from '@/assets/masculine-logo.svg'
+import logo from '@/assets/masculineLogo.svg'
 import MobileMenu from './MobileMenu'
 import Navigation from './Navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -21,7 +21,6 @@ export default function Header() {
         border-b border-gray-100 dark:border-neutral-900
       "
     >
-      {/* Rainbow top bar */}
       <div className="absolute inset-x-0 top-0 h-1 flex" aria-hidden="true">
         <div className="flex-1 bg-red-500" />
         <div className="flex-1 bg-orange-500" />
@@ -34,19 +33,17 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
         <div className="flex items-center justify-between">
 
-          {/* LOGO SECTION */}
           <Link to="/" className="flex items-center space-x-3 group outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-lg">
             <img 
               src={logo} 
-              alt="Fitapp Logo" 
-              // Menambahkan width & height untuk mencegah CLS (Cumulative Layout Shift)
+              alt="Brawnly Logo" 
               width="32" 
               height="32"
               className="h-8 w-8 dark:brightness-125 transition-transform group-hover:scale-110" 
             />
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-black dark:text-white uppercase leading-none">
-                Fitapp
+                Brawnly
               </h1>
               <p className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 tracking-widest uppercase mt-0.5">
                 LGBTQ+ • Muscle Worship • Kings Only
@@ -54,19 +51,15 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* RIGHT AREA */}
           <div className="flex items-center gap-4 md:gap-8">
-            {/* DESKTOP NAV */}
             <nav className="hidden md:block" aria-label="Main navigation">
               <Navigation />
             </nav>
 
-            {/* THEME TOGGLE */}
             <div className="border-l border-gray-200 dark:border-neutral-800 pl-4 flex items-center h-8">
                <ThemeToggle />
             </div>
 
-            {/* MOBILE BUTTON */}
             <button
               onClick={toggleMenu}
               className="md:hidden text-black dark:text-white p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-full transition-colors"
@@ -80,7 +73,6 @@ export default function Header() {
           </div>
         </div>
 
-        {/* MOBILE MENU */}
         {isOpen && <MobileMenu onClose={closeMenu} />}
       </div>
     </header>

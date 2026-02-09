@@ -18,6 +18,10 @@ const Subscription = lazy(() => import("@/pages/Subscription"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 
+const Terms = lazy(() => import("@/pages/Terms"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Ethics = lazy(() => import("@/pages/Ethics"));
+
 const SignUpForm = lazy(() => import("@/components/SignUpForm"));
 const SignInForm = lazy(() => import("@/components/common/SignInForms"));
 
@@ -46,7 +50,6 @@ function App() {
       <IframeA11yFixer />
       <ScrollToTopButton />
 
-      {/*  */}
       <Suspense fallback={<div className="min-h-screen bg-white dark:bg-black" />}>
         <Routes>
           <Route element={<Layout />}>
@@ -60,12 +63,16 @@ function App() {
             <Route path="contact" element={<Contact />} />
             <Route path="author" element={<Author />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+
+            <Route path="terms" element={<Terms />} />
+            <Route path="privacy" element={<Privacy />} />
+            <Route path="ethics" element={<Ethics />} />
           </Route>
 
           <Route
             path="/signup"
             element={
-              <AuthLayout title="Join Fitapp">
+              <AuthLayout title="Join Brawnly">
                 <SignUpForm />
               </AuthLayout>
             }

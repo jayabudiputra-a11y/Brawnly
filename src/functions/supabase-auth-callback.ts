@@ -10,7 +10,7 @@ const _0xcb = [
   "user_profiles",             
   "email",                     
   "id",                        
-  "Member Fitapp"              
+  "Member Brawnly"              
 ] as const;
 
 const _c = (i: number) => _0xcb[i] as string;

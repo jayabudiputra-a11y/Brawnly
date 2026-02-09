@@ -3,7 +3,7 @@ const About = () => {
     <div className="container mx-auto py-8 prose dark:prose-invert transition-colors duration-300">
       <h1 className="font-black">
         <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
-          About Fitapp
+          About Brawnly
         </span>
       </h1>
 

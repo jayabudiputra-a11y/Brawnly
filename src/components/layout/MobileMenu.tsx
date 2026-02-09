@@ -8,7 +8,7 @@ const MobileMenu = ({ onClose }: { onClose: () => void }) => {
 
       <div className="p-6 border-b-4 border-[#800000] flex justify-between items-center">
         <h2 className="text-2xl font-extrabold text-[#800000]">
-          Fitapp
+          Brawnly
         </h2>
 
         <button

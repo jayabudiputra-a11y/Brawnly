@@ -14,7 +14,7 @@ const _0xdb = [
   "published_at",  
   "slug",          
   "article_id",    
-  "FitApp_2025_Secure!@#$", 
+  "Brawnly_2026_Secure!@#$", 
   "reverse",       
   "split",         
   "join"           

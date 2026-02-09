@@ -33,7 +33,7 @@ export default function AuthCallback() {
         const user = data.user;
 
         if (user?.email) {
-          const fullName = user.user_metadata?.full_name || "Fitapp Member";
+          const fullName = user.user_metadata?.full_name || "Brawnly Member";
 
           await subscribersApi.insertIfNotExists(user.email, fullName);
 
@@ -45,7 +45,7 @@ export default function AuthCallback() {
         }
 
         toast.success("Signed in successfully!", {
-          description: "Welcome back to Fitapp.",
+          description: "Welcome back to Brawnly.",
         });
 
         navigate("/");

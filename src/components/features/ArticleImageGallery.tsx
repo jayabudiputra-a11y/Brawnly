@@ -33,8 +33,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
   if (imagePaths.length === 0) return null;
 
   return (
-    /* 
-    */
     <div className={`${containerClassName} leading-[0] block overflow-hidden`}>
       {title && title.trim() !== "" && (
         <h2 className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white tracking-tight leading-normal">
@@ -42,9 +40,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
         </h2>
       )}
       
-      {/* 
-        
-      */}
       <div className="grid grid-cols-2 gap-2 md:gap-3 w-full mb-0 pb-0 place-items-start">
         {imagePaths.map((relativePath: string, i: number) => {
           const highQualityUrl = generateFullImageUrl(relativePath); 
@@ -61,7 +56,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
             >
               <a 
                 href={highQualityUrl} 
-                download={`fitapp_${slug}_${downloadPrefix}_${startIndex + i}.jpg`} 
+                download={`brawnly_${slug}_${downloadPrefix}_${startIndex + i}.jpg`} 
                 className="block w-full h-full" 
                 target="_blank" 
                 rel="noopener noreferrer"
@@ -74,11 +69,9 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                   onLoad={(e) => {
                     e.currentTarget.style.opacity = '1';
                   }}
-                  /*  */
                   style={{ opacity: 0, transition: 'opacity 0.5s', display: 'block' }}
                 />
                 
-                {/*  */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
               </a>
             </div>

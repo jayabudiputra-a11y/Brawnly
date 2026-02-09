@@ -82,7 +82,6 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
 
   return (
     <>
-      {/*  */}
       <LayoutGroup id="article-lasso">
         <div 
           role="list"
@@ -116,7 +115,6 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
                 )}
               </AnimatePresence>
 
-              {/*  */}
               <div className="relative z-10 py-1">
                 <ArticleCard 
                   article={a} 

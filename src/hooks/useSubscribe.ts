@@ -2,11 +2,8 @@ import { useMutation } from "@tanstack/react-query";
 import { subscribersApi } from "@/lib/api";
 import { toast } from "sonner";
 
-/* ======================
-         ENGINE
-   ====================== */
 const _0xlimit = [
-    'fitapp_v1_limit', 
+    'brawnly_v1_limit', 
     'LIMIT_LOCAL',      
     'Subscriber',       
     'status'            
@@ -26,7 +23,7 @@ export const useSubscribe = () => {
       );
 
       if (recentAttempts.length >= 4) {
-        throw new Error(_l(1)); // LIMIT_LOCAL
+        throw new Error(_l(1));
       }
 
       await subscribersApi.insertIfNotExists(email, _l(2));

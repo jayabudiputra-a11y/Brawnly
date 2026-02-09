@@ -5,8 +5,35 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
 
-    <meta name="keywords" content="fitness, workout, wellness, training, health, tracking, performance, journal, routine, lifestyle" />
+    <title>Brawnly - Smart Fitness & Wellness Tracker</title>
+    <meta name="description" content="Tingkatkan performa fisik Anda dengan Brawnly. Jurnal latihan, pelacakan kesehatan, dan manajemen gaya hidup sehat dalam satu aplikasi modern." />
+    <meta name="keywords" content="fitness, workout, wellness, training, health, tracking, performance, journal, routine, lifestyle, brawnly" />
+    <meta name="author" content="Brawnly Team" />
     <meta name="robots" content="index, follow" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.brawnly.online/" />
+    <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
+    <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
+    <meta property="og:image" content="/src/assets/myPride.gif" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Brawnly",
+        "url": "https://www.brawnly.online",
+        "image": "/src/assets/masculineLogo.svg",
+        "description": "Smart Fitness & Wellness Tracker Application",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "All",
+        "author": {
+          "@type": "Person",
+          "name": "Budi Putra Jaya",
+          "image": "/src/assets/myAvatar.jpg"
+        }
+      }
+    </script>
 
     <script>
       (function () {
@@ -32,11 +59,11 @@
 
           var c =
             "default-src 'self';" +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;" +
-            "img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com;" +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://translate.google.com https://translate.googleapis.com;" +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com;" +
+            "img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com https://www.gstatic.com https://translate.google.com;" +
             "media-src 'self' https://*.supabase.co;" +
-            "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api64.ipify.org;" +
+            "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api64.ipify.org https://translate.googleapis.com;" +
             "font-src 'self' data: https://fonts.gstatic.com;" +
             "object-src 'none';" +
             "base-uri 'self';" +
@@ -79,12 +106,14 @@
       })()
     </script>
 
-    <title>Fitapp 2025</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  </head>
+    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
+    <link rel="alternate icon" type="image/svg+xml" href="/src/assets/Brawnly-favicon.svg" />
+    
+    </head>
 
   <body class="antialiased bg-white dark:bg-black">
     <div id="root"></div>
+    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

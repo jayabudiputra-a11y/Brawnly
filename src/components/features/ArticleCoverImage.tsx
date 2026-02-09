@@ -1,7 +1,7 @@
-import React, { useState } from 'react'; // Tambahkan useState
+import React, { useState } from 'react';
 import Card from '@/components/ui/Card';
 import { getOptimizedImage } from '@/lib/utils';
-import { useSaveData } from '@/hooks/useSaveData'; 
+import { useSaveData } from '@/hooks/useSaveData';
 
 interface ArticleCoverImageProps {
   imageUrl?: string | null;
@@ -11,7 +11,7 @@ interface ArticleCoverImageProps {
 
 const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ imageUrl, title, slug }) => {
   const { isEnabled, saveData } = useSaveData();
-  const [isLoaded, setIsLoaded] = useState(false); // State untuk memantau loading
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const safeHighQualityUrl = React.useMemo(() => {
     if (!imageUrl || typeof imageUrl !== 'string') return null;
@@ -25,7 +25,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ imageUrl, title, 
   const displayUrl = getOptimizedImage(safeHighQualityUrl, targetWidth);
 
   return (
-    <div className="px-0 sm:px-6 pt-6">
+    <div className="w-full mb-6">
       <Card variant="shadow" className="p-0 overflow-hidden border-none shadow-xl dark:shadow-neutral-900/50">
         <a 
           href={safeHighQualityUrl} 
@@ -33,7 +33,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ imageUrl, title, 
           target="_blank" 
           rel="noopener noreferrer"
         >
-          {/*  */}
           <div className={`aspect-[16/9] bg-neutral-100 dark:bg-neutral-900 overflow-hidden ${!isLoaded ? 'animate-pulse' : ''}`}>
             <img 
               src={displayUrl} 
@@ -54,7 +53,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ imageUrl, title, 
         </a>
       </Card>
       <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-neutral-400 dark:text-neutral-600 font-bold text-center">
-        FitApp Visual Content — {slug.replace(/-/g, ' ')}
+        Brawnly Visual Content — {slug.replace(/-/g, ' ')}
       </p>
     </div>
   );

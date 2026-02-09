@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { Camera, Save, User } from "lucide-react";
-import { getOptimizedImage } from "@/lib/utils"; // Pastikan diimport
+import { getOptimizedImage } from "@/lib/utils";
 
 type Props = {
   userId: string;
@@ -80,7 +80,6 @@ const AvatarUploader = ({
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      // Gunakan timestamp untuk cache-busting agar UI terupdate seketika
       const optimizedUrlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
 
       await supabase
@@ -103,23 +102,31 @@ const AvatarUploader = ({
   return (
     <div className="space-y-6 w-full max-w-md mx-auto">
       <div className="flex flex-col items-center gap-3">
-        <div className="relative">
-          <motion.img
-            whileHover={{ scale: 1.05 }}
-            src={
-              currentAvatarUrl 
-                ? getOptimizedImage(currentAvatarUrl, 200) // Minta lebar 200px (aman untuk Retina display)
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    currentUsername || "U"
-                  )}&background=random&color=fff`
-            }
-            alt="User Avatar"
-            className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-neutral-800 shadow-lg"
-            width="112"
-            height="112"
-          />
+        <div className="relative group">
+          <motion.div
+             whileHover={{ scale: 1.05 }}
+             className="relative overflow-hidden rounded-full w-28 h-28 border-4 border-white dark:border-neutral-800 shadow-lg"
+          >
+             <img
+              src={
+                currentAvatarUrl 
+                  ? getOptimizedImage(currentAvatarUrl, 200)
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      currentUsername || "U"
+                    )}&background=random&color=fff`
+              }
+              alt="User Avatar"
+              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 ease-in-out"
+              width="112"
+              height="112"
+            />
+            
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <Camera className="text-white w-8 h-8" />
+            </div>
+          </motion.div>
 
-          <label className="absolute bottom-0 right-0 p-2 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black rounded-full cursor-pointer shadow-lg border border-white/20 dark:border-black/10 active:scale-90 transition">
+          <label className="absolute bottom-0 right-0 p-2 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black rounded-full cursor-pointer shadow-lg border border-white/20 dark:border-black/10 active:scale-90 transition z-10">
             <Camera size={18} />
             <input
               type="file"
@@ -133,7 +140,7 @@ const AvatarUploader = ({
         </div>
 
         <p className="text-[9px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400">
-          {uploading ? "UPLOADING..." : "TAP THIS TO ADD.."}
+          {uploading ? "UPLOADING..." : "TAP TO CHANGE AVATAR"}
         </p>
       </div>
 

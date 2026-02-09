@@ -64,7 +64,6 @@ const AdvancedTranslate: React.FC = () => {
         z-[9999]
       "
     >
-      {/* TOGGLE */}
       <button
         onClick={() => setVisible(v => !v)}
         disabled={changing}
@@ -90,7 +89,6 @@ const AdvancedTranslate: React.FC = () => {
         )}
       </button>
 
-      {/* PANEL */}
       {visible && (
         <div
           className="
@@ -104,7 +102,6 @@ const AdvancedTranslate: React.FC = () => {
             shadow-2xl
           "
         >
-          {/* HEADER */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
             <h4 className="text-sm font-semibold text-gray-800">
               Select Language
@@ -118,7 +115,6 @@ const AdvancedTranslate: React.FC = () => {
             </button>
           </div>
 
-          {/* LIST */}
           <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1">
             {LANGUAGES.map(lang => (
               <button
@@ -146,9 +142,8 @@ const AdvancedTranslate: React.FC = () => {
             ))}
           </div>
 
-          {/* FOOTER */}
           <div className="px-3 py-2 border-t border-gray-200 text-center text-xs text-gray-500">
-            FitApp Translate
+            Brawnly Translate
           </div>
         </div>
       )}

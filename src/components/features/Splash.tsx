@@ -47,15 +47,14 @@ export default function Splash() {
             src={videoSrc}
             autoPlay
             loop
-            muted // Ditambahkan agar autoplay berfungsi di semua browser
-            playsInline // Penting untuk iOS
+            muted
+            playsInline
             className="w-48 h-32 object-cover"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-40">
-        {/* FOTO 1 - Menggunakan optimized image (width 250px sudah cukup untuk thumbnail 128px) */}
         <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top delay-100 bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[0], 250)} 
@@ -63,11 +62,10 @@ export default function Splash() {
             width="128"
             height="128"
             className="w-full h-full object-cover rounded-full" 
-            loading="eager" // Foto pertama splash biasanya LCP, jadi dimuat cepat
+            loading="eager"
           />
         </div>
 
-        {/* FOTO 2 */}
         <div className="w-32 h-32 relative overflow-hidden animate-from-right delay-200">
           <div className="absolute inset-0 clip-hexagon shadow-lg bg-neutral-100">
             <img 
@@ -81,7 +79,6 @@ export default function Splash() {
           </div>
         </div>
 
-        {/* FOTO 3 */}
         <div className="w-32 h-32 rounded-[30%] overflow-hidden shadow-lg animate-from-bottom delay-300 bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[2], 250)} 
@@ -93,7 +90,6 @@ export default function Splash() {
           />
         </div>
 
-        {/* FOTO 4 */}
         <div className="w-32 h-32 overflow-hidden transform rotate-3 shadow-xl rounded-lg animate-from-left delay-400 bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[3], 250)} 

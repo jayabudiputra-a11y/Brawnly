@@ -11,7 +11,7 @@ const _0xpref = [
     'user_id',          
     'theme',            
     'updated_at',       
-    'fitapp_guest_id'   
+    'Brawnly_guest_id'   
 ] as const;
 
 const _p = (i: number) => _0xpref[i] as any;

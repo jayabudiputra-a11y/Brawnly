@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async"
-import masculineLogo from "@/assets/masculine-logo.svg"
+import masculineLogo from "@/assets/masculineLogo.svg"
 
 interface ArticleStructuredData {
   title: string
@@ -42,7 +42,7 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     },
     publisher: {
       "@type": "Organization",
-      name: "Fitapp 2025",
+      name: "Brawnly",
       logo: {
         "@type": "ImageObject",
         url: masculineLogo,

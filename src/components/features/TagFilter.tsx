@@ -10,7 +10,6 @@ interface TagFilterProps {
 const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
   return (
     <div className="flex items-center space-x-2 overflow-x-auto pb-6 pt-2 no-scrollbar">
-      {/* Tombol ALL */}
       <button
         onClick={() => onSelect(null)}
         className="relative px-6 py-2 outline-none group"
@@ -21,7 +20,6 @@ const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
           All
         </span>
         
-        {/* LASSO AKTIF (Indicator) */}
         {selected === null && (
           <motion.div
             layoutId="active-tag-lasso"
@@ -32,7 +30,6 @@ const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
         )}
       </button>
 
-      {/* Daftar TAGS */}
       {tags.map((tag) => {
         const isSelected = selected === tag;
         return (
@@ -47,7 +44,6 @@ const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
               {tag}
             </span>
 
-            {/* LASSO AKTIF (Indicator) - Meluncur antar tombol */}
             {isSelected && (
               <motion.div
                 layoutId="active-tag-lasso"
