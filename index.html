@@ -18,6 +18,8 @@
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
     <meta property="og:image" content="/assets/5B8bpVzO.gif" />
 
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; media-src 'self' https: http:; connect-src 'self' https: http: wss: ws: https://*.supabase.co wss://*.supabase.co; font-src 'self' data: https: http:; frame-src 'self' https: http:; object-src 'none'; base-uri 'self'; form-action 'self';">
+
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -57,25 +59,6 @@
           l2.rel = 'dns-prefetch'
           l2.href = o
           document.head.appendChild(l2)
-
-          var c =
-            "default-src 'self' https: http:;" +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:;" +
-            "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: http:;" +
-            "style-src 'self' 'unsafe-inline' https: http:;" +
-            "img-src 'self' data: blob: https: http:;" +
-            "media-src 'self' https: http:;" +
-            "connect-src 'self' https: http: wss: ws: https://*.supabase.co wss://*.supabase.co;" +
-            "font-src 'self' data: https: http:;" +
-            "frame-src 'self' https: http:;" +
-            "object-src 'none';" +
-            "base-uri 'self';" +
-            "form-action 'self';"
-
-          var m = document.createElement('meta')
-          m.httpEquiv = 'Content-Security-Policy'
-          m.content = c
-          document.head.appendChild(m)
         } catch (e) {}
       })()
     </script>
