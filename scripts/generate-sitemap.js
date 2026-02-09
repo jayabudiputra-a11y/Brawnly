@@ -6,8 +6,8 @@ import * as _dt from 'dotenv';
 
 _dt.config();
 
-const _sU = process.env.VITE_SUPABASE_URL || 'https://zlwhvkexgjisyhakxyoe.supabase.co';
-const _sK = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsd2h2a2V4Z2ppc3loYWt4eW9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxMjkzMDksImV4cCI6MjA3OTcwNTMwOX0.mhlXTh7MVxBB4Z0_TANi87t5TunMtMSOiP9U8laEn2M';
+const _sU = 'https://zlwhvkexgjisyhakxyoe.supabase.co';
+const _sK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsd2h2a2V4Z2ppc3loYWt4eW9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxMjkzMDksImV4cCI6MjA3OTcwNTMwOX0.mhlXTh7MVxBB4Z0_TANi87t5TunMtMSOiP9U8laEn2M';
 const _sB = _cC(_sU, _sK);
 
 async function _genBrawnlySEO() {
@@ -27,10 +27,12 @@ async function _genBrawnlySEO() {
   try {
     const { data: _arts, error: _errA } = await _sB
       .from('articles')
-      .select('slug, updated_at, title')
-      .eq('status', 'published');
+      .select('slug, updated_at, title');
 
-    if (_arts) {
+    if (_errA) throw _errA;
+
+    if (_arts && _arts.length > 0) {
+      console.log(`📦 [BRAWNLY_DATABASE] Found ${_arts.length} articles.`);
       _arts.forEach(_a => {
         _lks.push({
           url: `/article/${_a.slug}`,
@@ -39,6 +41,8 @@ async function _genBrawnlySEO() {
           lastmod: _a.updated_at
         });
       });
+    } else {
+      console.log('⚠️ [BRAWNLY_DATABASE] No articles found in table.');
     }
 
     const _stm = new _SS({ hostname: _base });
@@ -55,7 +59,7 @@ async function _genBrawnlySEO() {
     _rss += `</channel>\n</rss>`;
     _fs.writeFileSync('./public/rss.xml', _rss);
 
-    console.log(`✅ [BRAWNLY_SEO] Success! Generated ${_lks.length} URLs to Sitemap & RSS.`);
+    console.log(`✅ [BRAWNLY_SEO] Success! Total URLs: ${_lks.length}`);
   } catch (_err) {
     console.error('❌ [BRAWNLY_ERROR] Generator failed:', _err);
   }
