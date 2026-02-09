@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import Sitemap from "vite-plugin-sitemap";
 
 export default defineConfig({
   plugins: [
@@ -9,18 +8,6 @@ export default defineConfig({
       babel: {
         compact: true,
       },
-    }),
-
-    Sitemap({
-      hostname: "https://fit-app-eight.vercel.app",
-      readable: false,
-      changefreq: "daily",
-      priority: 1.0,
-      dynamicRoutes: [
-        "/",
-        "/signin",
-        "/articles",
-      ],
     }),
   ],
 
