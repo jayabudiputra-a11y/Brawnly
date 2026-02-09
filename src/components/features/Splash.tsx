@@ -65,12 +65,17 @@ export default function Splash() {
         </div>
       </div>
 
-      <div className="w-full max-w-[320px] mb-10 flex flex-col items-center justify-center min-h-[250px] bg-neutral-50/50 rounded-xl border border-dashed border-neutral-200 text-black dark:text-white font-sans text-sm">
-        <div id="container-c57d71c78e6c823d7af356008a2e25b5" className="w-full min-h-[250px]"></div>
+      <div className="w-full max-w-[320px] mb-10 flex flex-col items-center justify-center">
+        <div 
+          className="w-[300px] h-[300px] bg-neutral-50/50 rounded-xl border border-dashed border-neutral-200 flex items-center justify-center overflow-hidden"
+          style={{ fontSize: "17px", color: "#0c0202" }}
+        >
+          <div id="container-c57d71c78e6c823d7af356008a2e25b5" className="w-full h-full"></div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-40 min-h-[300px]">
-        <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top delay-100 bg-neutral-100">
+        <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[0], 250)} 
             alt="Avatar" 
@@ -81,7 +86,7 @@ export default function Splash() {
           />
         </div>
 
-        <div className="w-32 h-32 relative overflow-hidden animate-from-right delay-200 bg-neutral-100">
+        <div className="w-32 h-32 relative overflow-hidden animate-from-right bg-neutral-100">
           <div className="absolute inset-0 clip-hexagon shadow-lg">
             <img 
               src={getOptimizedImage(photos[1], 250)} 
@@ -94,7 +99,7 @@ export default function Splash() {
           </div>
         </div>
 
-        <div className="w-32 h-32 rounded-[30%] overflow-hidden shadow-lg animate-from-bottom delay-300 bg-neutral-100">
+        <div className="w-32 h-32 rounded-[30%] overflow-hidden shadow-lg animate-from-bottom bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[2], 250)} 
             alt="Squircle" 
@@ -105,7 +110,7 @@ export default function Splash() {
           />
         </div>
 
-        <div className="w-32 h-32 overflow-hidden transform rotate-3 shadow-xl rounded-lg animate-from-left delay-400 bg-neutral-100">
+        <div className="w-32 h-32 overflow-hidden transform rotate-3 shadow-xl rounded-lg animate-from-left bg-neutral-100">
           <img 
             src={getOptimizedImage(photos[3], 250)} 
             alt="Tilted" 

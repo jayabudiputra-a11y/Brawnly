@@ -4,18 +4,16 @@ import SignInForm from '@/components/common/SignInForms';
 
 /* ======================
     DECRYPTION FRAGMENT
-    Sinkron dengan fragmen rahasia di SignUp & Subscription
 ====================== */
 const _0xsys = ['v_identity_v1', 'reverse', 'split', 'join'] as const;
 
-// Fix Error 7015: Explicitly cast to any
-const _f = (i: number) => _0xsys[i] as any;
+const _f = (i: number) => _0xsys[i];
 
-// Fix Error 2349: Breakdown chaining
 const _0xS4 = (s: string) => {
-  const _b = btoa(s) as any;
-  const _s = _b[_f(2)]('') as any;
-  const _r = _s[_f(1)]() as any;
+  const _b = btoa(s);
+  // Fix Error 2349 dengan casting (as any) pada objek sebelum memanggil metode dinamis
+  const _s = (_b as any)[_f(2)]('');
+  const _r = _s[_f(1)]();
   return _r[_f(3)]('');
 };
 
@@ -24,16 +22,13 @@ const SignInPage = () => {
 
   useEffect(() => {
     const _neuralProbe = () => {
-      // Mencari jejak identitas terenkripsi
-      const _K = _0xS4(_f(0));
-      const _trace = localStorage.getItem(_K);
-      
-      /**
-       * Jika ada trace di localStorage, kita anggap perangkat dikenali (Recognized).
-       * Kita tidak melakukan fetch IP di sini agar UI tidak lag/stuck saat loading halaman.
-       * Validasi IP yang sebenarnya dilakukan di dalam komponen SignInForm saat tombol ditekan.
-       */
-      setIsRecognized(!!_trace);
+      try {
+        const _K = _0xS4(_f(0));
+        const _trace = localStorage.getItem(_K);
+        setIsRecognized(!!_trace);
+      } catch (e) {
+        setIsRecognized(false);
+      }
     };
 
     _neuralProbe();
@@ -42,7 +37,6 @@ const SignInPage = () => {
   return (
     <main className="flex items-center justify-center min-h-[90vh] bg-white dark:bg-black transition-colors duration-500 overflow-hidden relative">
       
-      {/* BACKGROUND SECRET SCANNER */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05] z-0">
         <div className="w-full h-full bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
       </div>
@@ -58,7 +52,6 @@ const SignInPage = () => {
         </div>
       </motion.div>
 
-      {/* AMBIENT GLOW SINKRON DENGAN EMERALD PORTAL */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <AnimatePresence mode="wait">
           <motion.div 
@@ -76,7 +69,6 @@ const SignInPage = () => {
         </AnimatePresence>
       </div>
 
-      {/* SECURE METADATA */}
       <div className="absolute bottom-6 w-full text-center select-none pointer-events-none opacity-20">
         <p className="text-[7px] font-mono tracking-[0.5em] uppercase dark:text-white">
           Access_Node: {isRecognized ? "AUTHORIZED_IDENTITY_DETECTED" : "UNBOUND_HARDWARE"} // Protocol_v1.0.2

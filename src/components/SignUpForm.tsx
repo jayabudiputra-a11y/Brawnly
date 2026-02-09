@@ -4,35 +4,26 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-/* ======================
-    CORE OBFUSCATION ENGINE
-    Lapisan proteksi string dan kunci lokal
-====================== */
 const _0xsys = ['pending_subscribe_email', 'v_identity_v1', 'reverse', 'split', 'join', 'ptr'] as const;
-
-const _r = (idx: number) => _0xsys[idx] as any;
+const _r = (idx: number) => _0xsys[idx];
 
 const _enc = (s: string) => {
-  const _b = btoa(s) as any;
-  const _s = _b[_r(3)]('') as any;
-  const _rev = _s[_r(2)]() as any;
+  const _b = btoa(s);
+  const _s = (_b as any)[_r(3)]('');
+  const _rev = _s[_r(2)]();
   return _rev[_r(4)]('');
 };
 
 const _dec = (s: string) => {
-  const _a = atob(s) as any;
-  const _s = _a[_r(3)]('') as any;
-  const _rev = _s[_r(2)]() as any;
-  return _rev[_r(4)]('');
+  const _s_enc = (s as any)[_r(3)]('');
+  const _rev = _s_enc[_r(2)]();
+  const _b = _rev[_r(4)]('');
+  return atob(_b);
 };
 
-/* ======================
-    UI COMPONENTS
-====================== */
 const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => (
   <button
-    className="w-full bg-emerald-700 text-white px-4 py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em]
-               hover:bg-emerald-800 disabled:bg-gray-400 transition-all shadow-lg shadow-emerald-900/10 active:scale-95"
+    className="w-full bg-emerald-700 text-white px-4 py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-emerald-800 disabled:bg-gray-400 transition-all shadow-lg shadow-emerald-900/10 active:scale-95"
     {...props}
   >
     {children}
@@ -46,9 +37,6 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => 
   />
 );
 
-/* ======================
-    SECURE SIGN UP
-====================== */
 const SignUpForm: React.FC = () => {
   const navigate = useNavigate();
   const [v, setV] = useState({ n: "", e: "" });
@@ -63,10 +51,11 @@ const SignUpForm: React.FC = () => {
       const _cached = localStorage.getItem(_K);
       if (_cached) {
         try {
-          const _d = JSON.parse(_dec(_cached)) as any;
+          const _decrypted = _dec(_cached);
+          const _d = JSON.parse(_decrypted);
           if (_d && _d[_r(5)]) {
              toast.info("Handshake Recognized", { description: "Device already bound to an identity. Accessing gate..." });
-             navigate("/articles"); // Langsung ke dashboard jika sudah ada trace
+             navigate("/articles");
           }
         } catch (err) { localStorage.removeItem(_K); }
       }
@@ -89,17 +78,13 @@ const SignUpForm: React.FC = () => {
     setFail(null);
 
     try {
-      /** * FAIL-SAFE IP FETCH
-       * Dibungkus try-catch internal agar jika API ipify diblokir ad-blocker,
-       * proses registrasi utama tetap berjalan.
-       */
       let _addr = "0.0.0.0";
       try {
         const _res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
         const _data = await _res.json();
         _addr = _data.ip;
       } catch (ipErr) {
-        console.warn("Trace capture bypassed due to network restriction.");
+        console.warn("Trace capture bypassed.");
       }
 
       const { user } = await authApi.signUp({
@@ -125,12 +110,10 @@ const SignUpForm: React.FC = () => {
 
         setTimeout(() => {
           navigate("/articles");
-          // Force reload hanya jika diperlukan untuk sync state supabase secara keras
           setTimeout(() => window.location.reload(), 150);
         }, 1184);
       }
     } catch (err: any) {
-      // Menangani kasus user sudah terdaftar atau error auth lainnya
       const _msg = err?.message || "Protocol Error 0x82";
       setFail(_msg);
       toast.error("Auth Failed", { description: _msg });

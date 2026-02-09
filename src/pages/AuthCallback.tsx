@@ -14,8 +14,8 @@ export default function AuthCallback() {
       processed.current = true;
 
       try {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
+        // Gunakan pembersihan hash untuk memastikan kode terbaca
+        const code = new URLSearchParams(window.location.search).get("code");
 
         if (!code) {
           navigate("/");
@@ -25,35 +25,33 @@ export default function AuthCallback() {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
         if (error || !data.session) {
-          toast.error("Invalid or expired session.");
+          toast.error("Session expired or invalid.");
           navigate("/signin");
           return;
         }
 
         const user = data.user;
-
         if (user?.email) {
-          const fullName = user.user_metadata?.full_name || "Brawnly Member";
+          const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
 
+          // 1. Pastikan masuk ke tabel subscribers
           await subscribersApi.insertIfNotExists(user.email, fullName);
 
+          // 2. Sync ke user_profiles dengan id yang tepat
           await supabase.from("user_profiles").upsert({
             id: user.id,
             username: fullName,
             avatar_url: user.user_metadata?.avatar_url || null,
-          });
+          }, { onConflict: 'id' });
         }
 
-        toast.success("Signed in successfully!", {
-          description: "Welcome back to Brawnly.",
-        });
-
-        navigate("/");
-
-        setTimeout(() => window.location.reload(), 100);
+        toast.success("Identity Synced", { description: "Welcome to Brawnly Cloud." });
+        
+        // Redirect ke dashboard/articles
+        navigate("/articles");
       } catch (err) {
-        console.error("Auth callback error:", err);
-        navigate("/");
+        console.error("Auth callback system fault:", err);
+        navigate("/signin");
       }
     };
 
@@ -63,13 +61,9 @@ export default function AuthCallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-600 mx-auto mb-6" />
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">
-          Verifying Session
-        </h2>
-        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-[0.3em] mt-2 animate-pulse">
-          Preparing your profile...
-        </p>
+        <div className="w-16 h-16 border-4 border-emerald-600/20 border-t-emerald-600 rounded-full animate-spin mx-auto mb-8" />
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-black dark:text-white">Verifying_Node</h2>
+        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-[0.4em] mt-4 animate-pulse">Establishing Secure Link...</p>
       </div>
     </div>
   );

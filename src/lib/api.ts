@@ -2,9 +2,6 @@ import { supabase } from "./supabase";
 import type { Article, AuthUser, CommentWithUser } from "../types";
 import { generateFullImageUrl } from "../utils/helpers";
 
-/* ======================
-    
-    ====================== */
 const _0xdb = [
   "subscribers",   
   "articles",      
@@ -20,17 +17,7 @@ const _0xdb = [
   "join"           
 ] as const;
 
-/**
- * 
- */
-const _v = (i: number) => _0xdb[i] as any;
-
-const _f = (s: string) => {
-  const _b = btoa(s) as any;
-  const _s = _b[_v(10)]('') as any;
-  const _r = _s[_v(9)]() as any;
-  return _r[_v(11)]('');
-};
+const _v = (i: number) => _0xdb[i];
 
 const _INTERNAL_KEY = _v(8);
 
@@ -44,12 +31,10 @@ export const subscribersApi = {
     if (!email) return;
     try {
       await (supabase.from(_v(0) as string) as any).upsert(
-        [{ [_v(4)]: email.toLowerCase(), name: name ?? null }],
+        [{ [_v(4) as string]: email.toLowerCase(), name: name ?? null }],
         { onConflict: _v(4) }
       );
-    } catch (error) {
-      /* Silent drop */
-    }
+    } catch (error) { /* Silent drop */ }
   },
 };
 
@@ -62,12 +47,10 @@ export const articlesApi = {
     
     if (error) handleSupabaseError(error, "0x1"); 
     
-    const articles = (data || []).map((art: any) => ({
+    return (data || []).map((art: any) => ({
       ...art,
       thumbnail_url: art.thumbnail_url ? generateFullImageUrl(art.thumbnail_url) : ""
-    }));
-
-    return articles as unknown as Article[];
+    })) as Article[];
   },
 
   getBySlug: async (slug: string): Promise<Article> => {
@@ -79,7 +62,7 @@ export const articlesApi = {
     if (error || !data) handleSupabaseError(error, "0x2");
     
     void (async () => {
-      await supabase.rpc("increment_views", { [_v(7)]: data.id });
+      await supabase.rpc("increment_views", { [_v(7) as string]: data.id });
     })();
     
     return {
@@ -107,30 +90,30 @@ export const authApi = {
   signUp: async ({ email, name }: { email: string; name: string }) => {
     if (!name || name.trim().length < 2) throw new Error("IDENT_SHORT");
     
-    const { data, error } = await supabase.auth.signUp({
+    // Gunakan OTP (Magic Link) agar tidak bentrok dengan kebijakan password Supabase
+    const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      password: _INTERNAL_KEY, 
-      options: { data: { full_name: name.trim() } },
+      options: {
+        data: { full_name: name.trim() },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (error) handleSupabaseError(error, "0x3");
     
-    if (data.user) {
-      await subscribersApi.insertIfNotExists(data.user.email!, name.trim());
-      await (supabase.from(_v(2) as string) as any).upsert({ 
-        id: data.user.id,
-        username: name.trim(),
-        avatar_url: null
-      });
-    }
+    // Catatan: user_profile di-update via AuthCallback.tsx setelah email diklik
     return data;
   },
 
   signInWithEmailOnly: async (email: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // GANTI signInWithPassword ke signInWithOtp
+    const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      password: _INTERNAL_KEY,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
+    
     if (error) handleSupabaseError(error, "0x4");
     return data;
   },
@@ -146,7 +129,7 @@ export const commentsApi = {
     const { data, error } = await (supabase.from(_v(3) as string) as any)
       .select(`
         id, content, created_at, user_id, parent_id,
-        ${_v(2)} ( username, avatar_url )
+        ${_v(2) as string} ( username, avatar_url )
       `)
       .eq(_v(7) as string, articleId)
       .order("created_at", { ascending: true });
@@ -160,9 +143,9 @@ export const commentsApi = {
       created_at: c.created_at,
       user_id: c.user_id,
       parent_id: c.parent_id,
-      user_name: c[_v(2)]?.username ?? "Member",
-      user_avatar_url: c[_v(2)]?.avatar_url 
-        ? `${generateFullImageUrl(c[_v(2)].avatar_url)}?v=${new Date(c.created_at).getTime()}` 
+      user_name: c[_v(2) as string]?.username ?? "Member",
+      user_avatar_url: c[_v(2) as string]?.avatar_url 
+        ? `${generateFullImageUrl(c[_v(2) as string].avatar_url)}?v=${new Date(c.created_at).getTime()}` 
         : null,
     }));
   },
@@ -172,7 +155,7 @@ export const commentsApi = {
     if (!user) throw new Error("0xAUTH_REQ");
     
     const { error } = await (supabase.from(_v(3) as string) as any).insert({ 
-      [_v(7)]: articleId, 
+      [_v(7) as string]: articleId, 
       user_id: user.id, 
       content: content.trim(),
       parent_id: parentId 

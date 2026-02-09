@@ -8,35 +8,33 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
       try {
         const currentUser = await authApi.getCurrentUser();
-        setUser(currentUser);
+        if (mounted) setUser(currentUser);
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error("[AUTH_SYNC_ERROR]:", error);
-        }
+        if (import.meta.env.DEV) console.error("[AUTH_SYNC_ERROR]:", error);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     initAuth();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        // Jangan langsung set session.user, panggil API agar URL avatar diproses
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
         const currentUser = await authApi.getCurrentUser();
         setUser(currentUser);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
       }
       setLoading(false);
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -45,15 +43,12 @@ export const useAuth = () => {
     try {
       await authApi.signOut();
       setUser(null);
+      localStorage.clear();
+      window.location.href = '/';
     } catch (error) {
       console.error("[SIGNOUT_ERROR]:", error);
     }
   };
 
-  return {
-    user,
-    loading,
-    isAuthenticated: !!user,
-    signOut,
-  };
+  return { user, loading, isAuthenticated: !!user, signOut };
 };

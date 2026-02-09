@@ -4,25 +4,21 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-/* ======================
-    INTERNAL SECURITY ENGINE
-====================== */
 const _0xcore = ['v_identity_v1', 'reverse', 'split', 'join', 'ptr', 'addr'] as const;
-
-const _g = (i: number) => _0xcore[i] as any;
+const _g = (i: number) => _0xcore[i];
 
 const _0xS1 = (s: string) => {
-  const _b = btoa(s) as any;
-  const _s = _b[_g(2)]('') as any;
-  const _r = _s[_g(1)]() as any;
-  return _r[_g(3)]('');
+  const _b = btoa(s);
+  const _s = (_b as any)[_g(2)]('');
+  const _r = _s[_g(1)]();
+  return (_r as any)[_g(3)]('');
 };
 
 const _0xS2 = (s: string) => {
-  const _a = atob(s) as any;
-  const _s = _a[_g(2)]('') as any;
-  const _r = _s[_g(1)]() as any;
-  return _r[_g(3)]('');
+  const _a = atob(s);
+  const _s = (_a as any)[_g(2)]('');
+  const _r = _s[_g(1)]();
+  return (_r as any)[_g(3)]('');
 };
 
 const SignInForm: React.FC = () => {
@@ -37,11 +33,12 @@ const SignInForm: React.FC = () => {
   useEffect(() => {
     const _trace = async () => {
       try {
-        // FAIL-SAFE: Tambahkan timeout agar tidak menunggu selamanya
-        const _res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
+        const _res = await fetch('https://api64.ipify.org?format=json', { 
+          signal: AbortSignal.timeout(5000) 
+        });
         const _d = await _res.json();
+
         const _cached = localStorage.getItem(_K);
-        
         if (_cached) {
           const _dec = _0xS2(_cached);
           const _dx = JSON.parse(_dec) as any;
@@ -49,7 +46,9 @@ const SignInForm: React.FC = () => {
             console.warn("[SECURE_SHELL]: Identity match confirmed.");
           }
         }
-      } catch (e) { /* silent fail: network restricted */ }
+      } catch (e) {
+        console.warn("[NEURAL_LINK]: Hardware trace bypassed.");
+      }
     };
     _trace();
   }, [_K]);
@@ -60,54 +59,50 @@ const SignInForm: React.FC = () => {
     setErr(null);
 
     try {
-      // FAIL-SAFE IP FETCH: Jangan biarkan fetch mematikan proses login
       let _cur = "0.0.0.0";
       try {
-        const _r = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
-        const _data = await _r.json();
-        _cur = _data.ip;
-      } catch (fErr) {
-        console.warn("Bypassing hardware tracking: Network restricted.");
+        const _res = await fetch('https://api64.ipify.org?format=json', { 
+          signal: AbortSignal.timeout(5000) 
+        });
+        const _d = await _res.json();
+        _cur = _d.ip;
+      } catch (e: any) {
+        console.warn("[NEURAL_LINK]: Hardware trace bypassed.");
       }
       
       const _cached = localStorage.getItem(_K);
-      
       if (_cached && _cur !== "0.0.0.0") {
         const _dx = JSON.parse(_0xS2(_cached)) as any;
-        // Hanya cek mismatch jika IP berhasil didapat
         if (_dx[_g(5)] === _cur && _dx[_g(4)] !== val.toLowerCase().trim()) {
-          throw new Error("HARDWARE_ID_MISMATCH: Device bound to another node.");
+          throw new Error("HARDWARE_MISMATCH: Device bound to another node.");
         }
       }
 
-      const result = await authApi.signInWithEmailOnly(val.toLowerCase().trim());
+      await authApi.signInWithEmailOnly(val.toLowerCase().trim());
 
-      if (result?.session || result?.user) {
-        const _rawPayload = JSON.stringify({
-          [_g(5)]: _cur,
-          [_g(4)]: val.toLowerCase().trim(),
-          ts: Date.now()
-        });
-        
-        const _payload = _0xS1(_rawPayload);
-        localStorage.setItem(_K, _payload);
+      const _rawPayload = JSON.stringify({
+        [_g(5)]: _cur,
+        [_g(4)]: val.toLowerCase().trim(),
+        ts: Date.now()
+      });
+      
+      localStorage.setItem(_K, _0xS1(_rawPayload));
+      
+      setFin(true); 
+      toast.success("Identity Verified", { 
+        description: "Check your email for the access link." 
+      });
 
-        setFin(true); 
-        toast.success("Identity Verified", { description: "Decrypting access protocols..." });
-
-        setTimeout(() => {
-          navigate("/articles");
-          setTimeout(() => window.location.reload(), 150);
-        }, 912);
-      }
     } catch (ex: any) {
-      const _msg = ex.message || "ACCESS_DENIED_0x01";
+      let _msg = ex.message || "ACCESS_DENIED";
+      if (_msg.includes("rate limit")) _msg = "EMAIL RATE LIMIT EXCEEDED. TRY AGAIN LATER.";
+      
       setErr(_msg);
       toast.error("Portal Error", { description: _msg });
     } finally {
       setProc(false);
     }
-  }, [val, navigate, _K]);
+  }, [val, _K]);
 
   return (
     <div className="perspective-1000 flex justify-center items-center py-10 min-h-[450px]">
@@ -117,41 +112,21 @@ const SignInForm: React.FC = () => {
             key="v-node-shell"
             initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
             animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-            exit={{ 
-              opacity: 0, 
-              scale: 2.5,
-              z: 800,
-              rotateX: -15,
-              filter: "blur(25px) brightness(0.5)" 
-            }}
-            transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-            className="w-full max-w-md bg-white dark:bg-neutral-900 p-12 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.4)] border border-neutral-100 dark:border-neutral-800 overflow-hidden relative"
+            exit={{ opacity: 0, scale: 2.5, z: 800, filter: "blur(25px) brightness(0.5)" }}
+            className="w-full max-w-md bg-white dark:bg-neutral-900 p-12 rounded-[3.5rem] shadow-2xl border border-neutral-100 dark:border-neutral-800 overflow-hidden relative"
           >
-            <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_3px)]" />
-            
             <form onSubmit={_onExecute} className="relative z-10 space-y-8">
               <div className="text-center">
-                <motion.div 
-                   animate={{ opacity: [0.4, 1, 0.4] }}
-                   transition={{ repeat: Infinity, duration: 2 }}
-                   className="inline-block px-4 py-1.5 bg-neutral-100 dark:bg-emerald-500/10 rounded-full mb-6"
-                >
-                  <span className="text-[8px] text-neutral-500 dark:text-emerald-400 font-black uppercase tracking-[0.4em]">
-                    Neural_Bound.V1
-                  </span>
-                </motion.div>
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter text-black dark:text-white leading-none">
-                  Verification
-                </h2>
+                <div className="inline-block px-4 py-1.5 bg-neutral-100 dark:bg-emerald-500/10 rounded-full mb-6">
+                  <span className="text-[8px] text-neutral-500 dark:text-emerald-400 font-black uppercase tracking-[0.4em]">Neural_Bound.V1</span>
+                </div>
+                <h2 className="text-4xl font-black italic uppercase tracking-tighter text-black dark:text-white leading-none">Verification</h2>
               </div>
 
               {err && (
-                <motion.div 
-                  initial={{ y: 5, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  className="p-5 bg-red-50 dark:bg-red-950/20 border-l-2 border-red-500 text-red-700 dark:text-red-400 text-[9px] font-black uppercase tracking-[0.2em] leading-relaxed"
-                >
+                <div className="p-5 bg-red-50 dark:bg-red-950/20 border-l-2 border-red-500 text-red-700 dark:text-red-400 text-[9px] font-black uppercase tracking-[0.2em]">
                   {err}
-                </motion.div>
+                </div>
               )}
 
               <div className="space-y-4">
@@ -159,7 +134,7 @@ const SignInForm: React.FC = () => {
                 <input
                   type="email"
                   placeholder="ID_SEQUENCE@MAIL"
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border-none rounded-2xl p-6 focus:ring-2 focus:ring-emerald-500/50 transition-all text-black dark:text-white text-center font-black text-lg placeholder:text-neutral-200 dark:placeholder:text-neutral-800 uppercase tracking-tighter"
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border-none rounded-2xl p-6 focus:ring-2 focus:ring-emerald-500 transition-all text-black dark:text-white text-center font-black text-lg uppercase tracking-tighter"
                   value={val}
                   onChange={(e) => setVal(e.target.value)}
                   required
@@ -167,43 +142,17 @@ const SignInForm: React.FC = () => {
               </div>
 
               <div className="pt-4">
-                <button 
-                  type="submit" 
-                  disabled={proc}
-                  className="group relative w-full bg-black dark:bg-emerald-600 text-white p-6 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.4em] overflow-hidden transition-all active:scale-95 disabled:opacity-30"
-                >
-                  <span className="relative z-10">{proc ? "Verifying_Segment..." : "Execute_Entrance"}</span>
+                <button type="submit" disabled={proc} className="group relative w-full bg-black dark:bg-emerald-600 text-white p-6 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.4em] overflow-hidden active:scale-95 disabled:opacity-30">
+                  <span className="relative z-10">{proc ? "Verifying..." : "Execute_Entrance"}</span>
                   <div className="absolute inset-0 bg-emerald-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </button>
               </div>
-
-              <p className="text-[7px] text-center text-neutral-400 font-bold uppercase tracking-[0.4em] opacity-40">
-                Bound to hardware: {navigator.platform}
-              </p>
             </form>
           </motion.div>
         ) : (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center"
-          >
-            <div className="relative">
-              <motion.div 
-                animate={{ rotate: -360, scale: [1, 1.5, 1], borderRadius: ["20%", "50%", "20%"] }}
-                transition={{ repeat: Infinity, duration: 4 }}
-                className="w-24 h-24 border border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.2)]"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-4 h-4 bg-emerald-500 animate-ping" />
-              </div>
-            </div>
-            <motion.h3 
-              animate={{ opacity: [0, 1, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="mt-16 font-black uppercase tracking-[1em] text-emerald-500 text-[10px]"
-            >
-              Access_Granted
-            </motion.h3>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center">
+            <h2 className="text-5xl font-black uppercase tracking-tighter text-emerald-500 italic">LINK SENT</h2>
+            <p className="mt-4 text-emerald-600 font-bold uppercase tracking-[0.5em] text-[10px] animate-pulse">Check your inbox to finalize sync</p>
           </motion.div>
         )}
       </AnimatePresence>

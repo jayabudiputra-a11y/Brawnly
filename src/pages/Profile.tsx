@@ -16,45 +16,42 @@ const Profile = () => {
     const initProfile = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("username, avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      if (data) {
-        setProfile(data);
-        setIsDataReady(true);
-        return;
-      }
-
-      if (error) {
-        const defaultUsername = `user_${user.id.substring(0, 8)}`;
-
-        const { data: newData, error: insertError } = await supabase
+      try {
+        const { data, error } = await supabase
           .from("user_profiles")
-          .upsert(
-            {
+          .select("username, avatar_url")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (data) {
+          setProfile(data);
+          setIsDataReady(true);
+        } else {
+          const defaultUsername = `user_${user.id.substring(0, 8)}`;
+          const { data: newData, error: upsertError } = await supabase
+            .from("user_profiles")
+            .upsert({
               id: user.id,
               username: defaultUsername,
               avatar_url: null,
-            },
-            { onConflict: "id" }
-          )
-          .select();
+            })
+            .select()
+            .single();
 
-        if (newData && !insertError) {
-          const rows = (Array.isArray(newData) ? newData : [newData]) as UserProfile[];
-          if (rows.length > 0) {
-            setProfile(rows[0]);
+          if (newData) {
+            setProfile(newData);
             setIsDataReady(true);
           }
         }
+      } catch (err) {
+        console.error("Profile initialization error");
       }
     };
 
-    initProfile();
-  }, [user]);
+    if (!loading && user) {
+      initProfile();
+    }
+  }, [user, loading]);
 
   useEffect(() => {
     if (!loading && !user) {
