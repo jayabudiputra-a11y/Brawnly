@@ -51,20 +51,22 @@ function App() {
       <IframeA11yFixer />
       <ScrollToTopButton />
 
-      <Suspense fallback={<div className="min-h-screen bg-white dark:bg-black" />}>
+      <Suspense fallback={<div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>}>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="articles" element={<Articles />} />
             <Route path="subscribe" element={<Subscription />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="library" element={<Library />} />
             <Route path="article/:slug" element={<ArticlePage />} />
             <Route path="category/:slug" element={<Category />} />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />
             <Route path="author" element={<Author />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="auth/callback" element={<AuthCallback />} />
 
             <Route path="terms" element={<Terms />} />
             <Route path="privacy" element={<Privacy />} />
@@ -95,7 +97,5 @@ function App() {
     </div>
   );
 }
-
-const ProfilePage = Profile;
 
 export default App;

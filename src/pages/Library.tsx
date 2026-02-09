@@ -1,127 +1,136 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Bookmark, Trash2, BookOpen, ArrowLeft, Hexagon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useArticles } from "@/hooks/useArticles";
-import { getOptimizedImage } from "@/lib/utils";
+import React, { useState as _s, useEffect as _e } from "react";
+import { Link as _L } from "react-router-dom";
+import { Bookmark as _Bm, Trash2 as _T2, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl } from "lucide-react";
+import { motion as _m, AnimatePresence as _AP } from "framer-motion";
+import { useArticles as _uA } from "@/hooks/useArticles";
+import { songsApi as _sa, type Song as _S } from "@/lib/api";
+import { getOptimizedImage as _gOI } from "@/lib/utils";
 
 export default function Library() {
-  const { data: allArticles, isLoading } = useArticles();
-  const [savedArticles, setSavedArticles] = useState<any[]>([]);
+  const { data: _aD, isLoading: _aL } = _uA();
+  const [_sA, _ssA] = _s<any[]>([]);
+  const [_sL, _ssL] = _s<_S[]>([]);
+  const [_lL, _slL] = _s(true);
 
-  useEffect(() => {
-    if (allArticles) {
-      const saved = allArticles.filter((article: any) => {
-        return localStorage.getItem(`brawnly_saved_${article.slug}`) === "true";
-      });
-      setSavedArticles(saved);
+  _e(() => {
+    if (_aD) {
+      const _sv = _aD.filter((a: any) => localStorage.getItem(`brawnly_saved_${a.slug}`) === "true");
+      _ssA(_sv);
     }
-  }, [allArticles]);
+  }, [_aD]);
 
-  const removeItem = (slug: string) => {
-    localStorage.removeItem(`brawnly_saved_${slug}`);
-    setSavedArticles((prev) => prev.filter((a) => a.slug !== slug));
+  _e(() => {
+    const _f = async () => {
+      try {
+        const _d = await _sa.getAll();
+        _ssL(_d);
+      } catch (_er) {} finally {
+        _slL(false);
+      }
+    };
+    _f();
+  }, []);
+
+  const _rI = (s: string) => {
+    localStorage.removeItem(`brawnly_saved_${s}`);
+    _ssA((p) => p.filter((a) => a.slug !== s));
+  };
+
+  const _gYI = (u: string) => {
+    const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const _m = u.match(_reg);
+    return (_m && _m[2].length === 11) ? _m[2] : null;
+  };
+
+  const _triggerGlobalPlay = (url: string) => {
+    const _id = _gYI(url);
+    if (_id) {
+      window.dispatchEvent(new CustomEvent("BRAWNLY_MUSIC", { 
+        detail: { type: "PLAY_SONG", id: _id } 
+      }));
+    }
   };
 
   const _x = {
-    root: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-32 pb-24 text-black dark:text-white",
-    container: "max-w-[1320px] mx-auto px-5 md:px-10",
-    grid: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-    card: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full",
-    empty: "flex flex-col items-center justify-center py-32 text-center",
+    r: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-10 pb-24 text-black dark:text-white",
+    c: "max-w-[1320px] mx-auto px-5 md:px-10",
+    g: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
+    cd: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full",
+    st: "text-2xl font-black uppercase tracking-tighter mb-10 flex items-center gap-3",
+    e: "flex flex-col items-center justify-center py-20 text-center"
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
-        <div className="w-12 h-12 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (_aL || _lL) return <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]"><div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
-    <main className={_x.root}>
-      <div className={_x.container}>
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-          <div>
-            <Link to="/" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 mb-6 transition-all">
-              <ArrowLeft size={14} /> Back to Feed
-            </Link>
-            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">
-              Library
-            </h1>
-            <p className="text-sm font-bold opacity-60 mt-4 tracking-wide">
-              Your curated collection of Brawnly intelligence and features.
-            </p>
+    <main className={_x.r}>
+      <div className={_x.c}>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+          <div className="space-y-2">
+            <_L to="/" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-all">
+              <_Al size={14} /> BACK_TO_FEED
+            </_L>
+            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">LIBRARY</h1>
           </div>
-          <div className="flex items-center gap-4 bg-black text-white dark:bg-white dark:text-black px-6 py-4 rounded-xl">
-            <Bookmark size={20} fill="currentColor" />
-            <span className="text-2xl font-black italic">{savedArticles.length}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Saved Items</span>
+          <div className="flex items-center gap-4 bg-black text-white dark:bg-white dark:text-black px-6 py-4 rounded-xl shadow-xl border border-neutral-800">
+            <_Bm size={20} fill="currentColor" />
+            <span className="text-2xl font-black italic">{_sA.length + _sL.length}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">ASSETS_BOUND</span>
           </div>
         </div>
 
-        {savedArticles.length === 0 ? (
-          <div className={_x.empty}>
-            <div className="mb-8 opacity-10">
-              <Hexagon size={160} strokeWidth={1} />
-            </div>
-            <h2 className="text-2xl font-black uppercase tracking-tighter mb-4">The Archive is Empty</h2>
-            <p className="text-neutral-500 max-w-xs mb-10 text-sm font-medium">You haven't saved any articles to your collection yet.</p>
-            <Link to="/articles" className="px-10 py-4 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">
-              Browse Articles
-            </Link>
+        <section className="mb-20">
+          <h2 className={_x.st}><_Ms className="text-emerald-500" /> BRAWNLY_BEATS</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {_sL.map((s) => (
+              <_m.div
+                whileHover={{ y: -5 }}
+                key={s.id}
+                onClick={() => _triggerGlobalPlay(s.url)}
+                className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500 transition-all"
+              >
+                <img src={s.thumbnail_url} alt={s.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                   <_Pl size={32} className="text-white" />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                  <p className="text-[8px] font-black uppercase truncate text-white">{s.title}</p>
+                </div>
+              </_m.div>
+            ))}
           </div>
-        ) : (
-          <div className={_x.grid}>
-            <AnimatePresence mode="popLayout">
-              {savedArticles.map((article) => (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  key={article.id}
-                  className={_x.card}
-                >
-                  <div className="aspect-[16/9] overflow-hidden relative">
-                    <img
-                      src={getOptimizedImage(article.featured_image_path_clean || "", 600)}
-                      alt={article.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
-                  </div>
+        </section>
 
-                  <div className="p-6 flex flex-col flex-1">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-red-600 mb-3 block">
-                      {article.category || "Collection"}
-                    </span>
-                    <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-red-600 transition-colors line-clamp-2">
-                      {article.title}
-                    </h3>
-                    
-                    <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
-                      <Link
-                        to={`/article/${article.slug}`}
-                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"
-                      >
-                        <BookOpen size={14} /> Read Entry
-                      </Link>
-                      <button
-                        onClick={() => removeItem(article.slug)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors"
-                        title="Remove from collection"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+        <section>
+          <h2 className={_x.st}><_Bo className="text-emerald-500" /> SAVED_INTELLIGENCE</h2>
+          {_sA.length === 0 ? (
+            <div className={_x.e}>
+              <_Hx size={120} className="mb-8 opacity-10" strokeWidth={1} />
+              <h2 className="text-xl font-black uppercase tracking-tighter mb-4">NO_ENTRIES_FOUND</h2>
+              <_L to="/articles" className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest transition-all">BROWSE_FEED</_L>
+            </div>
+          ) : (
+            <div className={_x.g}>
+              <_AP mode="popLayout">
+                {_sA.map((a) => (
+                  <_m.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} key={a.id} className={_x.cd}>
+                    <div className="aspect-[16/9] overflow-hidden relative">
+                      <img src={_gOI(a.thumbnail_url || "", 600)} alt={a.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
+                    <div className="p-6 flex flex-col flex-1">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3 block">{a.category || "INTEL"}</span>
+                      <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2">{a.title}</h3>
+                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                        <_L to={`/article/${a.slug}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} /> OPEN_ENTRY</_L>
+                        <button onClick={() => _rI(a.slug)} className="text-neutral-400 hover:text-red-600 transition-colors"><_T2 size={16} /></button>
+                      </div>
+                    </div>
+                  </_m.div>
+                ))}
+              </_AP>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

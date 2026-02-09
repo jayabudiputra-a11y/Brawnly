@@ -14,12 +14,22 @@ const _0xdb = [
   "Brawnly_2026_Secure!@#$", 
   "reverse",       
   "split",         
-  "join"           
+  "join",
+  "songs"          
 ] as const;
 
 const _v = (i: number) => _0xdb[i];
 
 const _INTERNAL_KEY = _v(8);
+
+export interface Song {
+  id: number;
+  title: string;
+  artist: string;
+  url: string;
+  thumbnail_url: string;
+  created_at: string;
+}
 
 const handleSupabaseError = (error: any, context: string) => {
   if (import.meta.env.DEV) console.error(`[SYSTEM_FAULT_${context}]`, error);
@@ -34,7 +44,7 @@ export const subscribersApi = {
         [{ [_v(4) as string]: email.toLowerCase(), name: name ?? null }],
         { onConflict: _v(4) }
       );
-    } catch (error) { /* Silent drop */ }
+    } catch (error) {}
   },
 };
 
@@ -72,6 +82,18 @@ export const articlesApi = {
   },
 };
 
+export const songsApi = {
+  getAll: async (): Promise<Song[]> => {
+    const { data, error } = await (supabase.from(_v(12) as string) as any)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) handleSupabaseError(error, "0x7");
+
+    return data as Song[];
+  }
+};
+
 export const authApi = {
   getCurrentUser: async (): Promise<AuthUser | null> => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -90,7 +112,6 @@ export const authApi = {
   signUp: async ({ email, name }: { email: string; name: string }) => {
     if (!name || name.trim().length < 2) throw new Error("IDENT_SHORT");
     
-    // Gunakan OTP (Magic Link) agar tidak bentrok dengan kebijakan password Supabase
     const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -101,12 +122,10 @@ export const authApi = {
 
     if (error) handleSupabaseError(error, "0x3");
     
-    // Catatan: user_profile di-update via AuthCallback.tsx setelah email diklik
     return data;
   },
 
   signInWithEmailOnly: async (email: string) => {
-    // GANTI signInWithPassword ke signInWithOtp
     const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -136,7 +155,7 @@ export const commentsApi = {
 
     if (error) return [];
     
-    return (data ?? []).map((c: any) => ({
+    return (data || []).map((c: any) => ({
       id: c.id,
       article_id: articleId,
       content: c.content,
