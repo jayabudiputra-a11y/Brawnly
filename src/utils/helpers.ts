@@ -7,7 +7,7 @@ export type LangCode = (typeof LANGS)[number];
 const _0xcore = [
     'https://', 
     '.supabase.co/storage/v1/object/public/', 
-    'zlwhvkexgjisyhakxyoe', // Project ID Anda
+    'zlwhvkexgjisyhakxyoe',
     'reverse', 
     'split', 
     'join'

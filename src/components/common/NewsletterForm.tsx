@@ -1,25 +1,23 @@
-import React, { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState as _s, type FormEvent as _FE } from "react";
+import { useNavigate as _uN } from "react-router-dom";
 
 const NewsletterForm: React.FC = () => {
-  const [email, setEmail] = useState("");
-  const navigate = useNavigate();
+  const [_e, _se] = _s("");
+  const _n = _uN();
 
-  const handleSubmit = (e: FormEvent) => {
+  const _hS = (e: _FE) => {
     e.preventDefault();
-    if (!email) return;
-
-    localStorage.setItem("pending_subscribe_email", email);
-
-    navigate("/signup");
+    if (!_e) return;
+    localStorage.setItem("pending_subscribe_email", _e);
+    _n("/signup");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 max-w-md">
+    <form onSubmit={_hS} className="flex flex-col sm:flex-row gap-2 max-w-md">
       <input
         type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={_e}
+        onChange={(e) => _se(e.target.value)}
         placeholder="your.email@example.com"
         required
         aria-label="Email address for newsletter"

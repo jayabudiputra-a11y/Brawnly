@@ -1,52 +1,60 @@
-import { useTranslation } from "react-i18next";
-import { useMemo, useState } from "react";
-import { useArticles } from "@/hooks/useArticles";
+import { useTranslation as _uT } from "react-i18next";
+import { useMemo as _uM, useState as _uS } from "react";
+import { useArticles as _uAs } from "@/hooks/useArticles";
 import ArticleCard from "./ArticleCard";
 import ScrollToTopButton from "./ScrollToTopButton";
-import { type LangCode } from "@/utils/helpers";
-import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
+import { type LangCode as _LC } from "@/utils/helpers";
+import { motion as _mo, LayoutGroup as _LG, AnimatePresence as _AP } from "framer-motion";
 
 interface Props {
   selectedTag: string | null;
   searchTerm: string;
 }
 
-export default function ArticleList({ selectedTag, searchTerm }: Props) {
-  const { i18n } = useTranslation();
-  const lang = (i18n.language as LangCode) || "en";
-  const { data: allArticles, isLoading, error } = useArticles(null);
-  
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Props) {
+  const { i18n: _i18 } = _uT();
+  const _ln = (_i18.language as _LC) || "en";
+  const { data: _aA, isLoading: _iL, error: _e } = _uAs(null);
+  const [_hI, _sHI] = _uS<number | null>(null);
 
-  const filteredArticles = useMemo(() => {
-    if (!allArticles) return [];
-    let currentArticles = allArticles;
+  const _fA = _uM(() => {
+    if (!_aA) return [];
+    let _cA = _aA;
 
-    if (selectedTag) {
-      const lowerCaseSelectedTag = selectedTag.toLowerCase();
-      currentArticles = currentArticles.filter((article: any) =>
-        article.tags?.some(
-          (tag: string) => tag.toLowerCase() === lowerCaseSelectedTag
-        )
+    if (_sT) {
+      const _lST = _sT.toLowerCase();
+      _cA = _cA.filter((_art: any) =>
+        _art.tags?.some((_t: string) => _t.toLowerCase() === _lST)
       );
     }
 
-    const safeSearchTerm = searchTerm || "";
-    if (safeSearchTerm.trim() === "") return currentArticles;
+    const _sSTm = _sTm || "";
+    if (_sSTm.trim() === "") return _cA;
 
-    const lowerCaseSearch = safeSearchTerm.toLowerCase();
-    return currentArticles.filter((article: any) => {
-      const articleTitle = (
-        article[`title_${lang}`] ||
-        article.title_en ||
-        article.title ||
+    const _lS = _sSTm.toLowerCase();
+    return _cA.filter((_art: any) => {
+      const _aTt = (
+        _art[`title_${_ln}`] ||
+        _art.title_en ||
+        _art.title ||
         ""
       ).toLowerCase();
-      return articleTitle.includes(lowerCaseSearch);
+      return _aTt.includes(_lS);
     });
-  }, [allArticles, selectedTag, searchTerm, lang]);
+  }, [_aA, _sT, _sTm, _ln]);
 
-  if (isLoading) {
+  const _jLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": _fA.slice(0, 10).map((_a: any, _i: number) => ({
+      "@type": "ListItem",
+      "position": _i + 1,
+      "url": `https://brawnly.online/article/${_a.slug}`,
+      "name": _a.title
+    }))
+  };
+
+  if (_iL) {
     return (
       <div className="text-center py-12 bg-transparent" aria-live="polite">
         <div className="w-12 h-12 mx-auto mb-6 animate-spin rounded-full border-4 border-[#00a354] border-t-transparent shadow-[0_0_20px_rgba(0,163,84,0.2)]" />
@@ -57,7 +65,7 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     );
   }
 
-  if (error) {
+  if (_e) {
     return (
       <div className="text-center py-10">
         <p className="text-red-500 text-[10px] font-black uppercase tracking-[.3em]">
@@ -67,13 +75,11 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
     );
   }
 
-  if (filteredArticles.length === 0) {
+  if (_fA.length === 0) {
     return (
       <div className="text-center py-16 bg-transparent">
         <p className="text-neutral-400 dark:text-neutral-600 text-[11px] font-black uppercase tracking-[.4em] mb-4">
-          {selectedTag || searchTerm.trim() !== ""
-            ? "No matching data found"
-            : "The feed is empty"}
+          {_sT || _sTm.trim() !== "" ? "No matching data found" : "The feed is empty"}
         </p>
         <div className="h-[1px] w-20 mx-auto bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-800 to-transparent" />
       </div>
@@ -82,22 +88,23 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
 
   return (
     <>
-      <LayoutGroup id="article-lasso">
+      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
+      <_LG id="article-lasso">
         <div 
           role="list"
-          onMouseLeave={() => setHoveredIndex(null)}
+          onMouseLeave={() => _sHI(null)}
           className="flex flex-col max-w-[900px] mx-auto w-full px-0 divide-y divide-gray-100 dark:divide-neutral-900 mt-0 relative"
         >
-          {filteredArticles.map((a: any, index: number) => (
+          {_fA.map((_a: any, _idx: number) => (
             <div 
-              key={a.id} 
+              key={_a.id} 
               role="listitem" 
               className="relative w-full group transition-all duration-300"
-              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseEnter={() => _sHI(_idx)}
             >
-              <AnimatePresence>
-                {hoveredIndex === index && (
-                  <motion.div
+              <_AP>
+                {_hI === _idx && (
+                  <_mo.div
                     layoutId="highlight"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -108,23 +115,21 @@ export default function ArticleList({ selectedTag, searchTerm }: Props) {
                       damping: 35
                     }}
                     className="absolute inset-0 z-0 bg-yellow-400/5 dark:bg-yellow-400/10 border-y-2 border-yellow-400/50 dark:border-yellow-400"
-                    style={{
-                      boxShadow: "0 0 15px rgba(250, 204, 21, 0.2)",
-                    }}
+                    style={{ boxShadow: "0 0 15px rgba(250, 204, 21, 0.2)" }}
                   />
                 )}
-              </AnimatePresence>
+              </_AP>
 
               <div className="relative z-10 py-1">
                 <ArticleCard 
-                  article={a} 
-                  priority={index < 2} 
+                  article={_a} 
+                  priority={_idx < 2} 
                 />
               </div>
             </div>
           ))}
         </div>
-      </LayoutGroup>
+      </_LG>
       <ScrollToTopButton />
     </>
   );

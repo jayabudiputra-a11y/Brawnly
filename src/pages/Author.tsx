@@ -1,5 +1,3 @@
-
-
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import FormattedDate from '@/components/features/FormattedDate' 
@@ -79,7 +77,6 @@ const Author = () => {
         </a>
       </div>
 
-      {/* Created At */}
       <div className="text-sm text-gray-500 mt-12">
         Created at: 
         <FormattedDate 

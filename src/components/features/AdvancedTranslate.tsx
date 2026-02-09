@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronDown, Loader2, X, Check, Globe } from "lucide-react";
+import React, { useState as _s, useEffect as _e } from "react";
+import { useTranslation as _uT } from "react-i18next";
+import { ChevronDown as _Cd, Loader2 as _L2, X as _X, Check as _Ck, Globe as _Gb } from "lucide-react";
 
-interface Language {
+interface _L {
   code: string;
   name: string;
   flag: string;
 }
 
-const LANGUAGES: Language[] = [
+const _LS: _L[] = [
   { code: "en", name: "English", flag: "🇺🇸" },
   { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
   { code: "zh", name: "中文", flag: "🇨🇳" },
@@ -26,117 +26,79 @@ const LANGUAGES: Language[] = [
 ];
 
 const AdvancedTranslate: React.FC = () => {
-  const { i18n } = useTranslation();
-  const [visible, setVisible] = useState(false);
-  const [changing, setChanging] = useState(false);
+  const { i18n: _i } = _uT();
+  const [_v, _sv] = _s(false);
+  const [_ch, _sch] = _s(false);
 
-  const current =
-    LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
+  const _curr = _LS.find(_l => _l.code === _i.language) || _LS[0];
 
-  const changeLang = async (code: string) => {
-    if (changing || code === i18n.language) {
-      setVisible(false);
+  const _hCL = async (_c: string) => {
+    if (_ch || _c === _i.language) {
+      _sv(false);
       return;
     }
-    setChanging(true);
-    await i18n.changeLanguage(code);
-    setChanging(false);
-    setVisible(false);
+    _sch(true);
+    await _i.changeLanguage(_c);
+    _sch(false);
+    _sv(false);
   };
 
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (!(e.target as Element).closest(".advanced-translate")) {
-        setVisible(false);
+  _e(() => {
+    const _cl = (_ev: MouseEvent) => {
+      if (!(_ev.target as Element).closest(".advanced-translate")) {
+        _sv(false);
       }
     };
-    if (visible) document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [visible]);
+    if (_v) document.addEventListener("click", _cl);
+    return () => document.removeEventListener("click", _cl);
+  }, [_v]);
 
   return (
-    <div
-      className="
-        advanced-translate
-        fixed
-        right-4
-        top-[92px]
-        z-[9999]
-      "
-    >
+    <div className="advanced-translate fixed right-4 top-[92px] z-[9999]">
       <button
-        onClick={() => setVisible(v => !v)}
-        disabled={changing}
+        onClick={() => _sv(_prev => !_prev)}
+        disabled={_ch}
         aria-label="Change language"
-        className="
-          flex items-center gap-1.5
-          rounded-full
-          bg-white
-          border border-gray-300
-          px-2.5 py-1.5
-          shadow-md
-          text-sm text-gray-800
-          hover:bg-gray-50
-          active:scale-95
-        "
+        className="flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-2.5 py-1.5 shadow-md text-sm text-gray-800 hover:bg-gray-50 active:scale-95"
       >
-        <span className="text-base leading-none">{current.flag}</span>
-        <Globe size={14} />
-        {changing ? (
-          <Loader2 size={14} className="animate-spin opacity-60" />
+        <span className="text-base leading-none">{_curr.flag}</span>
+        <_Gb size={14} />
+        {_ch ? (
+          <_L2 size={14} className="animate-spin opacity-60" />
         ) : (
-          <ChevronDown size={14} />
+          <_Cd size={14} />
         )}
       </button>
 
-      {visible && (
-        <div
-          className="
-            absolute
-            right-0
-            mt-2
-            w-[240px]
-            rounded-xl
-            bg-white
-            border border-gray-300
-            shadow-2xl
-          "
-        >
+      {_v && (
+        <div className="absolute right-0 mt-2 w-[240px] rounded-xl bg-white border border-gray-300 shadow-2xl">
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-800">
-              Select Language
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-800">Select Language</h4>
             <button
-              onClick={() => setVisible(false)}
+              onClick={() => _sv(false)}
               aria-label="Close"
               className="p-1 rounded hover:bg-gray-100"
             >
-              <X size={14} />
+              <_X size={14} />
             </button>
           </div>
 
           <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1">
-            {LANGUAGES.map(lang => (
+            {_LS.map(_lang => (
               <button
-                key={lang.code}
-                onClick={() => changeLang(lang.code)}
-                disabled={changing}
-                className={`
-                  w-full flex items-center gap-2
-                  px-2 py-2
-                  rounded-lg
-                  text-sm
-                  ${
-                    i18n.language === lang.code
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "hover:bg-gray-100 text-gray-800"
-                  }
-                `}
+                key={_lang.code}
+                onClick={() => _hCL(_lang.code)}
+                disabled={_ch}
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm ${
+                  _i.language === _lang.code
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "hover:bg-gray-100 text-gray-800"
+                }`}
               >
-                <span className="text-base">{lang.flag}</span>
-                <span className="flex-1 text-left">{lang.name}</span>
-                {i18n.language === lang.code && (
-                  <Check size={14} className="text-emerald-600" />
+                <span className="text-base">{_lang.flag}</span>
+                <span className="flex-1 text-left">{_lang.name}</span>
+                {_i.language === _lang.code && (
+                  <_Ck size={14} className="text-emerald-600" />
                 )}
               </button>
             ))}

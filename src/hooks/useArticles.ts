@@ -54,7 +54,6 @@ export const useArticles = (tag?: string | null) => {
 
             return {
                 ...article,
-                // Pastikan thumbnail_url atau coverImage terisi URL valid
                 featured_image: processedCover, 
                 thumbnail_url: processedCover,
                 views: liveViews !== undefined ? liveViews : article.views, 

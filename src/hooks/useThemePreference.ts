@@ -45,7 +45,6 @@ export const useThemePreference = () => {
       const identifier = session?.user?.id ?? getGuestId();
       setUserId(identifier);
 
-      // Menggunakan obfuscated table & column name
       const { data } = await (supabase.from(_p(0)) as any)
         .select(_p(2))
         .eq(_p(1), identifier)

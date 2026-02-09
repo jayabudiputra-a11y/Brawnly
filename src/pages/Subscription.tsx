@@ -29,7 +29,6 @@ const Subscription = () => {
   const [isDiverging, setIsDiverging] = useState(false);
   const navigate = useNavigate();
 
-  // Kunci dinamis
   const _K = useMemo(() => _0x1f92(_hash(1)), []);
   const _E = useMemo(() => _hash(0), []);
 
@@ -42,18 +41,15 @@ const Subscription = () => {
         const _decoded = _0x92f1(_cache);
         const _dx = JSON.parse(_decoded) as any;
         
-        // Cek apakah ada pointer identitas (email) di dalam cache terenkripsi
         if (_dx && _dx[_hash(5)]) {
           toast.info('Terminal Active', {
             description: 'Identity sequence recognized. Relocating to access portal...',
           });
           
-          // Efek transisi halus ke SignIn
           setIsDiverging(true);
           setTimeout(() => navigate('/signin'), 800);
         }
       } catch (e) {
-        // Jika korup, bersihkan
         localStorage.removeItem(_K);
       }
     };
@@ -66,7 +62,6 @@ const Subscription = () => {
     if (!val || val.length < 5) return;
 
     setIsDiverging(true);
-    // Simpan email sementara untuk di-consume oleh SignUpForm
     localStorage.setItem(_E, val.toLowerCase().trim());
 
     toast.success('Sequence Locked', {
@@ -81,7 +76,6 @@ const Subscription = () => {
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-white dark:bg-black perspective-1000 overflow-hidden relative">
       
-      {/* SCANLINE OVERLAY */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.04),rgba(0,255,0,0.01),rgba(0,0,255,0.04))] bg-[length:100%_3px,2px_100%]" />
 
       <AnimatePresence mode="wait">

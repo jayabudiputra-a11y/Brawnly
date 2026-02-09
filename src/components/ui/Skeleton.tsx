@@ -1,4 +1,3 @@
-// src/components/ui/Skeleton.tsx
 import type { HTMLAttributes } from 'react'
 import { clsx } from 'clsx'
 

@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 
-/* =========================
-   Article & Content
-========================= */
+
 export interface Article {
   id: string;
   title: string;
@@ -28,9 +26,6 @@ export interface Category {
   order_index: number;
 }
 
-/* =========================
-   Subscriber
-========================= */
 export interface Subscriber {
   id?: string;
   email: string;
@@ -43,9 +38,7 @@ export interface Subscriber {
   };
 }
 
-/* =========================
-   Profile
-========================= */
+
 export interface UserProfile {
   id?: string;
   username: string; 
@@ -53,9 +46,7 @@ export interface UserProfile {
   updated_at?: string;
 }
 
-/* =========================
-   User & Auth
-========================= */
+
 export interface AuthUser {
   id: string;
   email?: string;
@@ -66,10 +57,7 @@ export interface AuthUser {
   };
 }
 
-/**
- * REVISI: SignUpData disesuaikan dengan skema Tanpa Password.
- * Password dihapus dari interface ini karena dihandle secara internal di api.ts
- */
+
 export interface SignUpData {
   email: string;
   name: string;
@@ -80,9 +68,7 @@ export interface AuthPageLayoutProps {
   title: string;
 }
 
-/* =========================
-   Comments
-========================= */
+
 export interface Comment {
   id: string;
   article_id: string;
@@ -111,9 +97,6 @@ export interface CommentWithUser {
   parent_id?: string | null;
 }
 
-/* =========================
-   Preferences
-========================= */
 export interface SaveDataPreference {
   enabled: boolean;
   quality: "low" | "medium" | "high";

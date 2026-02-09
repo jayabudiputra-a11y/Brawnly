@@ -3,19 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import SignUpForm from "@/components/SignUpForm";
 
-/* ======================
-    DECRYPTION FRAGMENT
-    Sinkron dengan kunci di Subscription & SignIn
-====================== */
 const _0xkey = ['v_identity_v1', 'reverse', 'split', 'join'] as const;
 
-// Solusi Error 7015
 const _f = (i: number) => _0xkey[i] as any;
 
-/**
- * Fix Error 2349: Breakdown chaining
- * Menjamin TS mengenali setiap tahap sebagai callable function
- */
+
 const _0xS3 = (s: string) => {
   const _b = btoa(s) as any;
   const _s = _b[_f(2)]('') as any;
@@ -34,7 +26,6 @@ const SignUpPage = () => {
       
       if (_auth) {
         setIsAuthorized(true);
-        // Otomatis arahkan ke signin jika perangkat sudah terikat
         setTimeout(() => navigate("/signin"), 2000);
       } else {
         setIsAuthorized(false);
@@ -47,7 +38,6 @@ const SignUpPage = () => {
   return (
     <main className="flex items-center justify-center min-h-[90vh] bg-white dark:bg-black transition-colors duration-500 overflow-hidden relative">
       
-      {/* SCANLINE OVERLAY - Lapisan tekstur monitor retro */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.04),rgba(0,255,0,0.01),rgba(0,0,255,0.04))] bg-[length:100%_4px,3px_100%]" />
 
       <AnimatePresence mode="wait">
@@ -79,7 +69,6 @@ const SignUpPage = () => {
         ) : null}
       </AnimatePresence>
 
-      {/* AMBIENT DYNAMIC GLOW */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <motion.div 
           animate={{ 
@@ -93,7 +82,6 @@ const SignUpPage = () => {
         />
       </div>
 
-      {/* METADATA FOOTER */}
       <div className="absolute bottom-6 w-full text-center opacity-10 select-none">
         <p className="text-[7px] font-mono tracking-[0.4em] uppercase dark:text-white">
           Protocol: Reverse-Auth-V1 // Node: {isAuthorized ? "SECURE_BIND" : "GUEST_HANDSHAKE"}

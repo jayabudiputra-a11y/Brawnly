@@ -1,81 +1,61 @@
-import { format } from 'date-fns';
-import { enUS, type Locale } from 'date-fns/locale'; 
+import { format as _f } from 'date-fns';
+import { enUS as _en, type Locale as _L } from 'date-fns/locale'; 
 
 interface FormattedDateProps {
   dateString: string | Date | number | null | undefined;
   formatString?: string;
-  locale?: Locale;
+  locale?: _L;
   fallback?: string;
   className?: string;
   variant?: 'default' | 'card' | 'detail' | 'meta';
 }
 
 const FormattedDate: React.FC<FormattedDateProps> = ({ 
-  dateString, 
-  formatString = "  MMMM d yyyy  ", 
-  locale = enUS,
-  fallback = "Date not available",
-  className = "",
-  variant = "default"
+  dateString: _dS, 
+  formatString: _fS = "  MMMM d yyyy  ", 
+  locale: _lc = _en,
+  fallback: _fb = "Date not available",
+  className: _cN = "",
+  variant: _v = "default"
 }) => {
 
-  if (!dateString) {
-    return <span className={className}>{fallback}</span>;
+  if (!_dS) {
+    return <span className={_cN}>{_fb}</span>;
   }
 
   try {
-    let date: Date;
-    
+    let _d: Date;
 
-    if (dateString instanceof Date) {
-      date = dateString;
-    } else if (typeof dateString === 'string') {
-
-      if (dateString.includes('T') || dateString.includes('+') || dateString.includes('Z')) {
-        date = new Date(dateString);
-      } else {
-
-        date = new Date(dateString);
-      }
-    } else if (typeof dateString === 'number') {
-      date = new Date(dateString);
+    if (_dS instanceof Date) {
+      _d = _dS;
+    } else if (typeof _dS === 'string') {
+      _d = new Date(_dS);
+    } else if (typeof _dS === 'number') {
+      _d = new Date(_dS);
     } else {
-      date = new Date(dateString);
+      _d = new Date(_dS as any);
     }
 
-
-    if (isNaN(date.getTime())) {
-      console.error('❌ Invalid date:', dateString);
-      return <span className={className}>{fallback}</span>;
+    if (isNaN(_d.getTime())) {
+      if (import.meta.env.DEV) console.error('❌ Invalid date:', _dS);
+      return <span className={_cN}>{_fb}</span>;
     }
 
+    const _fD = _f(_d, _fS, { locale: _lc });
 
-    const formattedDate = format(date, formatString, { locale });
-    
-
-    if (import.meta.env.DEV) {
-      console.log('📅 Date Debug:', {
-        input: dateString,
-        parsed: date,
-        formatted: formattedDate,
-        variant
-      });
-    }
-    
-
-    const variantClasses = {
+    const _vC = {
       default: "",
       card: "text-emerald-600 font-medium",
       detail: "text-gray-700",
       meta: "text-gray-500"
     };
     
-    const finalClassName = `${variantClasses[variant]} ${className}`.trim();
+    const _fCN = `${_vC[_v]} ${_cN}`.trim();
     
-    return <span className={finalClassName}>{formattedDate}</span>;
-  } catch (error) {
-    console.error('❌ Date formatting error:', error, 'for date:', dateString);
-    return <span className={className}>{fallback}</span>;
+    return <span className={_fCN}>{_fD}</span>;
+  } catch (_e) {
+    if (import.meta.env.DEV) console.error('❌ Error:', _e, 'for:', _dS);
+    return <span className={_cN}>{_fb}</span>;
   }
 };
 

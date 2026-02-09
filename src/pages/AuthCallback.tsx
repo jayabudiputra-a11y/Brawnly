@@ -14,7 +14,6 @@ export default function AuthCallback() {
       processed.current = true;
 
       try {
-        // Gunakan pembersihan hash untuk memastikan kode terbaca
         const code = new URLSearchParams(window.location.search).get("code");
 
         if (!code) {
@@ -34,10 +33,8 @@ export default function AuthCallback() {
         if (user?.email) {
           const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
 
-          // 1. Pastikan masuk ke tabel subscribers
           await subscribersApi.insertIfNotExists(user.email, fullName);
 
-          // 2. Sync ke user_profiles dengan id yang tepat
           await supabase.from("user_profiles").upsert({
             id: user.id,
             username: fullName,
@@ -47,7 +44,6 @@ export default function AuthCallback() {
 
         toast.success("Identity Synced", { description: "Welcome to Brawnly Cloud." });
         
-        // Redirect ke dashboard/articles
         navigate("/articles");
       } catch (err) {
         console.error("Auth callback system fault:", err);

@@ -1,4 +1,3 @@
-// src/components/ui/SkeletonCard.tsx
 const SkeletonCard = () => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
