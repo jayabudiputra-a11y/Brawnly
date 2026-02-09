@@ -1,128 +1,193 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Bookmark, Trash2, BookOpen, ArrowLeft, Hexagon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useArticles } from "@/hooks/useArticles";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { motion } from "framer-motion";
+import { Camera, Save, User } from "lucide-react";
 import { getOptimizedImage } from "@/lib/utils";
 
-export default function Library() {
-  const { data: allArticles, isLoading } = useArticles();
-  const [savedArticles, setSavedArticles] = useState<any[]>([]);
+type Props = {
+  userId: string;
+  currentAvatarUrl?: string | null;
+  currentUsername?: string;
+  onUploaded?: (url: string) => void;
+  onUsernameUpdated?: (name: string) => void;
+};
 
-  useEffect(() => {
-    if (allArticles) {
-      const saved = allArticles.filter((article: any) => {
-        return localStorage.getItem(`brawnly_saved_${article.slug}`) === "true";
+const AvatarUploader = ({
+  userId,
+  currentAvatarUrl,
+  currentUsername,
+  onUploaded,
+  onUsernameUpdated,
+}: Props) => {
+  const [uploading, setUploading] = useState(false);
+  const [username, setUsername] = useState(currentUsername || "");
+  const [updatingName, setUpdatingName] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUpdateName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || username === currentUsername) return;
+
+    setUpdatingName(true);
+    setError(null);
+
+    try {
+      const { error: updateProfileError } = await supabase
+        .from("user_profiles")
+        .update({ username })
+        .eq("id", userId);
+
+      if (updateProfileError) throw updateProfileError;
+
+      await supabase.auth.updateUser({
+        data: { full_name: username },
       });
-      setSavedArticles(saved);
+
+      onUsernameUpdated?.(username);
+    } catch (err: any) {
+      setError(err.message ?? "Update name failed");
+    } finally {
+      setUpdatingName(false);
     }
-  }, [allArticles]);
-
-  const removeItem = (slug: string) => {
-    localStorage.removeItem(`brawnly_saved_${slug}`);
-    setSavedArticles((prev) => prev.filter((a) => a.slug !== slug));
   };
 
-  const _x = {
-    root: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-32 pb-24 text-black dark:text-white",
-    container: "max-w-[1320px] mx-auto px-5 md:px-10",
-    grid: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-    card: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full",
-    empty: "flex flex-col items-center justify-center py-32 text-center",
-  };
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setError(null);
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Only images allowed");
+      }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
-        <div className="w-12 h-12 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+      setUploading(true);
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${userId}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          upsert: true,
+          contentType: file.type,
+          cacheControl: '31536000', 
+        });
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+      const optimizedUrlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
+
+      await supabase
+        .from("user_profiles")
+        .update({ avatar_url: optimizedUrlWithCacheBust })
+        .eq("id", userId);
+
+      await supabase.auth.updateUser({
+        data: { avatar_url: optimizedUrlWithCacheBust },
+      });
+
+      onUploaded?.(optimizedUrlWithCacheBust);
+    } catch (err: any) {
+      setError(err.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
-    <main className={_x.root}>
-      <div className={_x.container}>
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-          <div>
-            <Link to="/" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 mb-6 transition-all">
-              <ArrowLeft size={14} /> Back to Feed
-            </Link>
-            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">
-              Library
-            </h1>
-            <p className="text-sm font-bold opacity-60 mt-4 tracking-wide">
-              Your curated collection of Brawnly intelligence and features.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 bg-black text-white dark:bg-white dark:text-black px-6 py-4 rounded-xl">
-            <Bookmark size={20} fill="currentColor" />
-            <span className="text-2xl font-black italic">{savedArticles.length}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Saved Items</span>
-          </div>
+    <div className="space-y-6 w-full max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative group">
+          <motion.div
+             whileHover={{ scale: 1.05 }}
+             className="relative overflow-hidden rounded-full w-28 h-28 border-4 border-white dark:border-neutral-800 shadow-lg"
+          >
+             <img
+              src={
+                currentAvatarUrl 
+                  ? getOptimizedImage(currentAvatarUrl, 200)
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      currentUsername || "U"
+                    )}&background=random&color=fff`
+              }
+              alt="User Avatar"
+              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 ease-in-out"
+              width="112"
+              height="112"
+            />
+            
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <Camera className="text-white w-8 h-8" />
+            </div>
+          </motion.div>
+
+          <label className="absolute bottom-0 right-0 p-2 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black rounded-full cursor-pointer shadow-lg border border-white/20 dark:border-black/10 active:scale-90 transition z-10">
+            <Camera size={18} />
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleUpload}
+              disabled={uploading}
+              aria-label="Upload profile picture"
+            />
+          </label>
         </div>
 
-        {savedArticles.length === 0 ? (
-          <div className={_x.empty}>
-            <div className="mb-8 opacity-10">
-              <Hexagon size={160} strokeWidth={1} />
-            </div>
-            <h2 className="text-2xl font-black uppercase tracking-tighter mb-4">The Archive is Empty</h2>
-            <p className="text-neutral-500 max-w-xs mb-10 text-sm font-medium">You haven't saved any articles to your collection yet.</p>
-            <Link to="/articles" className="px-10 py-4 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">
-              Browse Articles
-            </Link>
-          </div>
-        ) : (
-          <div className={_x.grid}>
-            <AnimatePresence mode="popLayout">
-              {savedArticles.map((article) => (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  key={article.id}
-                  className={_x.card}
-                >
-                  <div className="aspect-[16/9] overflow-hidden relative">
-                    <img
-                      src={getOptimizedImage(article.featured_image_path_clean || "", 600)}
-                      alt={article.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
-                  </div>
-
-                  <div className="p-6 flex flex-col flex-1">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-red-600 mb-3 block">
-                      {article.category || "Collection"}
-                    </span>
-                    <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-red-600 transition-colors line-clamp-2">
-                      {article.title}
-                    </h3>
-                    
-                    <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
-                      <Link
-                        to={`/article/${article.slug}`}
-                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"
-                      >
-                        <BookOpen size={14} /> Read Entry
-                      </Link>
-                      <button
-                        onClick={() => removeItem(article.slug)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors"
-                        title="Remove from collection"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
+        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400">
+          {uploading ? "UPLOADING..." : "TAP TO CHANGE AVATAR"}
+        </p>
       </div>
-    </main>
+
+      <form
+        onSubmit={handleUpdateName}
+        className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-3"
+      >
+        <label htmlFor="username-input" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-neutral-700 dark:text-neutral-300">
+          <User size={12} className="text-emerald-500" />
+          Username
+        </label>
+
+        <div className="flex items-center gap-2 min-h-[44px]">
+          <input
+            id="username-input"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            className="flex-1 min-w-0 h-[44px] rounded-xl px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 text-sm font-bold text-neutral-900 dark:text-white outline-none transition"
+          />
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="submit"
+            disabled={updatingName || !username || username === currentUsername}
+            className="h-[44px] px-4 rounded-xl shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest disabled:opacity-40 flex items-center justify-center gap-2 shadow-md"
+          >
+            {updatingName ? (
+              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Save size={14} />
+                <span className="hidden xs:inline">Save</span>
+              </>
+            )}
+          </motion.button>
+        </div>
+      </form>
+
+      {error && (
+        <p className="text-[10px] font-bold uppercase text-red-500 text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-200 dark:border-red-900/30">
+          {error}
+        </p>
+      )}
+    </div>
   );
-}
+};
+
+export default AvatarUploader;

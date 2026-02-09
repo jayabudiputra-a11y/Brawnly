@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import AvatarUploader from "@/components/profile/AvatarUploader";
 import { useNavigate } from "react-router-dom";
 import type { UserProfile } from "@/types";
-import { getOptimizedImage } from "@/lib/utils"; // Tambahkan import ini
+import { getOptimizedImage } from "@/lib/utils";
 
 const Profile = () => {
   const { user, loading } = useAuth();
@@ -41,7 +41,7 @@ const Profile = () => {
             },
             { onConflict: "id" }
           )
-          .select(); // Tambahkan select() agar data kembalian bisa dibaca
+          .select();
 
         if (newData && !insertError) {
           const rows = (Array.isArray(newData) ? newData : [newData]) as UserProfile[];
