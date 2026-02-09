@@ -8,7 +8,7 @@ import type { AuthPageLayoutProps } from "@/types";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Articles = lazy(() => import("@/pages/Articles"));
-const ArticlePage = lazy(() => import("@/pages/ArticlePage"));
+const ArticlePage = lazy(() => import("@/pages/ArticlePage").catch(() => { window.location.reload(); return { default: () => null as any }; }));
 const Category = lazy(() => import("@/pages/Category"));
 const About = lazy(() => import("@/pages/About"));
 const Contact = lazy(() => import("@/pages/Contact"));
@@ -17,6 +17,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 const Subscription = lazy(() => import("@/pages/Subscription"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
+const Library = lazy(() => import("@/pages/Library"));
 
 const Terms = lazy(() => import("@/pages/Terms"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
@@ -57,6 +58,7 @@ function App() {
             <Route path="articles" element={<Articles />} />
             <Route path="subscribe" element={<Subscription />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="library" element={<Library />} />
             <Route path="article/:slug" element={<ArticlePage />} />
             <Route path="category/:slug" element={<Category />} />
             <Route path="about" element={<About />} />
