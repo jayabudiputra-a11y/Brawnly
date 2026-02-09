@@ -1,10 +1,19 @@
 import _fs from 'fs';
 import { SitemapStream as _SS, streamToPromise as _sTP } from 'sitemap';
 import { Readable as _R } from 'stream';
+import { createClient as _cC } from '@supabase/supabase-js';
+import * as _dt from 'dotenv';
+
+_dt.config();
+
+const _sU = process.env.VITE_SUPABASE_URL || 'https://zlwhvkexgjisyhakxyoe.supabase.co';
+const _sK = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsd2h2a2V4Z2ppc3loYWt4eW9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxMjkzMDksImV4cCI6MjA3OTcwNTMwOX0.mhlXTh7MVxBB4Z0_TANi87t5TunMtMSOiP9U8laEn2M';
+const _sB = _cC(_sU, _sK);
 
 async function _genBrawnlySEO() {
   const _base = 'https://www.brawnly.online';
-  const _lks = [
+  
+  let _lks = [
     { url: '/', changefreq: 'daily', priority: 1.0 },
     { url: '/articles', changefreq: 'daily', priority: 0.9 },
     { url: '/library', changefreq: 'daily', priority: 0.8 },
@@ -13,14 +22,25 @@ async function _genBrawnlySEO() {
     { url: '/terms', changefreq: 'monthly', priority: 0.3 },
     { url: '/privacy', changefreq: 'monthly', priority: 0.3 },
     { url: '/ethics', changefreq: 'monthly', priority: 0.3 },
-    { url: '/article/every-episode-of-sex-and-the-city-part-2-julia-dicesare', changefreq: 'weekly', priority: 0.7 },
-    { url: '/article/the-pull-up-video-that-set-my-night-on-fire', changefreq: 'weekly', priority: 0.7 },
-    { url: '/article/lockers-and-looks-thrill', changefreq: 'weekly', priority: 0.7 },
-    { url: '/article/what-a-muscular-body-symbolizes-to-me', changefreq: 'weekly', priority: 0.7 },
-    { url: '/article/lifted-spirits-my-gym-crush-v2', changefreq: 'weekly', priority: 0.7 },
   ];
 
   try {
+    const { data: _arts, error: _errA } = await _sB
+      .from('articles')
+      .select('slug, updated_at, title')
+      .eq('status', 'published');
+
+    if (_arts) {
+      _arts.forEach(_a => {
+        _lks.push({
+          url: `/article/${_a.slug}`,
+          changefreq: 'weekly',
+          priority: 0.7,
+          lastmod: _a.updated_at
+        });
+      });
+    }
+
     const _stm = new _SS({ hostname: _base });
     const _xml = await _sTP(_R.from(_lks).pipe(_stm)).then((_d) => _d.toString());
     _fs.writeFileSync('./public/sitemap.xml', _xml);
@@ -35,7 +55,7 @@ async function _genBrawnlySEO() {
     _rss += `</channel>\n</rss>`;
     _fs.writeFileSync('./public/rss.xml', _rss);
 
-    console.log('✅ [BRAWNLY_SEO] Sitemap & RSS generated successfully.');
+    console.log(`✅ [BRAWNLY_SEO] Success! Generated ${_lks.length} URLs to Sitemap & RSS.`);
   } catch (_err) {
     console.error('❌ [BRAWNLY_ERROR] Generator failed:', _err);
   }
