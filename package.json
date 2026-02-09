@@ -7,9 +7,10 @@
   "scripts": {
     "prebuild": "node scripts/generate-sitemap.js",
     "dev": "vite",
+    "sitemap": "node scripts/generate-sitemap.js",
+    "postbuild": "node scripts/generate-sitemap.js",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",    "preview": "vite preview"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
