@@ -16,7 +16,7 @@
     <meta property="og:url" content="https://www.brawnly.online/" />
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
-    <meta property="og:image" content="/assets/5B8bpVzO.gif" />
+    <meta property="og:image" content="/src/assets/myPride.gif" />
 
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; media-src 'self' https: http:; connect-src 'self' https: http: wss: ws: https://*.supabase.co wss://*.supabase.co; font-src 'self' data: https: http:; frame-src 'self' https: http:; object-src 'none'; base-uri 'self'; form-action 'self';">
 
@@ -41,23 +41,14 @@
     <script>
       (function () {
         try {
-          var a = [
-            'aHR0cHM6Ly8=',
-            'emx3aHZrZXhnamlzeWhha3h5b2U=',
-            'LnN1cGFiYXNlLmNv'
-          ]
+          var a = ['aHR0cHM6Ly8=', 'emx3aHZrZXhnamlzeWhha3h5b2U=', 'LnN1cGFiYXNlLmNv']
           var d = function (x) { return atob(x) }
           var o = d(a[0]) + d(a[1]) + d(a[2])
-
           var l = document.createElement('link')
-          l.rel = 'preconnect'
-          l.href = o
-          l.crossOrigin = 'anonymous'
+          l.rel = 'preconnect'; l.href = o; l.crossOrigin = 'anonymous'
           document.head.appendChild(l)
-
           var l2 = document.createElement('link')
-          l2.rel = 'dns-prefetch'
-          l2.href = o
+          l2.rel = 'dns-prefetch'; l2.href = o
           document.head.appendChild(l2)
         } catch (e) {}
       })()
@@ -82,25 +73,18 @@
         try {
           if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
             for (var k in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-              __REACT_DEVTOOLS_GLOBAL_HOOK__[k] =
-                typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[k] === 'function'
-                  ? function () {}
-                  : null
+              __REACT_DEVTOOLS_GLOBAL_HOOK__[k] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[k] === 'function' ? function () {} : null
             }
           }
         } catch (e) {}
       })()
     </script>
 
-    <link rel="icon" type="image/svg+xml" href="/assets/BL_HDbHr.svg" />
-    <link rel="alternate icon" type="image/svg+xml" href="/assets/BL_HDbHr.svg" />
-    <script type="module" crossorigin src="/assets/js/M5XeAbbR.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/js/C0SoBWSi.js">
-    <link rel="modulepreload" crossorigin href="/assets/js/McWZVwGu.js">
-    <link rel="stylesheet" crossorigin href="/assets/DjqaCE3d.css">
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
+    <link rel="alternate icon" type="image/svg+xml" href="/src/assets/Brawnly-favicon.svg" />
   </head>
   <body class="antialiased bg-white dark:bg-black">
     <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
