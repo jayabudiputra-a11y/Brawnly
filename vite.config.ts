@@ -10,10 +10,8 @@ export default defineConfig({
         compact: true,
       },
     }),
-
     VitePWA({
       registerType: "autoUpdate",
-      /* ⭐ Aset di public/ tidak akan di-hash, aman untuk PWA */
       includeAssets: [
         "favicon.ico",
         "favicon.svg",
@@ -24,7 +22,6 @@ export default defineConfig({
         "Brawnly-17VaIyauwVGvanab8Vf.gif",
         "Brawnly-17aDfvayqUvay.gif"
       ],
-
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -53,11 +50,8 @@ export default defineConfig({
           }
         ],
       },
-
       workbox: {
-        /* Caching strategi agar file JS/CSS tersedia offline */
         globPatterns: ["**/*.{js,css,html,ico,png,svg,gif,webmanifest}"],
-        
         runtimeCaching: [
           {
             urlPattern: /\.wasm$/,
@@ -66,7 +60,7 @@ export default defineConfig({
               cacheName: "wasm-cache",
               expiration: {
                 maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365
+                maxAgeSeconds: 31536000
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -74,25 +68,21 @@ export default defineConfig({
             }
           },
           {
-            /* ⭐ CACHE GAMBAR SUPABASE */
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
-            handler: "CacheFirst",
+            handler: "NetworkFirst",
             options: {
               cacheName: "supabase-images-cache",
+              networkTimeoutSeconds: 5,
               expiration: {
-                maxEntries: 100,
+                maxEntries: 50,
                 maxAgeSeconds: 2592000,
               },
               cacheableResponse: {
                 statuses: [0, 200],
               },
-              fetchOptions: {
-                mode: 'cors',
-              }
             },
           },
           {
-            /* ⭐ CACHE API SUPABASE */
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
             handler: "StaleWhileRevalidate",
             options: {
@@ -110,21 +100,18 @@ export default defineConfig({
       },
     }),
   ],
-
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-
   define: {
     __REACT_DEVTOOLS_GLOBAL_HOOK__: "undefined",
   },
-
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    sourcemap: false, // Matikan sourcemap di production agar lebih ringan
+    sourcemap: false,
     cssCodeSplit: true,
     cssMinify: true,
     minify: "terser",
@@ -141,13 +128,11 @@ export default defineConfig({
         comments: false,
       },
     },
-
     rollupOptions: {
       output: {
         entryFileNames: "assets/js/[hash].js",
         chunkFileNames: "assets/js/[hash].js",
-        assetFileNames: "assets/[name]-[hash][extname]", // Tetap biarkan hash untuk aset internal
-
+        assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("react")) return "react-vendor";

@@ -11,8 +11,6 @@ import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 export default function Library() {
   const { isDark: _iD } = _uTP();
   
-  // React Query akan mencoba fetch background. 
-  // Jika offline, dia akan gagal tapi kita punya backup localStorage di bawah.
   const { data: _aD, isLoading: _aL, isRefetching: _iR } = _uA(); 
   
   const [_sA, _ssA] = _s<any[]>([]); // State Artikel
@@ -20,13 +18,10 @@ export default function Library() {
   const [_lL, _slL] = _s(true);      // Local Loading State
   const [_isOff, _sOff] = _s(!navigator.onLine); // Status Offline Realtime
 
-  // --- 1. SUPER FAST LOAD (FACEBOOK STYLE) ---
-  // Load data DETIK KE-0 dari LocalStorage. User tidak perlu menunggu loading network.
   _e(() => {
     const _c = localStorage.getItem("brawnly_lib_cache");
     const _cM = localStorage.getItem("brawnly_music_cache");
     
-    // Jika ada cache, langsung tampilkan!
     if (_c) {
       _ssA(JSON.parse(_c));
       _slL(false); // Matikan loading spinner segera
@@ -35,7 +30,6 @@ export default function Library() {
       _ssL(JSON.parse(_cM));
     }
 
-    // Listener otomatis untuk deteksi internet mati/hidup
     const _hO = () => _sOff(false);
     const _hF = () => _sOff(true);
     window.addEventListener('online', _hO);
@@ -46,28 +40,22 @@ export default function Library() {
     };
   }, []);
 
-  // --- 2. BACKGROUND SYNC ---
-  // Jika internet ada dan data baru masuk, update tampilan & update cache diam-diam.
   _e(() => {
     if (_aD) {
-      // Filter hanya artikel yang di-bookmark
       const _sv = _aD.filter((a: any) => localStorage.getItem(`brawnly_saved_${a.slug}`) === "true");
       
       const _curr = JSON.stringify(_sv);
       const _prev = localStorage.getItem("brawnly_lib_cache");
       
-      // Hanya update state jika data benar-benar berubah (Hemat render)
       if (_curr !== _prev) {
         _ssA(_sv);
         localStorage.setItem("brawnly_lib_cache", _curr); // Simpan versi terbaru ke LocalStorage
       }
       
-      // Jika loading awal masih nyala tapi data network sudah masuk, matikan loading
       if (_lL) _slL(false);
     }
   }, [_aD]);
 
-  // Sync Musik
   _e(() => {
     const _f = async () => {
       try {
@@ -78,7 +66,6 @@ export default function Library() {
           localStorage.setItem("brawnly_music_cache", _currM);
         }
       } catch (_er) {
-        // Jika error (misal offline), biarkan data lama dari cache tetap tampil
       } finally {
         if (!localStorage.getItem("brawnly_lib_cache")) {
           _slL(false);
@@ -119,7 +106,6 @@ export default function Library() {
     e: "flex flex-col items-center justify-center py-20 text-center"
   };
 
-  // Loading Screen: Hanya muncul jika Cache KOSONG dan Network sedang Loading
   if ((_aL || _lL) && _sA.length === 0 && _sL.length === 0) return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
       <div className={`w-12 h-12 border-4 ${_iD ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`} />
@@ -208,7 +194,6 @@ export default function Library() {
                            <img 
                              src={_gOI(_imgSrc, 600)} 
                              alt={a.title} 
-                             // CrossOrigin: Anonymous (PENTING untuk SW Caching)
                              crossOrigin="anonymous"
                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                              loading="lazy" 
