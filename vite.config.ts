@@ -74,12 +74,16 @@ export default defineConfig({
               cacheName: "supabase-images-cache",
               networkTimeoutSeconds: 5,
               expiration: {
-                maxEntries: 50,
+                maxEntries: 100,
                 maxAgeSeconds: 2592000,
               },
               cacheableResponse: {
                 statuses: [0, 200],
               },
+              fetchOptions: {
+                mode: 'cors',
+                credentials: 'omit',
+              }
             },
           },
           {
