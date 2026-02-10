@@ -1,11 +1,34 @@
-import { useState as _s } from "react";
+import { useState as _s, useEffect as _e } from "react";
 import { motion as _m } from "framer-motion";
 import TagFilter from "@/components/features/TagFilter";
 import ArticleList from "@/components/features/ArticleList";
+import { useArticles as _uAs } from "@/hooks/useArticles";
+import { loadSnap as _lS, saveSnap as _sS, type SnapArticle as _SA } from "@/lib/storageSnap";
 
 const Articles = () => {
   const [_sT, _ssT] = _s<string | null>(null);
   const [_sTm] = _s<string>("");
+
+  // Logic: Ambil data cepat dari Snap sebelum API selesai
+  const [_arts, _sArts] = _s<any[]>(() => _lS());
+
+  // Ambil data fresh dari hook
+  const { data: _dF } = _uAs();
+
+  // Update State dan Snap saat data dari Supabase tersedia
+  _e(() => {
+    if (_dF) {
+      _sArts(_dF);
+      
+      // Simpan snapshot terbaru (10 artikel teratas) untuk kunjungan berikutnya
+      const _sD: _SA[] = _dF.slice(0, 10).map((a: any) => ({
+        title: a.title,
+        slug: a.slug,
+        image: a.featured_image
+      }));
+      _sS(_sD);
+    }
+  }, [_dF]);
 
   const _jLd = {
     "@context": "https://schema.org",
@@ -44,7 +67,10 @@ const Articles = () => {
             <TagFilter selected={_sT} onSelect={_ssT} />
           </div>
         </header>
+
         <div className="article-feed-container active:opacity-90 transition-opacity duration-200">
+          {/* Logic: ArticleList akan tetap melakukan rendering internal, 
+              namun snapshot sudah siap di background */}
           <ArticleList selectedTag={_sT} searchTerm={_sTm} />
         </div>
       </div>

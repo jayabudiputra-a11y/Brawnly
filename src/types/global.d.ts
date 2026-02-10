@@ -1,26 +1,31 @@
+import { SnapArticle } from "@/lib/storageSnap";
+
 export {};
 
 declare global {
 
   /* ======================
-     WINDOW GLOBAL SNAP CACHE
-  ====================== */
+      WINDOW GLOBAL SNAP CACHE
+     ====================== */
   interface Window {
-    __BRAWNLY_SNAP__?: any[];
+    /** * Snapshot cache untuk loading artikel instan.
+     * Menggunakan tipe data SnapArticle dari storageSnap.
+     */
+    __BRAWNLY_SNAP__?: SnapArticle[];
   }
 
   /* ======================
-     BACKGROUND SYNC MANAGER
-  ====================== */
+      BACKGROUND SYNC MANAGER
+     ====================== */
   interface SyncManager {
     register(tag: string): Promise<void>;
   }
 
   /* ======================
-     SERVICE WORKER REG
-  ====================== */
+      SERVICE WORKER REG
+     ====================== */
   interface ServiceWorkerRegistration {
-    sync?: SyncManager;
+    readonly sync?: SyncManager;
   }
 
 }

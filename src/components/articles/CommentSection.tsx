@@ -7,7 +7,12 @@ import { getOptimizedImage as _gOI } from "@/lib/utils";
 import type { CommentWithUser as _CWU } from "@/types";
 import FormattedDate from "@/components/features/FormattedDate";
 
-const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
+interface CommentSectionProps {
+  articleId: string;
+  onOfflineSubmit?: (_cD: any) => Promise<void>;
+}
+
+const CommentSection: React.FC<CommentSectionProps> = ({ articleId, onOfflineSubmit }) => {
   const { isAuthenticated: _isA } = _uA();
   const [_c, _sc] = _s<_CWU[]>([]);
   const [_cn, _scn] = _s("");
@@ -19,9 +24,14 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
 
   const _lC = async () => {
     if (!articleId) return;
-    const _d = await _api.getCommentsByArticle(articleId);
-    _sc(_d);
-    _sl(false);
+    try {
+      const _d = await _api.getCommentsByArticle(articleId);
+      _sc(_d);
+    } catch (_err) {
+      // Silent fail if offline
+    } finally {
+      _sl(false);
+    }
   };
 
   _e(() => {
@@ -31,6 +41,19 @@ const CommentSection: React.FC<{ articleId: string }> = ({ articleId }) => {
   const _hS = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!_cn.trim()) return;
+
+    // Logic Offline Handling
+    if (!navigator.onLine && onOfflineSubmit) {
+      await onOfflineSubmit({
+        article_id: articleId,
+        content: _cn,
+        parent_id: _rT?.id || null,
+        user_name: "You (Offline)" // Visual hint
+      });
+      _scn("");
+      _srT(null);
+      return;
+    }
 
     try {
       await _api.addComment(articleId, _cn, _rT?.id || null);

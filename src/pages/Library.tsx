@@ -139,6 +139,7 @@ export default function Library() {
           </div>
         </div>
 
+        {/* BRAWNLY BEATS SECTION */}
         <section className="mb-20">
           <h2 className={_x.st}><_Ms className="text-emerald-500" aria-hidden="true" /> BRAWNLY_BEATS</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -155,20 +156,32 @@ export default function Library() {
                   src={s.thumbnail_url} 
                   alt={s.title} 
                   crossOrigin="anonymous" 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                   loading="lazy" 
                 />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <_Pl size={32} className="text-white" aria-hidden="true" />
+                
+                {/* SENSOR-DRIVEN INTERACTIVE LAYER */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-start pt-8">
+                    {/* Pause/Play Button moved higher with 'collision sensor' motion */}
+                    <_m.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        whileHover={{ y: -12, scale: 1.1 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-emerald-500 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform"
+                    >
+                        <_Pl size={28} className="text-white fill-current" aria-hidden="true" />
+                    </_m.div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
-                  <p className="text-[8px] font-black uppercase truncate text-white">{s.title}</p>
+
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10">
+                  <p className="text-[9px] font-black uppercase truncate text-white tracking-widest">{s.title}</p>
                 </div>
               </_m.div>
             ))}
           </div>
         </section>
 
+        {/* SAVED INTELLIGENCE SECTION */}
         <section>
           <h2 className={_x.st}><_Bo className="text-emerald-500" aria-hidden="true" /> SAVED_INTELLIGENCE</h2>
           {_sA.length === 0 ? (
@@ -221,7 +234,7 @@ export default function Library() {
                           <_L to={`/article/${a.slug}`} aria-label={`Open entry: ${a.title}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} aria-hidden="true" /> OPEN_ENTRY</_L>
                           
                           <button 
-                            onClick={() => _rI(a.slug)} 
+                            onClick={(e) => { e.stopPropagation(); _rI(a.slug); }} 
                             aria-label={`Remove ${a.title} from collection`}
                             className={`
                               absolute right-0 top-1/2 -translate-y-1/2 md:relative md:top-0 md:translate-y-0

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import ArticleList from "@/components/features/ArticleList";
 
 import centralGif from "@/assets/Brawnly-17aDfvayqUvay.gif";
@@ -6,13 +6,14 @@ import leftGif from "@/assets/Brawnly-17VaIyauwVGvanab8Vf.gif";
 import rightGif from "@/assets/Brawnly.gif";
 import prideMustache from "@/assets/myPride.gif";
 
-/* ENTERPRISE STORAGE */
+/* ENTERPRISE STORAGE & SNAP */
 import {
   getArticlesSnap,
   mirrorQuery,
   setCookieHash,
   warmupEnterpriseStorage
 } from "@/lib/enterpriseStorage";
+import { loadSnap, saveSnap, type SnapArticle } from "@/lib/storageSnap";
 
 /* SUPABASE OFFLINE SYNC */
 import { syncArticles } from "@/lib/supabaseSync";
@@ -21,94 +22,95 @@ import { syncArticles } from "@/lib/supabaseSync";
 import { registerSW } from "@/pwa/swRegister";
 
 /* ===============================
-   ENTERPRISE HOME
+    ENTERPRISE HOME
 =============================== */
 
 const Home = () => {
+  // Logic: Ambil data cepat dari Snap sebelum API/Sync selesai
+  const [articles, setArticles] = useState<any[]>(() => {
+    return loadSnap();
+  });
 
   useEffect(() => {
-
     (async () => {
-
       try {
-
         /* ===============================
-           PWA REGISTER
+            PWA REGISTER
         =============================== */
         await registerSW();
 
         /* ===============================
-           STORAGE WARMUP
+            STORAGE WARMUP
         =============================== */
         warmupEnterpriseStorage();
 
         /* ===============================
-           SNAP HYDRATE
+            SNAP HYDRATE (LOGIC GABUNGAN)
         =============================== */
         const snap = getArticlesSnap();
+        const fastSnap = loadSnap();
 
         if (Array.isArray(snap) && snap.length) {
           window.__BRAWNLY_SNAP__ = snap;
+          // Sinkronisasi ke state lokal jika diperlukan
+          if (articles.length === 0) setArticles(snap);
         }
 
         /* ===============================
-           COOKIE HASH
+            COOKIE HASH & QUERY MIRROR
         =============================== */
         setCookieHash("brawnly_session");
-
-        /* ===============================
-           QUERY MIRROR
-        =============================== */
         mirrorQuery("home_feed");
 
         /* ===============================
-           SUPABASE SYNC
+            SUPABASE SYNC & SNAP SAVE
         =============================== */
-        const fresh = await syncArticles(async () => snap || []);
+        // syncArticles akan mengambil data fresh dari network/cache
+        const freshData = await syncArticles(async () => snap || fastSnap || []);
 
-        if (fresh && Array.isArray(snap)) {
-          window.__BRAWNLY_SNAP__ = snap;
+        if (freshData && Array.isArray(freshData)) {
+          // Update UI dengan data terbaru
+          setArticles(freshData);
+          window.__BRAWNLY_SNAP__ = freshData;
+
+          // Simpan snapshot terbaru untuk kunjungan berikutnya (Fast-Cache)
+          const snapData: SnapArticle[] = freshData.slice(0, 10).map(a => ({
+            title: a.title,
+            slug: a.slug,
+            image: a.featured_image
+          }));
+          saveSnap(snapData);
         }
 
         /* ===============================
-           BACKGROUND SYNC
+            BACKGROUND SYNC
         =============================== */
         if ("serviceWorker" in navigator) {
-
           const reg = await navigator.serviceWorker.ready;
-
           if (reg.sync) {
             try {
               await reg.sync.register("sync-articles");
             } catch {}
           }
-
         }
-
       } catch {}
-
     })();
-
   }, []);
 
   /* ===============================
-     ORIGINAL UI
+      ORIGINAL UI Styles
   =============================== */
-
   const _s = {
     main: "min-h-screen bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans",
     hero: "pt-12 pb-6 border-b-4 border-black dark:border-white mb-2",
     inner: "max-w-[1280px] mx-auto px-4 md:px-8",
-
     topGrid: "flex flex-col md:flex-row gap-8 items-start mb-12",
     sideArt: "hidden lg:block w-1/4 pt-4 border-t border-gray-200 dark:border-neutral-800",
     mainCenter: "flex-1 border-t-2 border-black dark:border-white pt-4",
-
     category: "text-[12px] font-black uppercase tracking-wider text-red-600 mb-2 block",
     headline: "text-[42px] md:text-[84px] leading-[0.9] font-black uppercase tracking-tighter mb-6",
     subline: "text-lg md:text-xl font-medium leading-tight text-neutral-600 dark:text-neutral-400 mb-6 max-w-2xl",
     author: "text-[11px] font-bold uppercase tracking-[0.2em] border-b-2 border-black dark:border-white pb-1 inline-block mb-10",
-
     gifCentral: "w-full max-w-[480px] h-auto object-cover rounded-none mb-4 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] dark:shadow-[20px_20px_0px_0px_rgba(255,255,255,0.02)]",
     gifSide: "w-full h-auto opacity-80 hover:opacity-100 transition-opacity duration-300 mb-2",
     mustache: "h-5 w-auto object-contain mt-2 opacity-30"
@@ -121,7 +123,6 @@ const Home = () => {
       <section className={_s.hero}>
         <div className={_s.inner}>
           <div className={_s.topGrid}>
-
             <div className={_s.sideArt}>
               <span className={_s.category}>Trending Now</span>
               <img src={leftGif} alt="L" className={_s.gifSide} {...pProps} />
@@ -166,7 +167,6 @@ const Home = () => {
                 Exclusive: The Art of Fitness and Masculinity.
               </p>
             </div>
-
           </div>
         </div>
       </section>
@@ -183,14 +183,13 @@ const Home = () => {
           </div>
 
           <div className="min-h-[1000px]">
+            {/* Logic: Mengirim data snapshot ke list jika list mendukung initialData */}
             <ArticleList selectedTag={null} searchTerm="" />
           </div>
-
         </div>
       </section>
     </main>
   );
-
 };
 
 export default Home;

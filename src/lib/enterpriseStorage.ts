@@ -1,21 +1,32 @@
+import { cookieHashQuarter as _chQ } from "@/lib/cookieHash";
+
 const SNAP = "brawnly_articles_snap_v3";
 const QUERY = "brawnly_query_mirror_v3";
 const TTL = "brawnly_ttl_v3";
 
-/* COOKIE HASH (¼ MEMORY) */
-function h(s: string) {
-  let x = 0;
-  for (let i = 0; i < s.length; i++) {
-    x = Math.imul(31, x) + s.charCodeAt(i);
+/* ==================================
+    ENTERPRISE COOKIE HASH (¼ MEMORY)
+   ================================== */
+
+/**
+ * Menghasilkan hash sesi yang aman menggunakan SHA-256 
+ * dengan footprint memori minimal (1/4).
+ */
+export async function setCookieHash(id: string) {
+  try {
+    const _hV = await _chQ(id + Date.now());
+    document.cookie = `b_v=${_hV}; path=/; SameSite=Strict; max-age=604800`;
+  } catch (_e) {
+    // Fallback sederhana jika Web Crypto API tidak tersedia
+    const _fB = Math.abs(id.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)).toString(36);
+    document.cookie = `b_v=${_fB}; path=/; SameSite=Lax; max-age=604800`;
   }
-  return Math.abs(x).toString(36);
 }
 
-export function setCookieHash(id: string) {
-  document.cookie = `b_v=${h(id)};path=/;SameSite=Lax;max-age=604800`;
-}
+/* ==================================
+    SNAPSHOT STORE (FAST-LOAD)
+   ================================== */
 
-/* SNAPSHOT STORE */
 export function saveArticlesSnap(data: any[]) {
   try {
     localStorage.setItem(SNAP, JSON.stringify(data));
@@ -31,7 +42,10 @@ export function getArticlesSnap() {
   }
 }
 
-/* TTL CHECK (60 MENIT) */
+/* ==================================
+    TTL CHECK (60 MENIT)
+   ================================== */
+
 export function isTTLExpired() {
   try {
     const t = Number(localStorage.getItem(TTL) || 0);
@@ -41,7 +55,10 @@ export function isTTLExpired() {
   }
 }
 
-/* FB BIGQUERY STYLE MIRROR */
+/* ==================================
+    FB BIGQUERY STYLE MIRROR
+   ================================== */
+
 export function mirrorQuery(row: any) {
   try {
     const q = JSON.parse(localStorage.getItem(QUERY) || "[]");
@@ -51,7 +68,10 @@ export function mirrorQuery(row: any) {
   } catch {}
 }
 
-/* ENTERPRISE WARMUP */
+/* ==================================
+    ENTERPRISE WARMUP
+   ================================== */
+
 export function warmupEnterpriseStorage() {
   try {
     localStorage.getItem(SNAP);

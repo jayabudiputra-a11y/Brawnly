@@ -5,6 +5,9 @@ import _IF from "@/components/common/IframeA11yFixer";
 import _ST from "@/components/features/ScrollToTopButton";
 import _MT from "@/components/seo/MetaTags";
 import type { AuthPageLayoutProps as _APLP } from "@/types";
+import { openDB } from '@/lib/idbQueue';
+import { commentsApi as _api } from "@/lib/api";
+import { backoffRetry as _boR } from "@/lib/backoff";
 
 import _mP from "@/assets/myPride.gif";
 import _mL from "@/assets/masculineLogo.svg";
@@ -46,6 +49,50 @@ function App() {
   _e(() => {
     window.scrollTo(0, 0);
   }, [_p]);
+
+  // OFFLINE QUEUE SYNC LOGIC WITH EXPONENTIAL BACKOFF
+  _e(() => {
+    const handleOnline = async () => {
+      console.log("⚡ [BRAWNLY] Connection Restored. Syncing Queue...");
+      try {
+        const _db = await openDB();
+        const _tx = _db.transaction("sync", "readwrite");
+        const _os = _tx.objectStore("sync");
+        const _req = _os.getAll();
+
+        _req.onsuccess = async () => {
+          const _items = _req.result;
+          if (_items.length === 0) return;
+
+          for (const _item of _items) {
+            if (_item.type === 'ADD_COMMENT') {
+              try {
+                // Menggunakan backoffRetry untuk membungkus pengiriman komentar
+                await _boR(() => 
+                  _api.addComment(
+                    _item.payload.article_id, 
+                    _item.payload.content, 
+                    _item.payload.parent_id
+                  )
+                );
+                console.log("✅ Comment Synced Successfully");
+              } catch (e) {
+                console.error("❌ Sync failed after multiple attempts for item:", _item);
+              }
+            }
+          }
+          // Bersihkan antrean hanya setelah proses percobaan selesai
+          const _clearTx = _db.transaction("sync", "readwrite");
+          _clearTx.objectStore("sync").clear();
+        };
+      } catch (_err) {
+        console.error("Critical Sync Error:", _err);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   const _jLd = {
     "@context": "https://schema.org",

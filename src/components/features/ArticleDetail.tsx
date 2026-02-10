@@ -16,6 +16,9 @@ import { useArticles as _uAs } from "@/hooks/useArticles";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 import { optimizeUpload } from "@/lib/imageOptimizer";
 import { supabase } from "@/lib/supabase";
+import { enqueue as _enQ } from "@/lib/idbQueue";
+import { transcodeImage as _tI } from "@/wasm/imageWorker";
+import { backoffRetry as _boR } from "@/lib/backoff";
 
 const _manageCacheMemory = () => {
   try {
@@ -39,19 +42,42 @@ const _manageCacheMemory = () => {
   } catch {}
 };
 
-async function upload(file: File) {
-  try {
-    const optimized = await optimizeUpload(file);
-    const fileName = file.name.replace(/\.\w+$/, ".webp");
-    await supabase.storage
+/**
+ * Fungsi Upload Teroptimasi
+ * Menangani penamaan file aman, validasi ukuran 5MB, 
+ * dan strategi retry otomatis.
+ */
+async function upload(file: File, slug: string) {
+  // Gunakan slug + hash pendek agar nama file ringkas dan unik (Menghindari error 400 nama terlalu panjang)
+  const fileName = `cover-${slug}-${Math.random().toString(36).substring(7)}.webp`;
+
+  await _boR(async () => {
+    /* 1. Pre-process dengan WASM Bridge */
+    const _buf = await file.arrayBuffer();
+    const _rB = await _tI(_buf);
+    const _fF = new File([_rB], fileName, { type: "image/webp" });
+    
+    /* 2. Jalankan pipeline optimasi utama */
+    const optimized = await optimizeUpload(_fF);
+    
+    /* 3. Validasi Ukuran File (Supabase 5MB Limit) */
+    if (optimized.size > 5242880) {
+      console.error("File too large for Supabase (>5MB)");
+      return;
+    }
+
+    /* 4. Push ke Supabase Storage */
+    const { error } = await supabase.storage
       .from("images")
       .upload(fileName, optimized, {
         upsert: true,
         cacheControl: '3600'
       });
-  } catch (_err) {
-    // Silent fail to prevent resource exhaustion loop
-  }
+
+    if (error) throw error; // Lempar error agar backoffRetry mencoba ulang
+  }).catch(() => {
+    // Silent fail setelah percobaan maksimal habis
+  });
 }
 
 export default function ArticleDetail() {
@@ -127,20 +153,6 @@ export default function ArticleDetail() {
     type: 'info'
   });
 
-  _e(() => {
-    const _scrollKey = `brawnly_scroll_${_slV}`;
-    const _lastScroll = sessionStorage.getItem(_scrollKey);
-    if (_lastScroll) setTimeout(() => window.scrollTo(0, parseInt(_lastScroll)), 100);
-    const _hScroll = () => sessionStorage.setItem(_scrollKey, window.scrollY.toString());
-    window.addEventListener('scroll', _hScroll);
-    return () => window.removeEventListener('scroll', _hScroll);
-  }, [_slV]);
-
-  _e(() => {
-    const _ss = localStorage.getItem(`brawnly_saved_${_slV}`);
-    if (_ss === "true") _siS(true);
-  }, [_slV]);
-
   const _trN = (m: string, t: 'success' | 'info' = 'info') => {
     _sNt({ show: true, msg: m, type: t });
     setTimeout(() => _sNt(p => ({ ...p, show: false })), 3500);
@@ -167,13 +179,17 @@ export default function ArticleDetail() {
     }
   };
 
+  const _hOS = async (_cD: any) => {
+    await _enQ({ type: 'ADD_COMMENT', payload: _cD });
+    _trN("OFFLINE: COMMENT QUEUED FOR SYNC", "info");
+  };
+
   const { viewCount: _vC } = _uAV({
     id: _art?.id ?? "",
     slug: _slV,
     initialViews: _art?.views ?? 0,
   });
 
-  // Optimized Sync to Cloud (hanya jalan 1 kali jika online)
   _e(() => {
     if (!_pD?.coverImage || !navigator.onLine) return;
     const _syncKey = `brawnly_sync_${_slV}`;
@@ -184,7 +200,7 @@ export default function ArticleDetail() {
         const r = await fetch(_pD.coverImage);
         const b = await r.blob();
         const f = new File([b], `cover-${_slV}.jpg`, { type: b.type });
-        await upload(f);
+        await upload(f, _slV);
         sessionStorage.setItem(_syncKey, "done");
       } catch {}
     })();
@@ -214,16 +230,6 @@ export default function ArticleDetail() {
   const _iO = _gOI(_cI, 1200);
   const _ln = _pg.filter((l: string) => l.trim() !== "" && l.trim() !== "&nbsp;");
 
-  const _jLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": _tt,
-    "description": _ds,
-    "image": _iO,
-    "datePublished": _art.published_at,
-    "author": { "@type": "Person", "name": _art.author || "Brawnly Editor" }
-  };
-
   return (
     <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative">
       <_Hm>
@@ -231,9 +237,7 @@ export default function ArticleDetail() {
         <meta name="description" content={_ds} />
         <meta property="og:image" content={_iO} />
       </_Hm>
-      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
 
-      {/* NOTIFICATION TOAST */}
       <_AP>
         {_nt.show && (
           <_m.div 
@@ -247,7 +251,6 @@ export default function ArticleDetail() {
         )}
       </_AP>
 
-      {/* FLOATING ACTION SIDEBAR (LEFT) */}
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button 
           onClick={_hSv} aria-label={_iS ? "Saved" : "Save Article"}
@@ -335,7 +338,6 @@ export default function ArticleDetail() {
               )}
             </div>
 
-            {/* MOBILE ACTION BAR */}
             <div className="xl:hidden flex gap-4 mb-16 border-y border-neutral-200 dark:border-neutral-800 py-6">
                <button onClick={_hSv} className={`flex-1 flex items-center justify-center gap-3 py-4 font-black uppercase text-[10px] tracking-widest border-2 transition-all ${
                  _iS ? 'bg-emerald-500 border-black text-black' : 'border-black dark:border-white'
@@ -348,7 +350,10 @@ export default function ArticleDetail() {
             </div>
 
             <section className="mt-32 border-t-[12px] border-black dark:border-white pt-16">
-              <CommentSection articleId={_art.id} />
+              <CommentSection 
+                articleId={_art.id} 
+                onOfflineSubmit={_hOS} 
+              />
             </section>
           </article>
 
