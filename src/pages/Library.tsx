@@ -101,11 +101,7 @@ export default function Library() {
       <div className={_x.c}>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div className="space-y-2">
-            <_L 
-              to="/" 
-              aria-label="Back to feed"
-              className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-all"
-            >
+            <_L to="/" aria-label="Back to feed" className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-all">
               <_Al size={12} aria-hidden="true" /> BACK_TO_FEED
             </_L>
             <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter italic leading-none">LIBRARY</h1>
@@ -129,7 +125,7 @@ export default function Library() {
           </div>
         </div>
 
-        {/* --- RECTIFIED MUSIC SECTION --- */}
+        {/* MUSIC SECTION */}
         <section className="mb-16">
           <h2 className={_x.st}><_Ms size={18} className="text-emerald-500" aria-hidden="true" /> BEATS_STATION</h2>
           <div className={_x.g}>
@@ -161,20 +157,14 @@ export default function Library() {
           </div>
         </section>
 
-        {/* --- RECTIFIED ARTICLES SECTION --- */}
+        {/* ARTICLES SECTION */}
         <section>
           <h2 className={_x.st}><_Bo size={18} className="text-emerald-500" aria-hidden="true" /> SAVED_ENTRIES</h2>
           {_sA.length === 0 ? (
             <div className={_x.e}>
               <_Hx size={80} className="mb-6 opacity-5" strokeWidth={1} aria-hidden="true" />
               <h2 className="text-sm font-black uppercase tracking-widest mb-4 opacity-40">VAULT_EMPTY</h2>
-              <_L 
-                to="/" 
-                aria-label="Browse Feed"
-                className="px-6 py-2 bg-emerald-500 text-black font-black uppercase text-[8px] tracking-widest rounded-full"
-              >
-                REPLENISH
-              </_L>
+              <_L to="/" aria-label="Browse Feed" className="px-6 py-2 bg-emerald-500 text-black font-black uppercase text-[8px] tracking-widest rounded-full">REPLENISH</_L>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -183,18 +173,28 @@ export default function Library() {
                   const _imgSrc = a.featured_image;
                   return (
                     <_m.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} key={a.id} className={_x.cd}>
-                      <div className="aspect-[16/9] overflow-hidden relative">
+                      <div className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800">
                         {_imgSrc ? (
+                          <>
                             <img 
                               src={_gOI(_imgSrc, 500)} 
                               alt={`Imagery for ${a.title}`} 
                               crossOrigin="anonymous"
                               className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                               loading="lazy" 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                              }} 
                             />
+                            {/* FALLBACK ICON IF IMAGE FAILS */}
+                            <div className="hidden absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-[#151515]">
+                              <_Im size={32} className="text-neutral-300 dark:text-neutral-700 opacity-50" />
+                            </div>
+                          </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-[#151515]">
-                              <_Hx size={32} className="opacity-10" aria-hidden="true" />
+                            <_Hx size={32} className="opacity-10" aria-hidden="true" />
                           </div>
                         )}
                       </div>
@@ -203,11 +203,7 @@ export default function Library() {
                         <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 mb-2">{a.category || "CORE"}</span>
                         <h3 className="text-sm font-black uppercase tracking-tight mb-4 line-clamp-2 leading-snug">{a.title}</h3>
                         <div className="mt-auto flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                          <_L 
-                            to={`/article/${a.slug}`} 
-                            aria-label={`Open article: ${a.title}`}
-                            className="text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:text-emerald-500 transition-colors"
-                          >
+                          <_L to={`/article/${a.slug}`} aria-label={`Open article: ${a.title}`} className="text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
                             <_Bo size={12} aria-hidden="true" /> EXPAND
                           </_L>
                           <button 
