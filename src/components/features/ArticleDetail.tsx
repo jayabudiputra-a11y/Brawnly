@@ -40,14 +40,18 @@ const _manageCacheMemory = () => {
 };
 
 async function upload(file: File) {
-  const optimized = await optimizeUpload(file);
-  const fileName = file.name.replace(/\.\w+$/, ".webp");
-  await supabase.storage
-    .from("images")
-    .upload(fileName, optimized, {
-      upsert: true,
-      cacheControl: '3600'
-    });
+  try {
+    const optimized = await optimizeUpload(file);
+    const fileName = file.name.replace(/\.\w+$/, ".webp");
+    await supabase.storage
+      .from("images")
+      .upload(fileName, optimized, {
+        upsert: true,
+        cacheControl: '3600'
+      });
+  } catch (_err) {
+    // Silent fail to prevent resource exhaustion loop
+  }
 }
 
 export default function ArticleDetail() {
@@ -169,14 +173,19 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
+  // Optimized Sync to Cloud (hanya jalan 1 kali jika online)
   _e(() => {
     if (!_pD?.coverImage || !navigator.onLine) return;
+    const _syncKey = `brawnly_sync_${_slV}`;
+    if (sessionStorage.getItem(_syncKey)) return;
+
     (async () => {
       try {
         const r = await fetch(_pD.coverImage);
         const b = await r.blob();
         const f = new File([b], `cover-${_slV}.jpg`, { type: b.type });
         await upload(f);
+        sessionStorage.setItem(_syncKey, "done");
       } catch {}
     })();
   }, [_pD?.coverImage, _slV]);
@@ -205,6 +214,16 @@ export default function ArticleDetail() {
   const _iO = _gOI(_cI, 1200);
   const _ln = _pg.filter((l: string) => l.trim() !== "" && l.trim() !== "&nbsp;");
 
+  const _jLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": _tt,
+    "description": _ds,
+    "image": _iO,
+    "datePublished": _art.published_at,
+    "author": { "@type": "Person", "name": _art.author || "Brawnly Editor" }
+  };
+
   return (
     <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative">
       <_Hm>
@@ -212,6 +231,7 @@ export default function ArticleDetail() {
         <meta name="description" content={_ds} />
         <meta property="og:image" content={_iO} />
       </_Hm>
+      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
 
       {/* NOTIFICATION TOAST */}
       <_AP>

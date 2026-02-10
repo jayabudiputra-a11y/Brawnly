@@ -74,9 +74,9 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "supabase-images-cache",
-              networkTimeoutSeconds: 5,
+              networkTimeoutSeconds: 3,
               expiration: {
-                maxEntries: 100,
+                maxEntries: 30,
                 maxAgeSeconds: 2592000,
               },
               cacheableResponse: {

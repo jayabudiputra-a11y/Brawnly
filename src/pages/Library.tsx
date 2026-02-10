@@ -1,4 +1,3 @@
-// D:\projects\BRAWNLY\src\pages\Library.tsx
 import React, { useState as _s, useEffect as _e } from "react";
 import { Link as _L } from "react-router-dom";
 import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc } from "lucide-react";
@@ -10,13 +9,12 @@ import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 export default function Library() {
   const { isDark: _iD } = _uTP();
-  
   const { data: _aD, isLoading: _aL, isRefetching: _iR } = _uA(); 
   
-  const [_sA, _ssA] = _s<any[]>([]); // State Artikel
-  const [_sL, _ssL] = _s<_S[]>([]);  // State Lagu
-  const [_lL, _slL] = _s(true);      // Local Loading State
-  const [_isOff, _sOff] = _s(!navigator.onLine); // Status Offline Realtime
+  const [_sA, _ssA] = _s<any[]>([]); 
+  const [_sL, _ssL] = _s<_S[]>([]);  
+  const [_lL, _slL] = _s(true);      
+  const [_isOff, _sOff] = _s(!navigator.onLine);
 
   _e(() => {
     const _c = localStorage.getItem("brawnly_lib_cache");
@@ -24,7 +22,7 @@ export default function Library() {
     
     if (_c) {
       _ssA(JSON.parse(_c));
-      _slL(false); // Matikan loading spinner segera
+      _slL(false); 
     }
     if (_cM) {
       _ssL(JSON.parse(_cM));
@@ -43,13 +41,12 @@ export default function Library() {
   _e(() => {
     if (_aD) {
       const _sv = _aD.filter((a: any) => localStorage.getItem(`brawnly_saved_${a.slug}`) === "true");
-      
       const _curr = JSON.stringify(_sv);
       const _prev = localStorage.getItem("brawnly_lib_cache");
       
       if (_curr !== _prev) {
         _ssA(_sv);
-        localStorage.setItem("brawnly_lib_cache", _curr); // Simpan versi terbaru ke LocalStorage
+        localStorage.setItem("brawnly_lib_cache", _curr); 
       }
       
       if (_lL) _slL(false);
@@ -117,52 +114,52 @@ export default function Library() {
       <div className={_x.c}>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div className="space-y-2">
-            <_L to="/" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-all">
-              <_Al size={14} /> BACK_TO_FEED
+            <_L to="/" aria-label="Back to feed" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-all">
+              <_Al size={14} aria-hidden="true" /> BACK_TO_FEED
             </_L>
             <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">LIBRARY</h1>
             
             <div className="flex items-center gap-4 mt-2 h-6">
               {_isOff ? (
                 <span className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase tracking-widest animate-pulse">
-                  <_Wo size={12} /> OFFLINE MODE
+                  <_Wo size={12} aria-hidden="true" /> OFFLINE MODE
                 </span>
               ) : _iR ? (
                 <span className="flex items-center gap-2 text-emerald-500 text-xs font-bold uppercase tracking-widest">
-                  <_Rc size={12} className="animate-spin" /> SYNCING...
+                  <_Rc size={12} className="animate-spin" aria-hidden="true" /> SYNCING...
                 </span>
               ) : null}
             </div>
           </div>
 
           <div className={`flex items-center gap-4 ${ _iD ? 'bg-white text-black' : 'bg-black text-white' } px-6 py-4 rounded-xl shadow-xl border border-neutral-800 transition-colors duration-300`}>
-            <_Bm size={20} fill="currentColor" />
+            <_Bm size={20} fill="currentColor" aria-hidden="true" />
             <span className="text-2xl font-black italic">{_sA.length + _sL.length}</span>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-50">ASSETS_BOUND</span>
           </div>
         </div>
 
-        {/* --- MUSIC SECTION --- */}
         <section className="mb-20">
-          <h2 className={_x.st}><_Ms className="text-emerald-500" /> BRAWNLY_BEATS</h2>
+          <h2 className={_x.st}><_Ms className="text-emerald-500" aria-hidden="true" /> BRAWNLY_BEATS</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {_sL.map((s) => (
               <_m.div
                 whileHover={{ y: -5 }}
                 key={s.id}
                 onClick={() => _triggerGlobalPlay(s.url)}
+                role="button"
+                aria-label={`Play ${s.title}`}
                 className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500 transition-all"
               >
                 <img 
                   src={s.thumbnail_url} 
                   alt={s.title} 
-                  // CrossOrigin penting agar Service Worker bisa cache gambar eksternal
                   crossOrigin="anonymous" 
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                   loading="lazy" 
                 />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <_Pl size={32} className="text-white" />
+                   <_Pl size={32} className="text-white" aria-hidden="true" />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
                   <p className="text-[8px] font-black uppercase truncate text-white">{s.title}</p>
@@ -172,14 +169,13 @@ export default function Library() {
           </div>
         </section>
 
-        {/* --- ARTICLES SECTION --- */}
         <section>
-          <h2 className={_x.st}><_Bo className="text-emerald-500" /> SAVED_INTELLIGENCE</h2>
+          <h2 className={_x.st}><_Bo className="text-emerald-500" aria-hidden="true" /> SAVED_INTELLIGENCE</h2>
           {_sA.length === 0 ? (
             <div className={_x.e}>
-              <_Hx size={120} className="mb-8 opacity-10" strokeWidth={1} />
+              <_Hx size={120} className="mb-8 opacity-10" strokeWidth={1} aria-hidden="true" />
               <h2 className="text-xl font-black uppercase tracking-tighter mb-4">NO_ENTRIES_FOUND</h2>
-              <_L to="/articles" className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest transition-all">BROWSE_FEED</_L>
+              <_L to="/" aria-label="Browse Feed" className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest transition-all">BROWSE_FEED</_L>
             </div>
           ) : (
             <div className={_x.g}>
@@ -191,26 +187,30 @@ export default function Library() {
                     <_m.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} key={a.id} className={_x.cd}>
                       <div className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800">
                         {_imgSrc ? (
-                           <img 
-                             src={_gOI(_imgSrc, 600)} 
-                             alt={a.title} 
-                             crossOrigin="anonymous"
-                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                             loading="lazy" 
-                             decoding="async"
-                             onError={(e) => {
-                               (e.target as HTMLImageElement).style.display = 'none';
-                               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                             }} 
-                           />
+                            <img 
+                              src={_gOI(_imgSrc, 600)} 
+                              alt={a.title} 
+                              crossOrigin="anonymous"
+                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                              loading="lazy" 
+                              decoding="async"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                if (target.dataset.error === "true") return;  
+                                target.dataset.error = "true";
+                                target.src = "";  
+                                target.style.display = 'none';
+                                target.nextElementSibling?.classList.remove('hidden');
+                              }} 
+                            />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-[#151515]">
-                             <_Hx size={48} className="text-neutral-300 dark:text-neutral-700 animate-pulse" strokeWidth={1} />
+                              <_Hx size={48} className="text-neutral-300 dark:text-neutral-700 animate-pulse" strokeWidth={1} aria-hidden="true" />
                           </div>
                         )}
                         
                         <div className={`hidden absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-[#151515] ${!_imgSrc ? '!flex' : ''}`}>
-                           <_Im size={40} className="text-neutral-300 dark:text-neutral-700 opacity-50" />
+                            <_Im size={40} className="text-neutral-300 dark:text-neutral-700 opacity-50" aria-hidden="true" />
                         </div>
                       </div>
 
@@ -218,10 +218,11 @@ export default function Library() {
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3 block">{a.category || "INTEL"}</span>
                         <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2">{a.title}</h3>
                         <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800 relative">
-                          <_L to={`/article/${a.slug}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} /> OPEN_ENTRY</_L>
+                          <_L to={`/article/${a.slug}`} aria-label={`Open entry: ${a.title}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} aria-hidden="true" /> OPEN_ENTRY</_L>
                           
                           <button 
                             onClick={() => _rI(a.slug)} 
+                            aria-label={`Remove ${a.title} from collection`}
                             className={`
                               absolute right-0 top-1/2 -translate-y-1/2 md:relative md:top-0 md:translate-y-0
                               flex items-center justify-center p-2.5 rounded-lg border transition-all duration-300
@@ -232,9 +233,8 @@ export default function Library() {
                               }
                               hover:bg-red-600 hover:text-white hover:border-red-600 active:scale-90
                             `}
-                            title="Remove from saved"
                           >
-                            <_Bm size={16} fill="currentColor" />
+                            <_Bm size={16} fill="currentColor" aria-hidden="true" />
                           </button>
                         </div>
                       </div>
