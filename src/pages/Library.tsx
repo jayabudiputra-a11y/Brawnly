@@ -1,33 +1,88 @@
+// D:\projects\BRAWNLY\src\pages\Library.tsx
 import React, { useState as _s, useEffect as _e } from "react";
 import { Link as _L } from "react-router-dom";
-import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl } from "lucide-react";
+import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useArticles as _uA } from "@/hooks/useArticles";
-import { songsApi as _sa, type Song as _S } from "@/lib/api";
+import { songsApi as _sa, type Song as _S } from "@/lib/api"; 
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 export default function Library() {
-  const { isDark: _iD } = _uTP(); // Inisialisasi logika tema
-  const { data: _aD, isLoading: _aL } = _uA();
-  const [_sA, _ssA] = _s<any[]>([]);
-  const [_sL, _ssL] = _s<_S[]>([]);
-  const [_lL, _slL] = _s(true);
+  const { isDark: _iD } = _uTP();
+  
+  // React Query akan mencoba fetch background. 
+  // Jika offline, dia akan gagal tapi kita punya backup localStorage di bawah.
+  const { data: _aD, isLoading: _aL, isRefetching: _iR } = _uA(); 
+  
+  const [_sA, _ssA] = _s<any[]>([]); // State Artikel
+  const [_sL, _ssL] = _s<_S[]>([]);  // State Lagu
+  const [_lL, _slL] = _s(true);      // Local Loading State
+  const [_isOff, _sOff] = _s(!navigator.onLine); // Status Offline Realtime
 
+  // --- 1. SUPER FAST LOAD (FACEBOOK STYLE) ---
+  // Load data DETIK KE-0 dari LocalStorage. User tidak perlu menunggu loading network.
+  _e(() => {
+    const _c = localStorage.getItem("brawnly_lib_cache");
+    const _cM = localStorage.getItem("brawnly_music_cache");
+    
+    // Jika ada cache, langsung tampilkan!
+    if (_c) {
+      _ssA(JSON.parse(_c));
+      _slL(false); // Matikan loading spinner segera
+    }
+    if (_cM) {
+      _ssL(JSON.parse(_cM));
+    }
+
+    // Listener otomatis untuk deteksi internet mati/hidup
+    const _hO = () => _sOff(false);
+    const _hF = () => _sOff(true);
+    window.addEventListener('online', _hO);
+    window.addEventListener('offline', _hF);
+    return () => {
+      window.removeEventListener('online', _hO);
+      window.removeEventListener('offline', _hF);
+    };
+  }, []);
+
+  // --- 2. BACKGROUND SYNC ---
+  // Jika internet ada dan data baru masuk, update tampilan & update cache diam-diam.
   _e(() => {
     if (_aD) {
+      // Filter hanya artikel yang di-bookmark
       const _sv = _aD.filter((a: any) => localStorage.getItem(`brawnly_saved_${a.slug}`) === "true");
-      _ssA(_sv);
+      
+      const _curr = JSON.stringify(_sv);
+      const _prev = localStorage.getItem("brawnly_lib_cache");
+      
+      // Hanya update state jika data benar-benar berubah (Hemat render)
+      if (_curr !== _prev) {
+        _ssA(_sv);
+        localStorage.setItem("brawnly_lib_cache", _curr); // Simpan versi terbaru ke LocalStorage
+      }
+      
+      // Jika loading awal masih nyala tapi data network sudah masuk, matikan loading
+      if (_lL) _slL(false);
     }
   }, [_aD]);
 
+  // Sync Musik
   _e(() => {
     const _f = async () => {
       try {
         const _d = await _sa.getAll();
-        _ssL(_d);
-      } catch (_er) {} finally {
-        _slL(false);
+        const _currM = JSON.stringify(_d);
+        if (_currM !== localStorage.getItem("brawnly_music_cache")) {
+          _ssL(_d);
+          localStorage.setItem("brawnly_music_cache", _currM);
+        }
+      } catch (_er) {
+        // Jika error (misal offline), biarkan data lama dari cache tetap tampil
+      } finally {
+        if (!localStorage.getItem("brawnly_lib_cache")) {
+          _slL(false);
+        }
       }
     };
     _f();
@@ -35,7 +90,9 @@ export default function Library() {
 
   const _rI = (s: string) => {
     localStorage.removeItem(`brawnly_saved_${s}`);
-    _ssA((p) => p.filter((a) => a.slug !== s));
+    const _nA = _sA.filter((a) => a.slug !== s);
+    _ssA(_nA);
+    localStorage.setItem("brawnly_lib_cache", JSON.stringify(_nA));
   };
 
   const _gYI = (u: string) => {
@@ -57,12 +114,13 @@ export default function Library() {
     r: "min-h-screen bg-white dark:bg-[#0a0a0a] pt-10 pb-24 text-black dark:text-white transition-colors duration-500",
     c: "max-w-[1320px] mx-auto px-5 md:px-10",
     g: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-    cd: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full transition-all duration-300",
+    cd: "group relative bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-2xl",
     st: "text-2xl font-black uppercase tracking-tighter mb-10 flex items-center gap-3",
     e: "flex flex-col items-center justify-center py-20 text-center"
   };
 
-  if (_aL || _lL) return (
+  // Loading Screen: Hanya muncul jika Cache KOSONG dan Network sedang Loading
+  if ((_aL || _lL) && _sA.length === 0 && _sL.length === 0) return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
       <div className={`w-12 h-12 border-4 ${_iD ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`} />
     </div>
@@ -77,7 +135,20 @@ export default function Library() {
               <_Al size={14} /> BACK_TO_FEED
             </_L>
             <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-none">LIBRARY</h1>
+            
+            <div className="flex items-center gap-4 mt-2 h-6">
+              {_isOff ? (
+                <span className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase tracking-widest animate-pulse">
+                  <_Wo size={12} /> OFFLINE MODE
+                </span>
+              ) : _iR ? (
+                <span className="flex items-center gap-2 text-emerald-500 text-xs font-bold uppercase tracking-widest">
+                  <_Rc size={12} className="animate-spin" /> SYNCING...
+                </span>
+              ) : null}
+            </div>
           </div>
+
           <div className={`flex items-center gap-4 ${ _iD ? 'bg-white text-black' : 'bg-black text-white' } px-6 py-4 rounded-xl shadow-xl border border-neutral-800 transition-colors duration-300`}>
             <_Bm size={20} fill="currentColor" />
             <span className="text-2xl font-black italic">{_sA.length + _sL.length}</span>
@@ -96,7 +167,14 @@ export default function Library() {
                 onClick={() => _triggerGlobalPlay(s.url)}
                 className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500 transition-all"
               >
-                <img src={s.thumbnail_url} alt={s.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <img 
+                  src={s.thumbnail_url} 
+                  alt={s.title} 
+                  // CrossOrigin penting agar Service Worker bisa cache gambar eksternal
+                  crossOrigin="anonymous" 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                  loading="lazy" 
+                />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                    <_Pl size={32} className="text-white" />
                 </div>
@@ -120,38 +198,64 @@ export default function Library() {
           ) : (
             <div className={_x.g}>
               <_AP mode="popLayout">
-                {_sA.map((a) => (
-                  <_m.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} key={a.id} className={_x.cd}>
-                    <div className="aspect-[16/9] overflow-hidden relative">
-                      <img src={_gOI(a.thumbnail_url || "", 600)} alt={a.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3 block">{a.category || "INTEL"}</span>
-                      <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2">{a.title}</h3>
-                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800 relative">
-                        <_L to={`/article/${a.slug}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} /> OPEN_ENTRY</_L>
+                {_sA.map((a) => {
+                  const _imgSrc = a.featured_image;
+
+                  return (
+                    <_m.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} key={a.id} className={_x.cd}>
+                      <div className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800">
+                        {_imgSrc ? (
+                           <img 
+                             src={_gOI(_imgSrc, 600)} 
+                             alt={a.title} 
+                             // CrossOrigin: Anonymous (PENTING untuk SW Caching)
+                             crossOrigin="anonymous"
+                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                             loading="lazy" 
+                             decoding="async"
+                             onError={(e) => {
+                               (e.target as HTMLImageElement).style.display = 'none';
+                               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                             }} 
+                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-[#151515]">
+                             <_Hx size={48} className="text-neutral-300 dark:text-neutral-700 animate-pulse" strokeWidth={1} />
+                          </div>
+                        )}
                         
-                        {/* REVISI LOGIKA HOVER & THEME: Ikon Bookmark baru muncul (opacity-100) saat kartu di-hover */}
-                        <button 
-                          onClick={() => _rI(a.slug)} 
-                          className={`
-                            absolute right-0 top-1/2 -translate-y-1/2 md:relative md:top-0 md:translate-y-0
-                            flex items-center justify-center p-2.5 rounded-lg border transition-all duration-300
-                            opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100
-                            ${_iD 
-                              ? 'bg-white text-black border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)]' 
-                              : 'bg-black text-white border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)]'
-                            }
-                            hover:bg-red-600 hover:text-white hover:border-red-600 active:scale-90
-                          `}
-                          title="Remove from saved"
-                        >
-                          <_Bm size={16} fill="currentColor" />
-                        </button>
+                        <div className={`hidden absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-[#151515] ${!_imgSrc ? '!flex' : ''}`}>
+                           <_Im size={40} className="text-neutral-300 dark:text-neutral-700 opacity-50" />
+                        </div>
                       </div>
-                    </div>
-                  </_m.div>
-                ))}
+
+                      <div className="p-6 flex flex-col flex-1">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3 block">{a.category || "INTEL"}</span>
+                        <h3 className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2">{a.title}</h3>
+                        <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800 relative">
+                          <_L to={`/article/${a.slug}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all"><_Bo size={14} /> OPEN_ENTRY</_L>
+                          
+                          <button 
+                            onClick={() => _rI(a.slug)} 
+                            className={`
+                              absolute right-0 top-1/2 -translate-y-1/2 md:relative md:top-0 md:translate-y-0
+                              flex items-center justify-center p-2.5 rounded-lg border transition-all duration-300
+                              opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100
+                              ${_iD 
+                                ? 'bg-white text-black border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)]' 
+                                : 'bg-black text-white border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)]'
+                              }
+                              hover:bg-red-600 hover:text-white hover:border-red-600 active:scale-90
+                            `}
+                            title="Remove from saved"
+                          >
+                            <_Bm size={16} fill="currentColor" />
+                          </button>
+                        </div>
+                      </div>
+                    </_m.div>
+                  );
+                })}
               </_AP>
             </div>
           )}

@@ -2,6 +2,8 @@ import { Link as _L } from "react-router-dom";
 import { Eye as _E } from "lucide-react";
 import { useTranslation as _uT } from "react-i18next";
 import { motion as _m } from "framer-motion";
+import { useEffect as _uE, useState as _uS } from "react";
+
 import _mA from "@/assets/myAvatar.jpg";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { generateFullImageUrl as _gFI, type LangCode as _LC } from "@/utils/helpers";
@@ -12,13 +14,87 @@ interface ArticleCardProps {
   priority?: boolean;
 }
 
+/* ------------------------------
+   Ultra lightweight hash
+--------------------------------*/
+function _hS(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
+/* ------------------------------
+   Cookie setter minimal
+--------------------------------*/
+function _sC(name: string, val: string, days = 30) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 864e5);
+  document.cookie = `${name}=${val}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+}
+
+/* ------------------------------
+   Reconnect Backoff (ric WS / basetime)
+--------------------------------*/
+function _cRB(connectFn: () => Promise<void>) {
+  let a = 0;
+  let t: any = null;
+
+  const run = async () => {
+    if (!navigator.onLine) return;
+
+    try {
+      await connectFn();
+      a = 0;
+    } catch {
+      a++;
+      const base = Math.min(30000, 1000 * 2 ** a);
+      const jitter = Math.random() * 500;
+      t = setTimeout(run, base + jitter);
+    }
+  };
+
+  run();
+
+  window.addEventListener("online", run);
+
+  return () => {
+    if (t) clearTimeout(t);
+    window.removeEventListener("online", run);
+  };
+}
+
 export default function ArticleCard({ article: _a, priority: _p = false }: ArticleCardProps) {
   const { i18n: _i } = _uT();
   const _ln = (_i.language as _LC) || "en";
   const { isEnabled: _iE, saveData: _sD } = _uSD();
 
+  const [_offline, _setOffline] = _uS(!navigator.onLine);
+
+  /* ------------------------------
+     Offline detection
+  --------------------------------*/
+  _uE(() => {
+    const goOn = () => _setOffline(false);
+    const goOff = () => _setOffline(true);
+    window.addEventListener("online", goOn);
+    window.addEventListener("offline", goOff);
+    return () => {
+      window.removeEventListener("online", goOn);
+      window.removeEventListener("offline", goOff);
+    };
+  }, []);
+
+  /* ------------------------------
+     Text Resolve
+  --------------------------------*/
   const _t = _a[`title_${_ln}`] ?? _a.title_en ?? _a.title ?? "";
 
+  /* ------------------------------
+     Image Resolve
+  --------------------------------*/
   const _fIP = _a.featured_image_path_clean
     ? _a.featured_image_path_clean.split("\r\n")[0]?.trim()
     : null;
@@ -28,24 +104,59 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
   const _tW = _iLQM ? 200 : 400;
   const _dU = _rIU ? _gOI(_rIU, _tW) : null;
 
+  /* ------------------------------
+     memory cache
+  --------------------------------*/
+  const _cacheKey = `ac_${_a.slug}`;
+  const _cacheHash = _hS(_cacheKey);
+
+  _uE(() => {
+    try {
+      const payload = {
+        t: _t,
+        s: _a.slug,
+        i: _rIU
+      };
+
+      localStorage.setItem(_cacheKey, JSON.stringify(payload));
+      _sC("ac_h", _cacheHash);
+    } catch {}
+  }, [_t, _a.slug, _rIU]);
+
+  /* ------------------------------
+     time reconnect example
+     (Plubase connect inside)
+  --------------------------------*/
+  _uE(() => {
+    const stop = _cRB(async () => {
+      // Example only — replace with supabase realtime connect
+      // await supabase.realtime.connect()
+      return Promise.resolve();
+    });
+    return stop;
+  }, []);
+
+  /* ------------------------------
+     JSON-LD
+  --------------------------------*/
   const _jLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-    "headline": _t,
-    "image": _rIU,
-    "author": {
+    headline: _t,
+    image: _rIU,
+    author: {
       "@type": "Person",
-      "name": _a.author || "Budi Putra Jaya"
+      name: _a.author || "Budi Putra Jaya"
     },
-    "publisher": {
+    publisher: {
       "@type": "Organization",
-      "name": "Brawnly",
-      "logo": {
+      name: "Brawnly",
+      logo: {
         "@type": "ImageObject",
-        "url": "https://brawnly.online/favicon.ico"
+        url: "https://brawnly.online/favicon.ico"
       }
     },
-    "mainEntityOfPage": {
+    mainEntityOfPage: {
       "@type": "WebPage",
       "@id": `https://brawnly.online/article/${_a.slug}`
     }
@@ -57,6 +168,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       tabIndex={0}
     >
       <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
+
       <_L
         to={`/article/${_a.slug}`}
         className="flex flex-row items-center gap-4 md:gap-8 outline-none relative z-10"
@@ -76,7 +188,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               No Image
             </div>
           )}
-          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_10px_#facc15]" />
         </div>
 
         <div className="flex flex-col flex-1 min-w-0">
@@ -84,7 +195,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             {_a.category || "BRAWNLY SELECTION"}
           </span>
 
-          <_m.h2 
+          <_m.h2
             className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300"
             variants={{
               initial: { x: 0 },
@@ -114,7 +225,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           </div>
         </div>
       </_L>
-      <div className="absolute inset-0 bg-yellow-400/0 group-hover:bg-yellow-400/[0.02] pointer-events-none transition-colors duration-500" />
     </article>
   );
 }

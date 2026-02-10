@@ -1,10 +1,19 @@
 import { useTranslation as _uT } from "react-i18next";
-import { useMemo as _uM, useState as _uS } from "react";
+import { useMemo as _uM, useState as _uS, useEffect as _uE } from "react";
 import { useArticles as _uAs } from "@/hooks/useArticles";
 import ArticleCard from "./ArticleCard";
 import ScrollToTopButton from "./ScrollToTopButton";
 import { type LangCode as _LC } from "@/utils/helpers";
 import { motion as _mo, LayoutGroup as _LG, AnimatePresence as _AP } from "framer-motion";
+
+import {
+ getArticlesSnap,
+ saveArticlesSnap,
+ mirrorQuery,
+ setCookieHash
+} from "@/lib/enterpriseStorage";
+
+import { syncArticles } from "@/lib/supabaseSync";
 
 interface Props {
   selectedTag: string | null;
@@ -12,14 +21,69 @@ interface Props {
 }
 
 export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Props) {
+
   const { i18n: _i18 } = _uT();
   const _ln = (_i18.language as _LC) || "en";
+
   const { data: _aA, isLoading: _iL, error: _e } = _uAs(null);
+
   const [_hI, _sHI] = _uS<number | null>(null);
 
+  /* ======================
+     ⚡ INSTANT SNAP LOAD
+     ====================== */
+
+  const _snap = _uM(() => {
+    if (_aA?.length) return _aA;
+    return getArticlesSnap();
+  }, [_aA]);
+
+  /* ======================
+     ☁️ BACKGROUND SYNC (TTL 60 MENIT)
+     ====================== */
+
+  _uE(() => {
+    if (!_aA?.length) return;
+
+    syncArticles(async () => _aA);
+  }, [_aA]);
+
+  /* ======================
+     💾 SNAPSHOT + MIRROR + COOKIE HASH
+     ====================== */
+
+  _uE(() => {
+    if (!_aA?.length) return;
+
+    try {
+
+      saveArticlesSnap(_aA);
+
+      _aA.forEach((a: any) => {
+
+        mirrorQuery({
+          id: a.id,
+          slug: a.slug,
+          ts: Date.now()
+        });
+
+        if (a.slug) setCookieHash(a.slug);
+
+      });
+
+    } catch {}
+
+  }, [_aA]);
+
+  /* ======================
+     🔎 FILTER PIPELINE (TETAP ASLI)
+     ====================== */
+
   const _fA = _uM(() => {
-    if (!_aA) return [];
-    let _cA = _aA;
+
+    if (!_snap) return [];
+
+    let _cA = _snap;
 
     if (_sT) {
       const _lST = _sT.toLowerCase();
@@ -32,6 +96,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
     if (_sSTm.trim() === "") return _cA;
 
     const _lS = _sSTm.toLowerCase();
+
     return _cA.filter((_art: any) => {
       const _aTt = (
         _art[`title_${_ln}`] ||
@@ -39,9 +104,15 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
         _art.title ||
         ""
       ).toLowerCase();
+
       return _aTt.includes(_lS);
     });
-  }, [_aA, _sT, _sTm, _ln]);
+
+  }, [_snap, _sT, _sTm, _ln]);
+
+  /* ======================
+     📊 STRUCTURED DATA
+     ====================== */
 
   const _jLd = {
     "@context": "https://schema.org",
@@ -54,7 +125,11 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
     }))
   };
 
-  if (_iL) {
+  /* ======================
+     ⏳ LOADING STATE
+     ====================== */
+
+  if (_iL && !_snap?.length) {
     return (
       <div className="text-center py-12 bg-transparent" aria-live="polite">
         <div className="w-12 h-12 mx-auto mb-6 animate-spin rounded-full border-4 border-[#00a354] border-t-transparent shadow-[0_0_20px_rgba(0,163,84,0.2)]" />
@@ -65,7 +140,11 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
     );
   }
 
-  if (_e) {
+  /* ======================
+     ❌ ERROR STATE
+     ====================== */
+
+  if (_e && !_snap?.length) {
     return (
       <div className="text-center py-10">
         <p className="text-red-500 text-[10px] font-black uppercase tracking-[.3em]">
@@ -74,6 +153,10 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
       </div>
     );
   }
+
+  /* ======================
+     📭 EMPTY STATE
+     ====================== */
 
   if (_fA.length === 0) {
     return (
@@ -86,19 +169,24 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
     );
   }
 
+  /* ======================
+     🚀 RENDER
+     ====================== */
+
   return (
     <>
       <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
+
       <_LG id="article-lasso">
-        <div 
+        <div
           role="list"
           onMouseLeave={() => _sHI(null)}
           className="flex flex-col max-w-[900px] mx-auto w-full px-0 divide-y divide-gray-100 dark:divide-neutral-900 mt-0 relative"
         >
           {_fA.map((_a: any, _idx: number) => (
-            <div 
-              key={_a.id} 
-              role="listitem" 
+            <div
+              key={_a.id}
+              role="listitem"
               className="relative w-full group transition-all duration-300"
               onMouseEnter={() => _sHI(_idx)}
             >
@@ -121,15 +209,16 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm }: Prop
               </_AP>
 
               <div className="relative z-10 py-1">
-                <ArticleCard 
-                  article={_a} 
-                  priority={_idx < 2} 
+                <ArticleCard
+                  article={_a}
+                  priority={_idx < 2}
                 />
               </div>
             </div>
           ))}
         </div>
       </_LG>
+
       <ScrollToTopButton />
     </>
   );

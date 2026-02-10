@@ -4,4 +4,4 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
   Content-Type: text/html; charset=UTF-8
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
