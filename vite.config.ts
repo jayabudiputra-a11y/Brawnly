@@ -13,12 +13,16 @@ export default defineConfig({
 
     VitePWA({
       registerType: "autoUpdate",
-
+      /* ⭐ Aset di public/ tidak akan di-hash, aman untuk PWA */
       includeAssets: [
+        "favicon.ico",
+        "favicon.svg",
         "Brawnly-favicon.svg",
         "masculineLogo.svg",
         "Brawnly.gif",
-        "myPride.gif"
+        "myPride.gif",
+        "Brawnly-17VaIyauwVGvanab8Vf.gif",
+        "Brawnly-17aDfvayqUvay.gif"
       ],
 
       manifest: {
@@ -26,7 +30,10 @@ export default defineConfig({
         short_name: "Brawnly",
         description: "Smart Fitness & Wellness Intelligence",
         theme_color: "#000000",
-
+        background_color: "#000000",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
         icons: [
           {
             src: "Brawnly-favicon.svg",
@@ -48,11 +55,10 @@ export default defineConfig({
       },
 
       workbox: {
-        /* ⭐ EXCLUDE WASM FROM PRECACHE */
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
-
+        /* Caching strategi agar file JS/CSS tersedia offline */
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,gif,webmanifest}"],
+        
         runtimeCaching: [
-          /* ⭐ WASM RUNTIME CACHE FIXED */
           {
             urlPattern: /\.wasm$/,
             handler: "CacheFirst",
@@ -67,9 +73,8 @@ export default defineConfig({
               }
             }
           },
-
-          /* ⭐ SUPABASE STORAGE IMAGES */
           {
+            /* ⭐ CACHE GAMBAR SUPABASE */
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
             handler: "CacheFirst",
             options: {
@@ -81,11 +86,13 @@ export default defineConfig({
               cacheableResponse: {
                 statuses: [0, 200],
               },
+              fetchOptions: {
+                mode: 'cors',
+              }
             },
           },
-
-          /* ⭐ SUPABASE REST API */
           {
+            /* ⭐ CACHE API SUPABASE */
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
             handler: "StaleWhileRevalidate",
             options: {
@@ -99,7 +106,6 @@ export default defineConfig({
               },
             },
           },
-
         ],
       },
     }),
@@ -118,22 +124,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-
-    sourcemap: true,
+    sourcemap: false, // Matikan sourcemap di production agar lebih ringan
     cssCodeSplit: true,
     cssMinify: true,
-
     minify: "terser",
-
     terserOptions: {
       compress: {
         passes: 3,
         drop_console: true,
         drop_debugger: true,
-        dead_code: true,
-        conditionals: true,
-        booleans: true,
-        unused: true,
       },
       mangle: {
         safari10: true,
@@ -147,20 +146,17 @@ export default defineConfig({
       output: {
         entryFileNames: "assets/js/[hash].js",
         chunkFileNames: "assets/js/[hash].js",
-        assetFileNames: "assets/[hash][extname]",
+        assetFileNames: "assets/[name]-[hash][extname]", // Tetap biarkan hash untuk aset internal
 
-        /* ⭐ SMART CHUNK SPLIT */
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("react")) return "react-vendor";
             if (id.includes("supabase")) return "supabase-vendor";
-            if (id.includes("jsquash")) return "image-codec";
             return "vendor";
           }
         },
       },
     },
-
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 2000,
   },
 });
