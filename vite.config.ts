@@ -10,19 +10,23 @@ export default defineConfig({
         compact: true,
       },
     }),
+
     VitePWA({
       registerType: "autoUpdate",
+
       includeAssets: [
-        "Brawnly-favicon.svg", 
-        "masculineLogo.svg", 
+        "Brawnly-favicon.svg",
+        "masculineLogo.svg",
         "Brawnly.gif",
         "myPride.gif"
       ],
+
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
         description: "Smart Fitness & Wellness Intelligence",
         theme_color: "#000000",
+
         icons: [
           {
             src: "Brawnly-favicon.svg",
@@ -42,8 +46,29 @@ export default defineConfig({
           }
         ],
       },
+
       workbox: {
+        /* ⭐ EXCLUDE WASM FROM PRECACHE */
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+
         runtimeCaching: [
+          /* ⭐ WASM RUNTIME CACHE FIXED */
+          {
+            urlPattern: /\.wasm$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "wasm-cache",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+
+          /* ⭐ SUPABASE STORAGE IMAGES */
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
             handler: "CacheFirst",
@@ -58,6 +83,8 @@ export default defineConfig({
               },
             },
           },
+
+          /* ⭐ SUPABASE REST API */
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
             handler: "StaleWhileRevalidate",
@@ -72,6 +99,7 @@ export default defineConfig({
               },
             },
           },
+
         ],
       },
     }),
@@ -96,6 +124,7 @@ export default defineConfig({
     cssMinify: true,
 
     minify: "terser",
+
     terserOptions: {
       compress: {
         passes: 3,
@@ -120,12 +149,18 @@ export default defineConfig({
         chunkFileNames: "assets/js/[hash].js",
         assetFileNames: "assets/[hash][extname]",
 
+        /* ⭐ SMART CHUNK SPLIT */
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            return "x";
+            if (id.includes("react")) return "react-vendor";
+            if (id.includes("supabase")) return "supabase-vendor";
+            if (id.includes("jsquash")) return "image-codec";
+            return "vendor";
           }
         },
       },
     },
+
+    chunkSizeWarningLimit: 1500,
   },
 });
