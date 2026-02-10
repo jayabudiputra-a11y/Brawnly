@@ -1,8 +1,8 @@
 import React, { useState as _s, useEffect as _e } from "react";
 import { Link as _L, useParams as _uP } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
-import { Eye as _Ey, Anchor as _An, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo } from "lucide-react";
-import { motion as _m } from "framer-motion";
+import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al } from "lucide-react";
+import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import FormattedDate from "@/components/features/FormattedDate";
 import _mA from "@/assets/myAvatar.jpg";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
@@ -41,12 +41,13 @@ const _manageCacheMemory = () => {
 
 async function upload(file: File) {
   const optimized = await optimizeUpload(file);
+  const fileName = file.name.replace(/\.\w+$/, ".webp");
   await supabase.storage
     .from("images")
-    .upload(
-      file.name.replace(/\.\w+$/, ".webp"),
-      optimized
-    );
+    .upload(fileName, optimized, {
+      upsert: true,
+      cacheControl: '3600'
+    });
 }
 
 export default function ArticleDetail() {
@@ -146,7 +147,7 @@ export default function ArticleDetail() {
     _siS(_nS);
     if (_nS) {
       localStorage.setItem(`brawnly_saved_${_slV}`, "true");
-      _trN("ARTICLE ADDED TO YOUR COLLECTION", 'success');
+      _trN("ARTICLE ADDED TO COLLECTION", 'success');
     } else {
       localStorage.removeItem(`brawnly_saved_${_slV}`);
       _trN("REMOVED FROM COLLECTION", 'info');
@@ -156,7 +157,7 @@ export default function ArticleDetail() {
   const _hCL = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      _trN("PERMALINK COPIED TO CLIPBOARD", 'success');
+      _trN("PERMALINK COPIED", 'success');
     } catch {
       _trN("FAILED TO COPY LINK", 'info');
     }
@@ -169,9 +170,7 @@ export default function ArticleDetail() {
   });
 
   _e(() => {
-    if (!_pD?.coverImage) return;
-    if (!navigator.onLine) return;
-
+    if (!_pD?.coverImage || !navigator.onLine) return;
     (async () => {
       try {
         const r = await fetch(_pD.coverImage);
@@ -197,7 +196,7 @@ export default function ArticleDetail() {
       <p className="text-sm font-bold uppercase tracking-widest mb-8 text-neutral-500">
         {_isOff ? "OFFLINE & NOT CACHED" : "ENTRY NOT FOUND"}
       </p>
-      <_L to="/" className="px-12 py-5 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[11px] tracking-widest hover:invert transition-all">Back to Feed</_L>
+      <_L to="/" aria-label="Back to feed" className="px-12 py-5 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[11px] tracking-widest hover:invert transition-all">Back to Feed</_L>
     </div>
   );
 
@@ -206,16 +205,6 @@ export default function ArticleDetail() {
   const _iO = _gOI(_cI, 1200);
   const _ln = _pg.filter((l: string) => l.trim() !== "" && l.trim() !== "&nbsp;");
 
-  const _jLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": _tt,
-    "description": _ds,
-    "image": _iO,
-    "datePublished": _art.published_at,
-    "author": { "@type": "Person", "name": _art.author || "Brawnly Editor" }
-  };
-
   return (
     <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative">
       <_Hm>
@@ -223,12 +212,45 @@ export default function ArticleDetail() {
         <meta name="description" content={_ds} />
         <meta property="og:image" content={_iO} />
       </_Hm>
-      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
+
+      {/* NOTIFICATION TOAST */}
+      <_AP>
+        {_nt.show && (
+          <_m.div 
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+            className={`fixed top-10 right-10 z-[100] px-6 py-4 font-black uppercase text-[10px] tracking-widest shadow-2xl border-l-8 ${
+              _nt.type === 'success' ? 'bg-emerald-500 text-black border-black' : 'bg-black text-white border-red-600'
+            }`}
+          >
+            {_nt.msg}
+          </_m.div>
+        )}
+      </_AP>
+
+      {/* FLOATING ACTION SIDEBAR (LEFT) */}
+      <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
+        <button 
+          onClick={_hSv} aria-label={_iS ? "Saved" : "Save Article"}
+          className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
+            _iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500'
+          }`}
+        >
+          {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
+        </button>
+        <button 
+          onClick={_hCL} aria-label="Share Link"
+          className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500"
+        >
+          <_Sh size={20} />
+        </button>
+      </aside>
 
       <div className="max-w-[1320px] mx-auto px-5 md:px-10">
         <header className="pt-16 pb-10 border-b-[12px] border-black dark:border-white mb-10 relative">
           <div className="flex justify-between items-start">
-            <span className="text-red-700 font-black uppercase text-[13px] tracking-[0.3em] mb-5 block italic">Brawnly Exclusive Selection</span>
+            <_L to="/" aria-label="Back to feed" className="text-red-700 font-black uppercase text-[13px] tracking-[0.3em] mb-5 flex items-center gap-2 hover:gap-4 transition-all italic">
+              <_Al size={14} /> Brawnly Exclusive Selection
+            </_L>
             {_isOff && (
               <span className="flex items-center gap-2 text-red-500 text-[10px] font-bold uppercase tracking-widest animate-pulse border border-red-500 px-3 py-1 rounded-full">
                 <_Wo size={12} /> OFFLINE MODE
@@ -250,7 +272,7 @@ export default function ArticleDetail() {
             </div>
             <div className="flex items-center gap-8 border-l-0 md:border-l-2 border-black dark:border-white pl-0 md:pl-8">
               <span className="text-2xl font-black italic flex items-center gap-3">
-                {_vC.toLocaleString()} <_Ey size={20} className="text-red-600" />
+                {_vC.toLocaleString()} <_Ey size={20} className="text-red-600" aria-hidden="true" />
               </span>
             </div>
           </div>
@@ -293,6 +315,18 @@ export default function ArticleDetail() {
               )}
             </div>
 
+            {/* MOBILE ACTION BAR */}
+            <div className="xl:hidden flex gap-4 mb-16 border-y border-neutral-200 dark:border-neutral-800 py-6">
+               <button onClick={_hSv} className={`flex-1 flex items-center justify-center gap-3 py-4 font-black uppercase text-[10px] tracking-widest border-2 transition-all ${
+                 _iS ? 'bg-emerald-500 border-black text-black' : 'border-black dark:border-white'
+               }`}>
+                 {_iS ? <_Ck size={16} /> : <_Bm size={16} />} {_iS ? "SAVED" : "SAVE TO LIBRARY"}
+               </button>
+               <button onClick={_hCL} className="flex-1 flex items-center justify-center gap-3 py-4 font-black uppercase text-[10px] tracking-widest border-2 border-black dark:border-white">
+                 <_Sh size={16} /> SHARE
+               </button>
+            </div>
+
             <section className="mt-32 border-t-[12px] border-black dark:border-white pt-16">
               <CommentSection articleId={_art.id} />
             </section>
@@ -303,7 +337,7 @@ export default function ArticleDetail() {
               <h3 className="text-[14px] font-black uppercase tracking-widest text-red-700 mb-8 italic underline">Hot Content</h3>
               <div className="flex flex-col gap-10">
                 {_hC.map((it: any, i: number) => (
-                  <_L to={`/article/${it.slug}`} key={it.id} className="group cursor-pointer block">
+                  <_L to={`/article/${it.slug}`} aria-label={`Trending: ${it.title}`} key={it.id} className="group cursor-pointer block">
                     <div className="flex gap-5">
                       <span className="text-4xl font-black text-neutral-100 dark:text-neutral-900 group-hover:text-red-600 transition-colors">0{i + 1}</span>
                       <div>
