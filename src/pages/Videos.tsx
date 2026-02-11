@@ -4,15 +4,15 @@ import { motion as _m } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
-// Import kedua Pipeline WASM
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 
-// Tipe data Minified (Slashing JSON keys untuk hemat kuota storage)
+// Tipe data Universal (Disesuaikan untuk mendukung non-YouTube)
 type MinifiedVideo = {
   i: string;  // id
   t: string;  // title
-  y: string;  // youtube ID
+  u: string;  // Slashed YouTube ID ATAU Full URL
+  ty: 'yt' | 'other'; // Tipe player
   th: string; // slashed thumbnail (WebP Base64)
 };
 
@@ -23,11 +23,22 @@ export default function Videos() {
   const [_isOff, _sOff] = _s(!navigator.onLine);
   const [_activeV, _sActiveV] = _s<string | null>(null);
 
-  // Helper: Ambil ID YouTube pendek
-  const _gYI = (u: string) => {
+  // Helper Universal: Deteksi YouTube, ScreenPal, atau URL Eksternal lain
+  const _parseVid = (url: string) => {
+    if (!url) return { u: "", ty: 'other' as const };
+    
+    // 1. Cek YouTube (Ekstrak ID 11 digit untuk kompresi)
     const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const _m = u.match(_reg);
-    return (_m && _m[2].length === 11) ? _m[2] : "";
+    const _m = url.match(_reg);
+    if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const };
+
+    // 2. Cek ScreenPal (Otomatis ubah 'watch' jadi 'player' agar bisa di-embed)
+    if (url.includes('screenpal.com/watch/')) {
+      return { u: url.replace('/watch/', '/player/'), ty: 'other' as const };
+    }
+
+    // 3. Sumber lain (Biar lewat sebagai full URL)
+    return { u: url, ty: 'other' as const };
   };
 
   _e(() => {
@@ -41,7 +52,6 @@ export default function Videos() {
     };
   }, []);
 
-  // LOGIC: Ambil data & Slashed Visual via WASM
   const fetchVideos = async () => {
     try {
       if (!navigator.onLine) {
@@ -60,22 +70,26 @@ export default function Videos() {
 
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
-          const _yId = _gYI(v.url);
-          let _thumbUrl = v.thumbnail_url || `https://img.youtube.com/vi/${_yId}/mqdefault.jpg`;
+          const { u: _parsedU, ty: _vType } = _parseVid(v.url);
+          
+          // Logic Thumbnail: Jika YT, pakai fallback YT. Jika lain, pakai dari DB.
+          let _thumbUrl = v.thumbnail_url;
+          if (!_thumbUrl && _vType === 'yt') {
+            _thumbUrl = `https://img.youtube.com/vi/${_parsedU}/mqdefault.jpg`;
+          }
 
-          // OPTIMASI WASM: Ubah thumbnail ke WebP Slashed (1/4 quality) 
-          // untuk disimpan di cache offline agar viewer tidak 'mati lampu' visualnya.
           try {
-            const _res = await fetch(_thumbUrl);
-            const _blob = await _res.blob();
-            const _optimizedBlob = await _wTI(_blob, "webp", 0.25); // Slashed ke 25%
-            
-            // Konversi ke Base64 agar bisa masuk LocalStorage
-            const _reader = new FileReader();
-            _thumbUrl = await new Promise((res) => {
-              _reader.onloadend = () => res(_reader.result as string);
-              _reader.readAsDataURL(_optimizedBlob);
-            });
+            if (_thumbUrl) {
+              const _res = await fetch(_thumbUrl);
+              const _blob = await _res.blob();
+              const _optimizedBlob = await _wTI(_blob, "webp", 0.25); 
+              
+              const _reader = new FileReader();
+              _thumbUrl = await new Promise((res) => {
+                _reader.onloadend = () => res(_reader.result as string);
+                _reader.readAsDataURL(_optimizedBlob);
+              });
+            }
           } catch (e) {
             console.warn("WASM Skip: Using Direct URL");
           }
@@ -83,8 +97,9 @@ export default function Videos() {
           return {
             i: v.id,
             t: v.title,
-            y: _yId,
-            th: _thumbUrl
+            u: _parsedU,
+            ty: _vType,
+            th: _thumbUrl || ""
           };
         }));
 
@@ -113,7 +128,6 @@ export default function Videos() {
     <main className={_x.r}>
       <div className={_x.c}>
         
-        {/* HEADER RESPONSIVE */}
         <div className="mb-12 space-y-4">
           <h1 className="text-[44px] sm:text-7xl md:text-9xl font-black italic tracking-tighter uppercase leading-[0.85] break-words">
             Transmission
@@ -121,12 +135,11 @@ export default function Videos() {
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${_isOff ? 'bg-red-500 animate-pulse' : 'bg-emerald-500 shadow-[0_0_15px_#10b981]'}`} />
             <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] opacity-50">
-              {_isOff ? "Mode Offline: Local Cache Active" : "Uplink Secure: WASM Pipeline Online"}
+              {_isOff ? "Mode Offline: Local Cache Active" : "Uplink Secure: Universal Pipeline Online"}
             </span>
           </div>
         </div>
 
-        {/* GRID VIDEO (FB STYLE) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12">
           {_vids.map((v) => (
             <_m.div
@@ -136,14 +149,26 @@ export default function Videos() {
             >
               <div className="aspect-video relative bg-neutral-900">
                 {_activeV === v.i && !_isOff ? (
-                  <iframe className="absolute inset-0 w-full h-full" src={`https://www.youtube.com/embed/${v.y}?autoplay=1&modestbranding=1`} allowFullScreen />
+                  // LOGIC IFRAME UNIVERSAL
+                  <iframe 
+                    className="absolute inset-0 w-full h-full border-0" 
+                    src={v.ty === 'yt' ? `https://www.youtube.com/embed/${v.u}?autoplay=1&modestbranding=1` : v.u} 
+                    allowFullScreen 
+                    allow="autoplay; fullscreen"
+                  />
                 ) : (
                   <div className="absolute inset-0 cursor-pointer" onClick={() => _isOff ? null : _sActiveV(v.i)}>
-                    <img 
-                      src={v.th} 
-                      alt={v.t}
-                      className="w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-500"
-                    />
+                    {v.th ? (
+                      <img 
+                        src={v.th} 
+                        alt={v.t}
+                        className="w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center opacity-30">
+                        <_Vd size={48} />
+                      </div>
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className={`p-4 rounded-full backdrop-blur-3xl border border-white/10 ${_isOff ? 'bg-white/5' : 'bg-emerald-500/80 shadow-2xl'}`}>
                         {_isOff ? <_Wo size={24} className="opacity-20" /> : <_Pl size={24} className="fill-white" />}
@@ -161,7 +186,9 @@ export default function Videos() {
                 <div className="flex items-center justify-between border-t border-black/5 dark:border-white/5 pt-6">
                   <div className="flex items-center gap-2">
                     <_Zp size={12} className="text-emerald-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Slashed Visual</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">
+                      {v.ty === 'yt' ? "Slashed Visual" : "External Source"}
+                    </span>
                   </div>
                   <span className="text-[10px] font-mono opacity-40 italic">1/4 MB Plan</span>
                 </div>
@@ -170,7 +197,6 @@ export default function Videos() {
           ))}
         </div>
 
-        {/* NOTIF MATI LAMPU */}
         {_isOff && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] md:w-auto bg-neutral-900 text-white px-8 py-4 rounded-2xl border border-white/10 shadow-2xl z-50 flex items-center gap-4 justify-center">
             <_Wo size={18} className="text-red-500 animate-pulse" />
