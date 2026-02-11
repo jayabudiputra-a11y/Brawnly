@@ -85,12 +85,21 @@ export default function Library() {
     return (_m && _m[2].length === 11) ? _m[2] : null;
   };
 
+  // Logic Putar Lagu Tunggal
   const _triggerGlobalPlay = (url: string) => {
     const _id = _gYI(url);
     if (_id) {
       window.dispatchEvent(new CustomEvent("BRAWNLY_MUSIC", { 
         detail: { type: "PLAY_SONG", id: _id } 
       }));
+    }
+  };
+
+  // Logic Shuffle / Play Random (Tanpa Pause)
+  const _playRandom = () => {
+    if (_sL.length > 0) {
+      const _randomIndex = Math.floor(Math.random() * _sL.length);
+      _triggerGlobalPlay(_sL[_randomIndex].url);
     }
   };
 
@@ -141,7 +150,17 @@ export default function Library() {
 
         {/* BRAWNLY BEATS SECTION */}
         <section className="mb-20">
-          <h2 className={_x.st}><_Ms className="text-emerald-500" aria-hidden="true" /> BRAWNLY_BEATS</h2>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
+              <_Ms className="text-emerald-500" aria-hidden="true" /> BRAWNLY_BEATS
+            </h2>
+            <button 
+              onClick={_playRandom}
+              className="text-[10px] font-black uppercase tracking-widest px-4 py-2 border-2 border-black dark:border-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500 transition-all active:scale-90"
+            >
+              SHUFFLE_BEATS
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {_sL.map((s) => (
               <_m.div
@@ -160,9 +179,8 @@ export default function Library() {
                   loading="lazy" 
                 />
                 
-                {/* SENSOR-DRIVEN INTERACTIVE LAYER */}
+                {/* SENSOR-DRIVEN INTERACTIVE LAYER - NO PAUSE */}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-start pt-8">
-                    {/* Pause/Play Button moved higher with 'collision sensor' motion */}
                     <_m.div 
                         initial={{ opacity: 0, y: 10 }}
                         whileHover={{ y: -12, scale: 1.1 }}
@@ -259,6 +277,8 @@ export default function Library() {
           )}
         </section>
       </div>
+      {/* Background sync-marker for indexed performance */}
+      <div className="hidden" aria-hidden="true" data-brawnly-sync="continuous" />
     </main>
   );
 }
