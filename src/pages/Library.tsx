@@ -1,6 +1,6 @@
 import React, { useState as _s, useEffect as _e } from "react";
 import { Link as _L } from "react-router-dom";
-import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Play as _Pl, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc } from "lucide-react";
+import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useArticles as _uA } from "@/hooks/useArticles";
 import { songsApi as _sa, type Song as _S } from "@/lib/api"; 
@@ -85,7 +85,6 @@ export default function Library() {
     return (_m && _m[2].length === 11) ? _m[2] : null;
   };
 
-  // Logic Putar Lagu Tunggal
   const _triggerGlobalPlay = (url: string) => {
     const _id = _gYI(url);
     if (_id) {
@@ -95,7 +94,7 @@ export default function Library() {
     }
   };
 
-  // Logic Shuffle / Play Random (Tanpa Pause)
+  // Logic Shuffle / Play Random Otomatis
   const _playRandom = () => {
     if (_sL.length > 0) {
       const _randomIndex = Math.floor(Math.random() * _sL.length);
@@ -148,51 +147,43 @@ export default function Library() {
           </div>
         </div>
 
-        {/* BRAWNLY BEATS SECTION */}
+        {/* BRAWNLY BEATS SECTION - CLEAN UI */}
         <section className="mb-20">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
               <_Ms className="text-emerald-500" aria-hidden="true" /> BRAWNLY_BEATS
             </h2>
+            {/* Tombol shuffle tetap ada di header untuk kontrol manual, tapi tanpa tombol pause */}
             <button 
               onClick={_playRandom}
-              className="text-[10px] font-black uppercase tracking-widest px-4 py-2 border-2 border-black dark:border-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500 transition-all active:scale-90"
+              className="text-[10px] font-black uppercase tracking-widest px-4 py-2 border-2 border-black dark:border-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500 transition-all active:scale-95"
             >
-              SHUFFLE_BEATS
+              AUTO_SHUFFLE_MODE
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {_sL.map((s) => (
               <_m.div
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -5, scale: 1.02 }}
                 key={s.id}
                 onClick={() => _triggerGlobalPlay(s.url)}
                 role="button"
-                aria-label={`Play ${s.title}`}
-                className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500 transition-all"
+                aria-label={`Listen to ${s.title}`}
+                className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500 transition-all duration-300"
               >
                 <img 
                   src={s.thumbnail_url} 
                   alt={s.title} 
                   crossOrigin="anonymous" 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                  className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-500" 
                   loading="lazy" 
                 />
                 
-                {/* SENSOR-DRIVEN INTERACTIVE LAYER - NO PAUSE */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-start pt-8">
-                    <_m.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        whileHover={{ y: -12, scale: 1.1 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 bg-emerald-500 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform"
-                    >
-                        <_Pl size={28} className="text-white fill-current" aria-hidden="true" />
-                    </_m.div>
-                </div>
+                {/* Visual Overlay diganti dengan efek gradasi halus saja, TANPA tombol */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10">
-                  <p className="text-[9px] font-black uppercase truncate text-white tracking-widest">{s.title}</p>
+                <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
+                  <p className="text-[9px] font-black uppercase truncate text-white tracking-widest translate-y-2 group-hover:translate-y-0 transition-transform duration-300">{s.title}</p>
                 </div>
               </_m.div>
             ))}
@@ -277,7 +268,7 @@ export default function Library() {
           )}
         </section>
       </div>
-      {/* Background sync-marker for indexed performance */}
+      {/* Background sync-marker for constant flow */}
       <div className="hidden" aria-hidden="true" data-brawnly-sync="continuous" />
     </main>
   );

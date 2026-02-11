@@ -2,9 +2,9 @@
    BRAWNLY ENTERPRISE SERVICE WORKER
    =============================== */
 
-/* VERSIONED CACHE */
-const IMG_CACHE = "brawnly-img-v4";
-const API_CACHE = "brawnly-api-v4";
+/* VERSIONED CACHE (Naik ke v5 untuk menimpa cache lama yang bermasalah) */
+const IMG_CACHE = "brawnly-img-v5";
+const API_CACHE = "brawnly-api-v5";
 const API_QUEUE = "brawnly-api-queue";
 
 /* SMART TTL (60 MINUTES) */
@@ -39,21 +39,23 @@ self.addEventListener("activate", e => {
    =============================== */
 
 async function putTTL(cache, req, res) {
-
   try {
-    const clone = res.clone();
+    // Pastikan hanya respon yang valid (ok) yang disimpan
+    if (!res || !res.ok) return;
 
+    const clone = res.clone();
     const headers = new Headers(clone.headers);
     headers.set("sw-cache-time", Date.now().toString());
 
     const body = await clone.blob();
-
-    const newRes = new Response(body, { headers });
+    const newRes = new Response(body, { 
+      status: clone.status,
+      statusText: clone.statusText,
+      headers 
+    });
 
     await cache.put(req, newRes);
-
   } catch {}
-
 }
 
 /* ===============================
@@ -75,9 +77,7 @@ function isFresh(res) {
    =============================== */
 
 async function imageStrategy(req) {
-
   const cache = await caches.open(IMG_CACHE);
-
   const cached = await cache.match(req);
 
   const netFetch = fetch(req)
@@ -87,13 +87,24 @@ async function imageStrategy(req) {
       }
       return res;
     })
-    .catch(() => cached);
+    .catch(() => {
+      // FIX BUG TYPEERROR: Kembalikan cache jika ada
+      if (cached) return cached;
+      
+      // Jika cache tidak ada (viewer baru) dan internet mati, 
+      // berikan response SVG kosong agar browser tidak TypeError (tidak return undefined/null)
+      return new Response(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+        { headers: { 'Content-Type': 'image/svg+xml' }, status: 200 }
+      );
+    });
 
   if (cached && isFresh(cached)) {
     netFetch.catch(()=>{});
     return cached;
   }
 
+  // Fallback terakhir dijamin tidak akan mereturn 'undefined'
   return cached || netFetch;
 }
 
@@ -102,15 +113,17 @@ async function imageStrategy(req) {
    =============================== */
 
 self.addEventListener("fetch", event => {
-
   const req = event.request;
+
+  // ULTRA-SAFE PROTEKSI: 
+  // Abaikan semua request POST/PUT/DELETE (Upload file) & WebSocket (Realtime)
+  if (req.method !== "GET" || !req.url.startsWith("http")) return;
 
   /* IMAGE CACHE */
   if (req.destination === "image") {
     event.respondWith(imageStrategy(req));
     return;
   }
-
 });
 
 /* ===============================
@@ -118,11 +131,9 @@ self.addEventListener("fetch", event => {
    =============================== */
 
 self.addEventListener("message", e => {
-
   if (e.data?.type === "TRACK_VIEW") {
     queueTrack(e.data.articleId);
   }
-
 });
 
 /* ===============================
@@ -130,9 +141,7 @@ self.addEventListener("message", e => {
    =============================== */
 
 async function queueTrack(articleId) {
-
   try {
-
     const cache = await caches.open(API_QUEUE);
 
     await cache.put(
@@ -145,9 +154,7 @@ async function queueTrack(articleId) {
         headers: { "content-type": "application/json" }
       })
     );
-
   } catch {}
-
 }
 
 /* ===============================
@@ -155,11 +162,9 @@ async function queueTrack(articleId) {
    =============================== */
 
 self.addEventListener("sync", event => {
-
   if (event.tag === "sync-articles") {
     event.waitUntil(flushQueue());
   }
-
 });
 
 /* ===============================
@@ -167,17 +172,12 @@ self.addEventListener("sync", event => {
    =============================== */
 
 async function flushQueue() {
-
   try {
-
     const cache = await caches.open(API_QUEUE);
-
     const keys = await cache.keys();
 
     for (const req of keys) {
-
       try {
-
         const res = await cache.match(req);
         if (!res) continue;
 
@@ -194,11 +194,7 @@ async function flushQueue() {
         // });
 
         await cache.delete(req);
-
       } catch {}
-
     }
-
   } catch {}
-
 }

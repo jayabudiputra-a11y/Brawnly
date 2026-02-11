@@ -4,6 +4,10 @@ import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Mencegah Vite memproses library WASM agar path binary tetap konsisten
+  optimizeDeps: {
+    exclude: ['@jsquash/webp', '@jsquash/avif']
+  },
   plugins: [
     react({
       babel: {
@@ -143,6 +147,7 @@ export default defineConfig({
           if (id.includes("node_modules")) {
             if (id.includes("react")) return "react-vendor";
             if (id.includes("supabase")) return "supabase-vendor";
+            if (id.includes("@jsquash")) return "wasm-vendor"; // Memisahkan library WASM
             return "vendor";
           }
         },

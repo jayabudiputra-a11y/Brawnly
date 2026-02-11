@@ -14,23 +14,55 @@ import _mL from "@/assets/masculineLogo.svg";
 import _bG from "@/assets/Brawnly.gif";
 import _fS from "@/assets/Brawnly-favicon.svg";
 
-const _H = _lz(() => import("@/pages/Home"));
-const _As = _lz(() => import("@/pages/Articles"));
-const _AP = _lz(() => import("@/pages/ArticlePage").catch(() => { window.location.reload(); return { default: () => null as any }; }));
-const _Cy = _lz(() => import("@/pages/Category"));
-const _Ab = _lz(() => import("@/pages/About"));
-const _Ct = _lz(() => import("@/pages/Contact"));
-const _Ar = _lz(() => import("@/pages/Author"));
-const _NF = _lz(() => import("@/pages/NotFound"));
-const _Sb = _lz(() => import("@/pages/Subscription"));
-const _Pf = _lz(() => import("@/pages/Profile"));
-const _AC = _lz(() => import("@/pages/AuthCallback"));
-const _Lb = _lz(() => import("@/pages/Library"));
-const _Ts = _lz(() => import("@/pages/Terms"));
-const _Py = _lz(() => import("@/pages/Privacy"));
-const _Es = _lz(() => import("@/pages/Ethics"));
-const _SUF = _lz(() => import("@/components/SignUpForm"));
-const _SIF = _lz(() => import("@/components/common/SignInForms"));
+// ==========================================
+// BRAWNLY OFFLINE-SAFE LAZY LOADER (V2)
+// Menangani Error "Failed to fetch dynamically imported module"
+// ==========================================
+const _safeLazy = (importFunc: () => Promise<any>) => 
+  _lz(() => importFunc().catch(() => {
+    // Jika offline, tampilkan UI darurat daripada aplikasi crash layar putih
+    if (!navigator.onLine) {
+      return { 
+        default: () => (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white text-center p-6 z-[9999] relative">
+            <h1 className="text-4xl md:text-6xl font-black text-red-600 mb-4 tracking-widest italic">OFFLINE</h1>
+            <p className="text-xs md:text-sm uppercase tracking-widest opacity-50 mb-8 max-w-md">
+              Halaman ini belum tersimpan di memori lokal (Cache). Silakan sambungkan kembali internet Anda.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-8 py-4 border-2 border-white text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        ) 
+      };
+    }
+    // Jika online tapi gagal (misal file chunk berubah saat deploy baru), paksa reload
+    window.location.reload();
+    return { default: () => null as any };
+  }));
+
+// ROUTE DEFINITIONS MENGGUNAKAN SAFE LOADER
+const _H = _safeLazy(() => import("@/pages/Home"));
+const _As = _safeLazy(() => import("@/pages/Articles"));
+const _AP = _safeLazy(() => import("@/pages/ArticlePage"));
+const _Cy = _safeLazy(() => import("@/pages/Category"));
+const _Ab = _safeLazy(() => import("@/pages/About"));
+const _Ct = _safeLazy(() => import("@/pages/Contact"));
+const _Ar = _safeLazy(() => import("@/pages/Author"));
+const _NF = _safeLazy(() => import("@/pages/NotFound"));
+const _Sb = _safeLazy(() => import("@/pages/Subscription"));
+const _Pf = _safeLazy(() => import("@/pages/Profile"));
+const _AC = _safeLazy(() => import("@/pages/AuthCallback"));
+const _Lb = _safeLazy(() => import("@/pages/Library"));
+const _Vd = _safeLazy(() => import("@/pages/Videos")); // ROUTE VIDEOS DITAMBAHKAN DI SINI
+const _Ts = _safeLazy(() => import("@/pages/Terms"));
+const _Py = _safeLazy(() => import("@/pages/Privacy"));
+const _Es = _safeLazy(() => import("@/pages/Ethics"));
+const _SUF = _safeLazy(() => import("@/components/SignUpForm"));
+const _SIF = _safeLazy(() => import("@/components/common/SignInForms"));
 
 const _AL: React.FC<_APLP> = ({ children: _c, title: _t }) => (
   <div className="min-h-screen flex items-center justify-center bg-black p-4">
@@ -131,6 +163,7 @@ function App() {
             <_Rt path="subscribe" element={<_Sb />} />
             <_Rt path="profile" element={<_Pf />} />
             <_Rt path="library" element={<_Lb />} />
+            <_Rt path="videos" element={<_Vd />} /> {/* ROUTE VIDEOS DITAMBAHKAN DI SINI */}
             <_Rt path="article/:slug" element={<_AP />} />
             <_Rt path="category/:slug" element={<_Cy />} />
             <_Rt path="about" element={<_Ab />} />

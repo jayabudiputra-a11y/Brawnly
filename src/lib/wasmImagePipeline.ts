@@ -1,27 +1,16 @@
 import { encode as encodeAvif } from "@jsquash/avif";
-import { encode as encodeWebp } from "@jsquash/webp";
+import * as _webp from "@jsquash/webp"; // Gunakan Namespace Import
 
 /* ======================
     BLOB → ImageData
    ====================== */
-
 async function blobToImageData(blob: Blob): Promise<ImageData> {
   const bmp = await createImageBitmap(blob);
-
-  const canvas = new OffscreenCanvas(
-    bmp.width,
-    bmp.height
-  );
-
+  const canvas = new OffscreenCanvas(bmp.width, bmp.height);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(bmp, 0, 0);
 
-  return ctx.getImageData(
-    0,
-    0,
-    bmp.width,
-    bmp.height
-  );
+  return ctx.getImageData(0, 0, bmp.width, bmp.height);
 }
 
 /* ======================
@@ -30,51 +19,42 @@ async function blobToImageData(blob: Blob): Promise<ImageData> {
 
 /**
  * Pipeline WASM untuk konversi gambar.
- * Menambahkan parameter optional 'quality' untuk menangani file besar.
+ * Menggunakan Namespace Import untuk mengatasi error "no default export".
  */
 export async function wasmTranscodeImage(
   file: Blob,
   format: "webp" | "avif",
-  quality?: number // Tambahkan parameter optional agar build tidak error
+  quality?: number
 ): Promise<Blob> {
-
   try {
     const img = await blobToImageData(file);
 
     /* ========= AVIF ========= */
     if (format === "avif") {
-      // Jika quality dikirim (0.6), kita kalikan dengan base 100
-      const _q = quality ? quality * 100 : 45; 
-
+      const _q = quality ? quality * 100 : 45;
       const buf = await encodeAvif(img, {
-        quality: _q,      // 0–100 (lower = smaller)
-        speed: 6          // 0 slow best → 10 fast worst
+        quality: _q,
+        speed: 6
       });
-
-      return new Blob(
-        [buf],
-        { type: "image/avif" }
-      );
+      return new Blob([buf], { type: "image/avif" });
     }
 
     /* ========= WEBP ========= */
     if (format === "webp") {
-      // Menggunakan quality dinamis atau default 82
       const _q = quality ? quality * 100 : 82;
-
-      const buf = await encodeWebp(img, {
-        quality: _q       // 0–100
+      
+      // Panggil fungsi encode dari namespace _webp
+      // Ini akan menghilangkan error TS "no default export"
+      const buf = await _webp.encode(img, {
+        quality: _q
       });
 
-      return new Blob(
-        [buf],
-        { type: "image/webp" }
-      );
+      return new Blob([buf], { type: "image/webp" });
     }
 
     return file;
-
-  } catch {
-    return file;
+  } catch (e) {
+    console.error("WASM Pipeline Failure, falling back to original:", e);
+    return file; 
   }
 }

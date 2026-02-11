@@ -14,11 +14,12 @@ import ArticleCoverImage from "@/components/features/ArticleCoverImage";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useArticles as _uAs } from "@/hooks/useArticles";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
-import { optimizeUpload } from "@/lib/imageOptimizer";
 import { supabase } from "@/lib/supabase";
 import { enqueue as _enQ } from "@/lib/idbQueue";
-import { transcodeImage as _tI } from "@/wasm/imageWorker";
 import { backoffRetry as _boR } from "@/lib/backoff";
+
+// IMPORT WASM PIPELINE BARU
+import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
 
 const _manageCacheMemory = () => {
   try {
@@ -43,42 +44,47 @@ const _manageCacheMemory = () => {
 };
 
 /**
- * Fungsi Upload Teroptimasi
- * Menangani penamaan file aman, validasi ukuran 5MB, 
- * dan strategi retry otomatis.
+ * Fungsi Upload Teroptimasi (WASM Slashed 1/4 MB Plan + Upsert)
  */
-async function upload(file: File, slug: string) {
-  // Gunakan slug + hash pendek agar nama file ringkas dan unik (Menghindari error 400 nama terlalu panjang)
-  const fileName = `cover-${slug}-${Math.random().toString(36).substring(7)}.webp`;
-
-  await _boR(async () => {
-    /* 1. Pre-process dengan WASM Bridge */
-    const _buf = await file.arrayBuffer();
-    const _rB = await _tI(_buf);
-    const _fF = new File([_rB], fileName, { type: "image/webp" });
-    
-    /* 2. Jalankan pipeline optimasi utama */
-    const optimized = await optimizeUpload(_fF);
-    
-    /* 3. Validasi Ukuran File (Supabase 5MB Limit) */
-    if (optimized.size > 5242880) {
-      console.error("File too large for Supabase (>5MB)");
+const upload = async (file: Blob, path: string) => {
+  try {
+    // 1. Validasi awal: pastikan file benar-benar ada
+    if (!file || file.size === 0) {
+      console.error("Upload aborted: File is empty or null");
       return;
     }
 
-    /* 4. Push ke Supabase Storage */
-    const { error } = await supabase.storage
-      .from("images")
-      .upload(fileName, optimized, {
-        upsert: true,
-        cacheControl: '3600'
+    // 2. Jalankan optimasi (Logic Slashed 1/4 MB)
+    let finalFile = file;
+    try {
+      const optimized = await wasmTranscodeImage(file, "webp", 0.75);
+      if (optimized && optimized.size > 0) {
+        finalFile = optimized;
+      }
+    } catch (wasmErr) {
+      console.warn("WASM failed, using original file instead");
+    }
+
+    // 3. Eksekusi Upload dengan UPSERT
+    const { data, error } = await supabase.storage
+      .from('images') // Pastikan nama bucket benar
+      .upload(path, finalFile, {
+        contentType: 'image/webp',
+        upsert: true // WAJIB: Agar tidak 400 saat menimpa file lama
       });
 
-    if (error) throw error; // Lempar error agar backoffRetry mencoba ulang
-  }).catch(() => {
-    // Silent fail setelah percobaan maksimal habis
-  });
-}
+    if (error) {
+      // Jika masih error 400, cek apakah path mengandung karakter ilegal
+      console.error("Supabase Storage Error Details:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Critical Upload Failure:", err);
+    throw err;
+  }
+};
 
 export default function ArticleDetail() {
   const { isDark: _iD } = _uTP();
@@ -200,7 +206,10 @@ export default function ArticleDetail() {
         const r = await fetch(_pD.coverImage);
         const b = await r.blob();
         const f = new File([b], `cover-${_slV}.jpg`, { type: b.type });
-        await upload(f, _slV);
+        
+        // Panggil fungsi upload baru dengan penamaan path .webp yang konsisten
+        await _boR(() => upload(f, `cover-${_slV}.webp`));
+        
         sessionStorage.setItem(_syncKey, "done");
       } catch {}
     })();

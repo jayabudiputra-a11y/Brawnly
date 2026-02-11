@@ -10,10 +10,14 @@ const Layout = () => {
   const _l = _uL();
   const _iH = _l.pathname === "/";
   const [_sS, _ssS] = _s(_iH);
+  
+  // States untuk Brawnly Sonic Engine
   const [_mL, _smL] = _s<_S[]>([]);
   const [_cL, _scL] = _s(0);
-  const [_iP, _siP] = _s(false);
-  const [_pR, _spR] = _s(false);
+  const [_pR, _spR] = _s(false); 
+  
+  // State SENSOR OFFLINE
+  const [_isOnline, _setIsOnline] = _s(navigator.onLine);
   const _aR = _r<HTMLIFrameElement>(null);
 
   _e(() => {
@@ -25,32 +29,83 @@ const Layout = () => {
     }
   }, [_iH]);
 
+  // Listener Online/Offline Status
   _e(() => {
+    const handleOnline = () => _setIsOnline(true);
+    const handleOffline = () => {
+      _setIsOnline(false);
+      _spR(false); // Matikan paksa Sonic Engine jika tiba-tiba offline
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // 1. USE-EFFECT LOAD DATA: HANYA BERJALAN SEKALI SAAT MOUNT
+  _e(() => {
+    let isMounted = true;
+    
     const _fL = async () => {
       try {
+        const _cM = localStorage.getItem("brawnly_music_cache");
+        if (_cM && !_isOnline) {
+          if (isMounted) _smL(JSON.parse(_cM));
+          return;
+        }
+
         const _d = await _sa.getAll();
-        if (_d && _d.length > 0) _smL(_d);
+        if (_d && _d.length > 0) {
+          if (isMounted) _smL(_d);
+          localStorage.setItem("brawnly_music_cache", JSON.stringify(_d));
+        }
       } catch (e) {}
     };
     _fL();
+    
+    return () => { isMounted = false; };
+  }, [_isOnline]); // HAPUS _mL dari sini agar tidak infinite loop
 
+  // 2. USE-EFFECT CUSTOM EVENT LISTENER
+  _e(() => {
     const _hM = (e: any) => {
-      if (e.detail?.type === "PLAY_SONG") {
+      if (!_isOnline) {
+        console.warn("[BRAWNLY_SONIC_ENGINE]: Cannot start playback in offline mode.");
+        return;
+      }
+      if (e.detail?.type === "PLAY_SONG" && _mL.length > 0) {
         const _idx = _mL.findIndex(s => s.url.includes(e.detail.id));
         if (_idx !== -1) {
           _scL(_idx);
           _spR(true);
-          _siP(true);
         }
       }
     };
     window.addEventListener("BRAWNLY_MUSIC", _hM);
     return () => window.removeEventListener("BRAWNLY_MUSIC", _hM);
-  }, [_mL]);
+  }, [_mL, _isOnline]); // _mL dibutuhkan di sini untuk pencarian index
 
-  const _sC = (f: string) => {
-    _aR.current?.contentWindow?.postMessage(`{"event":"command","func":"${f}","args":""}`, "*");
-  };
+  // 3. USE-EFFECT YOUTUBE AUTO-SHUFFLE LISTENER
+  _e(() => {
+    const _hY = (e: MessageEvent) => {
+      if (e.origin !== "https://www.youtube.com") return;
+      try {
+        const _d = JSON.parse(e.data);
+        if (_d.event === "infoDelivery" && _d.info && _d.info.playerState === 0) {
+          if (_mL.length > 0 && _isOnline) { 
+            const _nI = Math.floor(Math.random() * _mL.length);
+            _scL(_nI);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener("message", _hY);
+    return () => window.removeEventListener("message", _hY);
+  }, [_mL, _isOnline]);
 
   const _gY = (u: string) => {
     const r = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -73,36 +128,23 @@ const Layout = () => {
       <script type="application/ld+json">{JSON.stringify(_jL)}</script>
       <Header />
       <AdvancedTranslate />
+      
       <main className="flex-1 focus:outline-none" id="main-content">
         <Outlet />
       </main>
+      
       <Footer />
 
-      {_mL.length > 0 && _pR && (
-        <div className="fixed invisible w-0 h-0 pointer-events-none">
+      {_mL.length > 0 && _pR && _isOnline && (
+        <div className="fixed invisible w-0 h-0 pointer-events-none overflow-hidden">
           <iframe
             ref={_aR}
-            key="brawnly-global-player"
+            key={`brawnly-global-player-${_cL}`} 
             style={{ border: 0 }}
             src={`https://www.youtube.com/embed/${_gY(_mL[_cL].url)}?enablejsapi=1&autoplay=1&origin=${window.location.origin}&widget_referrer=${window.location.origin}&rel=0&controls=0&showinfo=0&playsinline=1`}
             allow="autoplay; encrypted-media"
             title="Brawnly_Sonic_Engine"
           />
-        </div>
-      )}
-
-      {_pR && (
-        <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 bg-white/10 dark:bg-black/40 backdrop-blur-xl p-2 pr-6 rounded-full border border-white/20 shadow-2xl animate-slide-in">
-          <button 
-            onClick={() => { _sC(_iP ? "pauseVideo" : "playVideo"); _siP(!_iP); }}
-            className="w-10 h-10 flex items-center justify-center bg-emerald-500 text-white rounded-full hover:scale-110 transition-transform shadow-lg shadow-emerald-500/20"
-          >
-            {_iP ? "⏸" : "▶"}
-          </button>
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-tighter opacity-50">Now_Playing</span>
-            <span className="text-[11px] font-black uppercase tracking-widest truncate max-w-[120px]">{_mL[_cL]?.title}</span>
-          </div>
         </div>
       )}
     </div>
