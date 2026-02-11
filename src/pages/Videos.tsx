@@ -5,15 +5,15 @@ import { supabase } from "@/lib/supabase";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
-import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 
-// Tipe data Universal (Disesuaikan untuk mendukung non-YouTube)
+// Tipe data Universal
 type MinifiedVideo = {
   i: string;  // id
   t: string;  // title
   u: string;  // Slashed YouTube ID ATAU Full URL
-  ty: 'yt' | 'other'; // Tipe player
+  ty: 'yt' | 'sp' | 'other'; // Tipe player
   th: string; // slashed thumbnail (WebP Base64)
+  v: boolean; // isVertical (9:16 Aspect Ratio)
 };
 
 export default function Videos() {
@@ -23,22 +23,45 @@ export default function Videos() {
   const [_isOff, _sOff] = _s(!navigator.onLine);
   const [_activeV, _sActiveV] = _s<string | null>(null);
 
-  // Helper Universal: Deteksi YouTube, ScreenPal, atau URL Eksternal lain
+  // Helper Universal: Deteksi YouTube, ScreenPal, Parameter Dimensi
   const _parseVid = (url: string) => {
-    if (!url) return { u: "", ty: 'other' as const };
+    if (!url) return { u: "", ty: 'other' as const, isShort: false };
     
-    // 1. Cek YouTube (Ekstrak ID 11 digit untuk kompresi)
-    const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const _m = url.match(_reg);
-    if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const };
+    // Deteksi awal: Jika URL ngandung kata shorts
+    let isShort = url.toLowerCase().includes('/shorts/');
 
-    // 2. Cek ScreenPal (Otomatis ubah 'watch' jadi 'player' agar bisa di-embed)
-    if (url.includes('screenpal.com/watch/')) {
-      return { u: url.replace('/watch/', '/player/'), ty: 'other' as const };
+    // Deteksi cerdas: Cek jika ada parameter width/height di URL
+    try {
+      const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+      const w = parseInt(urlObj.searchParams.get('width') || '0');
+      const h = parseInt(urlObj.searchParams.get('height') || '0');
+      // Jika Tinggi > Lebar, otomatis flag ini sebagai Vertical Video (9:16)
+      if (h > 0 && w > 0 && h > w) {
+        isShort = true;
+      }
+    } catch (e) { /* ignore invalid url parsing */ }
+
+    // 1. Cek YouTube (Ekstrak ID 11 digit dari watch, embed, atau shorts)
+    const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]*).*/;
+    const _m = url.match(_reg);
+    if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const, isShort };
+
+    // 2. Cek ScreenPal
+    if (url.includes('screenpal.com/watch/') || url.includes('screenpal.com/player/')) {
+      const _spId = url.split('/').pop()?.split('?')[0]; 
+      
+      // Susun parameter ScreenPal sesuai input, mempertahankan width/height jika ada
+      const _urlObj = new URL(url);
+      const _wParam = _urlObj.searchParams.get('width') ? `&width=${_urlObj.searchParams.get('width')}` : '';
+      const _hParam = _urlObj.searchParams.get('height') ? `&height=${_urlObj.searchParams.get('height')}` : '';
+      
+      const _spUrl = `https://go.screenpal.com/player/${_spId}?ff=1&ahc=1&dcc=1&a=1&tl=1&bg=transparent&share=1&download=1&embed=1&cl=1${_wParam}${_hParam}`;
+      
+      return { u: _spUrl, ty: 'sp' as const, isShort };
     }
 
-    // 3. Sumber lain (Biar lewat sebagai full URL)
-    return { u: url, ty: 'other' as const };
+    // 3. Sumber lain
+    return { u: url, ty: 'other' as const, isShort };
   };
 
   _e(() => {
@@ -70,10 +93,11 @@ export default function Videos() {
 
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
-          const { u: _parsedU, ty: _vType } = _parseVid(v.url);
+          const { u: _parsedU, ty: _vType, isShort } = _parseVid(v.url);
           
-          // Logic Thumbnail: Jika YT, pakai fallback YT. Jika lain, pakai dari DB.
+          let _isVertical = isShort; 
           let _thumbUrl = v.thumbnail_url;
+          
           if (!_thumbUrl && _vType === 'yt') {
             _thumbUrl = `https://img.youtube.com/vi/${_parsedU}/mqdefault.jpg`;
           }
@@ -82,6 +106,15 @@ export default function Videos() {
             if (_thumbUrl) {
               const _res = await fetch(_thumbUrl);
               const _blob = await _res.blob();
+              
+              // FALLBACK DETEKSI 9:16: Jika URL tidak punya parameter, cek gambar
+              if (!_isVertical) {
+                try {
+                  const bmp = await createImageBitmap(_blob);
+                  if (bmp.height > bmp.width) _isVertical = true; 
+                } catch (dimErr) { /* Abaikan */ }
+              }
+
               const _optimizedBlob = await _wTI(_blob, "webp", 0.25); 
               
               const _reader = new FileReader();
@@ -99,7 +132,8 @@ export default function Videos() {
             t: v.title,
             u: _parsedU,
             ty: _vType,
-            th: _thumbUrl || ""
+            th: _thumbUrl || "",
+            v: _isVertical
           };
         }));
 
@@ -140,37 +174,37 @@ export default function Videos() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12 items-start">
           {_vids.map((v) => (
             <_m.div
               key={v.i}
               whileHover={{ scale: 1.02 }}
               className="group relative flex flex-col bg-neutral-100 dark:bg-neutral-900/30 border border-neutral-200 dark:border-white/5 rounded-3xl overflow-hidden"
             >
-              <div className="aspect-video relative bg-neutral-900">
+              <div className={`relative bg-neutral-900 w-full transition-all duration-500 ${v.v ? 'aspect-[9/16]' : 'aspect-video'}`}>
                 {_activeV === v.i && !_isOff ? (
-                  // LOGIC IFRAME UNIVERSAL
                   <iframe 
                     className="absolute inset-0 w-full h-full border-0" 
                     src={v.ty === 'yt' ? `https://www.youtube.com/embed/${v.u}?autoplay=1&modestbranding=1` : v.u} 
                     allowFullScreen 
                     allow="autoplay; fullscreen"
+                    scrolling={v.ty === 'sp' ? "no" : "auto"} // ScreenPal Matrix Scrolling Protection
                   />
                 ) : (
-                  <div className="absolute inset-0 cursor-pointer" onClick={() => _isOff ? null : _sActiveV(v.i)}>
+                  <div className="absolute inset-0 cursor-pointer overflow-hidden" onClick={() => _isOff ? null : _sActiveV(v.i)}>
                     {v.th ? (
                       <img 
                         src={v.th} 
                         alt={v.t}
-                        className="w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-500"
+                        className="w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center opacity-30">
                         <_Vd size={48} />
                       </div>
                     )}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className={`p-4 rounded-full backdrop-blur-3xl border border-white/10 ${_isOff ? 'bg-white/5' : 'bg-emerald-500/80 shadow-2xl'}`}>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-transparent transition-all">
+                      <div className={`p-4 rounded-full backdrop-blur-3xl border border-white/10 transition-transform duration-300 group-hover:scale-110 ${_isOff ? 'bg-white/5' : 'bg-emerald-500/80 shadow-2xl'}`}>
                         {_isOff ? <_Wo size={24} className="opacity-20" /> : <_Pl size={24} className="fill-white" />}
                       </div>
                     </div>
@@ -178,7 +212,7 @@ export default function Videos() {
                 )}
               </div>
 
-              <div className="p-6 md:p-8 flex-1 flex flex-col justify-between">
+              <div className="p-6 md:p-8 flex-1 flex flex-col justify-between bg-neutral-100 dark:bg-neutral-900/30">
                 <h3 className="text-lg md:text-xl font-black uppercase tracking-tight leading-tight italic line-clamp-2 mb-8">
                   {v.t}
                 </h3>
@@ -187,10 +221,12 @@ export default function Videos() {
                   <div className="flex items-center gap-2">
                     <_Zp size={12} className="text-emerald-500" />
                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">
-                      {v.ty === 'yt' ? "Slashed Visual" : "External Source"}
+                      {v.ty === 'yt' ? "YouTube Slashed" : (v.ty === 'sp' ? "ScreenPal Matrix" : "External Source")}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono opacity-40 italic">1/4 MB Plan</span>
+                  <span className="text-[10px] font-mono opacity-40 italic">
+                    {v.v ? "9:16 Vertical" : "1/4 MB Plan"}
+                  </span>
                 </div>
               </div>
             </_m.div>
