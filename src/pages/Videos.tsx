@@ -23,25 +23,24 @@ export default function Videos() {
   const [_isOff, _sOff] = _s(!navigator.onLine);
   const [_activeV, _sActiveV] = _s<string | null>(null);
 
-  // Helper Universal: Deteksi YouTube, ScreenPal, Parameter Dimensi
+  // Helper Universal
   const _parseVid = (url: string) => {
     if (!url) return { u: "", ty: 'other' as const, isShort: false };
     
-    // Deteksi awal: Jika URL ngandung kata shorts
+    // Deteksi awal
     let isShort = url.toLowerCase().includes('/shorts/');
 
-    // Deteksi cerdas: Cek jika ada parameter width/height di URL
+    // Deteksi cerdas parameter URL
     try {
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
       const w = parseInt(urlObj.searchParams.get('width') || '0');
       const h = parseInt(urlObj.searchParams.get('height') || '0');
-      // Jika Tinggi > Lebar, otomatis flag ini sebagai Vertical Video (9:16)
       if (h > 0 && w > 0 && h > w) {
         isShort = true;
       }
-    } catch (e) { /* ignore invalid url parsing */ }
+    } catch (e) { /* ignore */ }
 
-    // 1. Cek YouTube (Ekstrak ID 11 digit dari watch, embed, atau shorts)
+    // 1. Cek YouTube
     const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]*).*/;
     const _m = url.match(_reg);
     if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const, isShort };
@@ -49,14 +48,10 @@ export default function Videos() {
     // 2. Cek ScreenPal
     if (url.includes('screenpal.com/watch/') || url.includes('screenpal.com/player/')) {
       const _spId = url.split('/').pop()?.split('?')[0]; 
-      
-      // Susun parameter ScreenPal sesuai input, mempertahankan width/height jika ada
       const _urlObj = new URL(url);
       const _wParam = _urlObj.searchParams.get('width') ? `&width=${_urlObj.searchParams.get('width')}` : '';
       const _hParam = _urlObj.searchParams.get('height') ? `&height=${_urlObj.searchParams.get('height')}` : '';
-      
       const _spUrl = `https://go.screenpal.com/player/${_spId}?ff=1&ahc=1&dcc=1&a=1&tl=1&bg=transparent&share=1&download=1&embed=1&cl=1${_wParam}${_hParam}`;
-      
       return { u: _spUrl, ty: 'sp' as const, isShort };
     }
 
@@ -89,12 +84,21 @@ export default function Videos() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase Error:", error.message);
+        if (error.code === 'PGRST301' || error.message.includes("JWT")) {
+             console.warn("Auth Token Invalid - Try clearing Local Storage");
+        }
+      }
 
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
-          const { u: _parsedU, ty: _vType, isShort } = _parseVid(v.url);
+          let { u: _parsedU, ty: _vType, isShort } = _parseVid(v.url);
           
+          // --- LOGIC FILTER DIHAPUS ---
+          // URL sekarang murni dari database (Random/Dynamic)
+          // ----------------------------
+
           let _isVertical = isShort; 
           let _thumbUrl = v.thumbnail_url;
           
@@ -107,7 +111,6 @@ export default function Videos() {
               const _res = await fetch(_thumbUrl);
               const _blob = await _res.blob();
               
-              // FALLBACK DETEKSI 9:16: Jika URL tidak punya parameter, cek gambar
               if (!_isVertical) {
                 try {
                   const bmp = await createImageBitmap(_blob);
@@ -183,12 +186,20 @@ export default function Videos() {
             >
               <div className={`relative bg-neutral-900 w-full transition-all duration-500 ${v.v ? 'aspect-[9/16]' : 'aspect-video'}`}>
                 {_activeV === v.i && !_isOff ? (
+                  // LOGIC IFRAME: URL Dinamis + Settingan Frame YouTube Lengkap
                   <iframe 
                     className="absolute inset-0 w-full h-full border-0" 
                     src={v.ty === 'yt' ? `https://www.youtube.com/embed/${v.u}?autoplay=1&modestbranding=1` : v.u} 
-                    allowFullScreen 
-                    allow="autoplay; fullscreen"
-                    scrolling={v.ty === 'sp' ? "no" : "auto"} // ScreenPal Matrix Scrolling Protection
+                    title={v.t || "Video player"}
+                    
+                    // --- SETINGAN FRAME DIPERTAHANKAN ---
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                    // ------------------------------------
+
+                    scrolling={v.ty === 'sp' ? "no" : "auto"} 
                   />
                 ) : (
                   <div className="absolute inset-0 cursor-pointer overflow-hidden" onClick={() => _isOff ? null : _sActiveV(v.i)}>
