@@ -1,49 +1,51 @@
 import { createClient } from "@supabase/supabase-js";
 
-/* ======================
-    ENGINE
-   ====================== */
-const _0xsys = [
-  "VITE_SUPABASE_URL", 
+const _0xS = [
+  "VITE_SUPABASE_URL",
   "VITE_SUPABASE_ANON_KEY",
+  "VITE_CLOUDINARY_CLOUD_NAME",
+  "VITE_CLOUDINARY_PRESET",
   "persistSession",
   "autoRefreshToken",
-  "detectSessionInUrl"
+  "detectSessionInUrl",
 ] as const;
 
-const _s = (i: number) => _0xsys[i] as string;
+const _gS = (_i: number) => _0xS[_i] as string;
 
-const _u = import.meta.env[_s(0)];
-const _k = import.meta.env[_s(1)];
+const _U = import.meta.env[_gS(0)] || "";
+const _K = import.meta.env[_gS(1)] || "";
+const _N = import.meta.env[_gS(2)] || "";
+const _P = import.meta.env[_gS(3)] || "";
 
-/**
- * BRAWNLY SUPABASE ENGINE (V2)
- * Terintegrasi dengan Offline Protection & Realtime Optimization
- */
-export const supabase = createClient(
-  _u || "", 
-  _k || "", 
-  {
-    auth: {
-      [_s(2)]: true,      
-      [_s(3)]: true,      
-      [_s(4)]: true,      
+export const supabase = createClient(_U, _K, {
+  auth: {
+    [_gS(4)]: true,
+    [_gS(5)]: true,
+    [_gS(6)]: true,
+  },
+  realtime: { params: { eventsPerSecond: 2 } },
+  global: {
+    fetch: (..._a) => {
+      if (!navigator.onLine) return Promise.reject(new Error("OFFLINE"));
+      return fetch(..._a);
     },
-    // 1. PROTEKSI REALTIME: Mencegah serangan retry berlebih saat offline
-    realtime: {
-      params: {
-        eventsPerSecond: 2,
-      },
-    },
-    // 2. GLOBAL FETCH WRAPPER: Pencegah error merah di konsol saat offline
-    global: {
-      fetch: (...args) => {
-        // Jika sensor browser mendeteksi offline, jangan kirim request ke Supabase
-        if (!navigator.onLine) {
-          return Promise.reject(new Error("OFFLINE_MODE: Request Aborted to save resources."));
-        }
-        return fetch(...args);
-      },
-    },
-  }
-);
+  },
+});
+
+export const CLOUDINARY_CONFIG = {
+  cN: _N,
+  uP: _P,
+  rD: "res.cloudinary.com",
+  baseUrl: _N ? `https://res.cloudinary.com/${_N}/image/upload` : "",
+  uploadUrl: _N ? `https://api.cloudinary.com/v1_1/${_N}/image/upload` : "",
+};
+
+export const uploadToCloudinary = async (_f: File) => {
+  if (!_N || !_P) throw new Error("ERR_ENV");
+  const _fD = new FormData();
+  _fD.append("file", _f);
+  _fD.append("upload_preset", _P);
+  const _r = await fetch(CLOUDINARY_CONFIG.uploadUrl, { method: "POST", body: _fD });
+  if (!_r.ok) throw new Error("ERR_UP");
+  return _r.json();
+};

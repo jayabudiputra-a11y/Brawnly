@@ -1,9 +1,6 @@
 import { encode as encodeAvif } from "@jsquash/avif";
-import * as _webp from "@jsquash/webp"; // Gunakan Namespace Import
+import * as _webp from "@jsquash/webp";
 
-/* ======================
-    BLOB → ImageData
-   ====================== */
 async function blobToImageData(blob: Blob): Promise<ImageData> {
   const bmp = await createImageBitmap(blob);
   const canvas = new OffscreenCanvas(bmp.width, bmp.height);
@@ -13,14 +10,19 @@ async function blobToImageData(blob: Blob): Promise<ImageData> {
   return ctx.getImageData(0, 0, bmp.width, bmp.height);
 }
 
-/* ======================
-    MAIN TRANSCODER
-   ====================== */
+export async function wasmCreatePlaceholder(blob: Blob): Promise<string> {
+  const img = await blobToImageData(blob);
+  const scale = Math.min(100 / img.width, 100 / img.height);
+  const canvas = new OffscreenCanvas(img.width * scale, img.height * scale);
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(await createImageBitmap(blob), 0, 0, canvas.width, canvas.height);
 
-/**
- * Pipeline WASM untuk konversi gambar.
- * Menggunakan Namespace Import untuk mengatasi error "no default export".
- */
+  const blurredBuf = await _webp.encode(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+    quality: 10
+  });
+  return URL.createObjectURL(new Blob([blurredBuf], { type: "image/webp" }));
+}
+
 export async function wasmTranscodeImage(
   file: Blob,
   format: "webp" | "avif",
@@ -29,7 +31,6 @@ export async function wasmTranscodeImage(
   try {
     const img = await blobToImageData(file);
 
-    /* ========= AVIF ========= */
     if (format === "avif") {
       const _q = quality ? quality * 100 : 45;
       const buf = await encodeAvif(img, {
@@ -39,12 +40,8 @@ export async function wasmTranscodeImage(
       return new Blob([buf], { type: "image/avif" });
     }
 
-    /* ========= WEBP ========= */
     if (format === "webp") {
       const _q = quality ? quality * 100 : 82;
-      
-      // Panggil fungsi encode dari namespace _webp
-      // Ini akan menghilangkan error TS "no default export"
       const buf = await _webp.encode(img, {
         quality: _q
       });
@@ -55,6 +52,6 @@ export async function wasmTranscodeImage(
     return file;
   } catch (e) {
     console.error("WASM Pipeline Failure, falling back to original:", e);
-    return file; 
+    return file;
   }
 }

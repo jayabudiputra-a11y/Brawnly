@@ -2,7 +2,7 @@ export const LANGS = ["en", "id", "zh", "ja", "ko", "es", "fr", "de", "ru", "ar"
 export type LangCode = (typeof LANGS)[number];
 
 /* ======================
-    
+    BRAWNLY URL ENGINE
    ====================== */
 const _0xcore = [
     'https://', 
@@ -10,7 +10,8 @@ const _0xcore = [
     'zlwhvkexgjisyhakxyoe',
     'reverse', 
     'split', 
-    'join'
+    'join',
+    'cloudinary.com' // 6
 ] as const;
 
 const _h = (i: number) => _0xcore[i] as any;
@@ -46,13 +47,31 @@ export const cleanAndValidateUrl = (url: string): string => {
     }
 };
 
+/**
+ * SMART REDIRECT ENGINE
+ * Mengubah link Supabase menjadi Cloudinary secara otomatis
+ */
 export const generateFullImageUrl = (relativePath: string): string => {
     if (!relativePath) return '';
     
+    // 1. Cek jika URL mengandung Supabase lama
+    const _SB_DOM = _h(2); // 'zlwhvkexgjisyhakxyoe'
+    if (relativePath.includes(_SB_DOM)) {
+        // PAKSA alihkan ke link Cloudinary fallback (agar Egress 0 MB)
+        return "https://res.cloudinary.com/dtkiwn8i4/image/upload/v1770883496/mmwxnbhyhu6yewzmy6d0.jpg";
+    }
+
+    // 2. Cek jika sudah link Cloudinary (hasil upload baru)
+    if (relativePath.includes(_h(6))) {
+        return cleanAndValidateUrl(relativePath);
+    }
+
+    // 3. Jika input adalah URL lengkap (seperti YouTube thumbnail), biarkan saja
     if (relativePath.startsWith('http')) {
         return cleanAndValidateUrl(relativePath);
     }
 
+    // 4. Logika original untuk menyusun path (fallback jika bukan Supabase/Cloudinary)
     const cleanPath = relativePath.trim().replace(/[, ]+$/, '');
     const _B = _get_base();
     const fullUrl = `${_B}${cleanPath}`;

@@ -1,89 +1,46 @@
 /// <reference lib="webworker" />
-
 export {};
-
 declare const self: ServiceWorkerGlobalScope;
 
-/* ======================
-   CACHE NAMESPACE
-====================== */
+const _0x1a2b = "brawnly-img-v1";
+const _0x3c4d = "brawnly-api-v1";
 
-const IMG_CACHE = "brawnly-img-v1";
-const API_CACHE = "brawnly-api-v1";
-const TTL_META = "brawnly-ttl-meta";
+self.addEventListener("install", (e) => e.waitUntil(self.skipWaiting()));
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
-/* ======================
-   INSTALL
-====================== */
-
-self.addEventListener("install", (event: ExtendableEvent) => {
-  event.waitUntil(self.skipWaiting());
+// ⚡ Background Sync Logic (FB Style Offline)
+self.addEventListener("sync", (event: any) => {
+  if (event.tag === "brawnly-sync" || event.tag === "sync-tag") {
+    // Logika pengiriman data antrean ke API dilakukan di sini
+    console.log("PWA: Background Sync triggering...");
+  }
 });
 
-/* ======================
-   ACTIVATE
-====================== */
-
-self.addEventListener("activate", (event: ExtendableEvent) => {
-  event.waitUntil(self.clients.claim());
-});
-
-/* ======================
-   FETCH ROUTER
-====================== */
-
-self.addEventListener("fetch", (event: FetchEvent) => {
-  const req = event.request;
-
-  // IMAGE → Cache First
-  if (req.destination === "image") {
-    event.respondWith(cacheFirst(req));
+self.addEventListener("fetch", (e) => {
+  const r = e.request;
+  if (r.destination === "image") {
+    e.respondWith((async () => {
+      const c = await caches.open(_0x1a2b);
+      const m = await c.match(r);
+      if (m) return m;
+      try {
+        const n = await fetch(r);
+        if (n.status === 200) c.put(r, n.clone());
+        return n;
+      } catch { return new Response("", { status: 504 }); }
+    })());
     return;
   }
-
-  // SUPABASE / API → SWR
-  if (req.url.includes("/rest/v1/")) {
-    event.respondWith(staleWhileRevalidate(req));
+  if (r.url.includes("/rest/v1/")) {
+    e.respondWith((async () => {
+      const c = await caches.open(_0x3c4d);
+      const m = await c.match(r);
+      const n = fetch(r).then((res) => {
+        if (res.status === 200) c.put(r, res.clone());
+        return res;
+      }).catch(() => null);
+      return m || (await n) || new Response("offline", { status: 503 });
+    })());
     return;
   }
 });
-
-/* ======================
-   CACHE FIRST (Images)
-====================== */
-
-async function cacheFirst(req: Request): Promise<Response> {
-  const cache = await caches.open(IMG_CACHE);
-  const cached = await cache.match(req);
-
-  if (cached) return cached;
-
-  try {
-    const net = await fetch(req);
-    cache.put(req, net.clone());
-    return net;
-  } catch {
-    return new Response("", { status: 504 });
-  }
-}
-
-/* ======================
-   STALE WHILE REVALIDATE
-====================== */
-
-async function staleWhileRevalidate(req: Request): Promise<Response> {
-  const cache = await caches.open(API_CACHE);
-  const cached = await cache.match(req);
-
-  const net = fetch(req)
-    .then(res => {
-      cache.put(req, res.clone());
-      return res;
-    })
-    .catch(() => null);
-
-  if (cached) return cached;
-
-  const netRes = await net;
-  return netRes ?? new Response("offline", { status: 503 });
-}

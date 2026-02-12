@@ -1,26 +1,22 @@
-import { supabase } from "./supabase";
-import type { Article, AuthUser, CommentWithUser } from "../types";
-import { generateFullImageUrl } from "../utils/helpers";
+import { supabase as _sb } from "./supabase";
+import type { Article as _At, AuthUser as _Au, CommentWithUser as _Cu } from "../types";
 
-const _0xdb = [
-  "subscribers",    // 0
-  "articles",       // 1
-  "user_profiles",  // 2
-  "comments",       // 3
-  "email",          // 4
-  "published_at",   // 5
-  "slug",           // 6
-  "article_id",     // 7
-  "Brawnly_2026_Secure!@#$", 
-  "reverse",        
-  "split",          
-  "join",
-  "songs"           // 12
+const _0xD = [
+  "subscribers",
+  "articles",
+  "user_profiles",
+  "comments",
+  "email",
+  "published_at",
+  "slug",
+  "article_id",
+  "increment_views",
+  "songs",
+  "created_at",
 ] as const;
 
-const _v = (i: number) => _0xdb[i];
-
-const _INTERNAL_KEY = _v(8);
+const _v = (_i: number) => _0xD[_i];
+const _CB = "https://res.cloudinary.com/dtkiwn8i4/image/upload/";
 
 export interface Song {
   id: number;
@@ -31,274 +27,155 @@ export interface Song {
   created_at: string;
 }
 
-// --- SMART CACHE SYSTEM (1/4 Memory Allocation) ---
-// Menyimpan data API ke localStorage dengan key unik
-const setSmartCache = (key: string, data: any) => {
+const _oM = (_u?: string | null): string => {
+  if (!_u) return "";
+  if (_u.startsWith("http")) return _u;
+  return _CB + _u;
+};
+
+const _sC = (_k: string, _d: any) => {
   try {
-    const payload = JSON.stringify({
-      ts: Date.now(),
-      data: data
-    });
-    // Cek kuota memori, hapus cache lama jika penuh
-    try {
-      localStorage.setItem(`brawnly_api_${key}`, payload);
-    } catch (e) {
-      // Jika localStorage penuh, hapus cache artikel lama
-      console.warn("Cache Full, cleaning up...");
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("brawnly_api_article_") && k !== `brawnly_api_${key}`) {
-          localStorage.removeItem(k);
-        }
-      }
-      localStorage.setItem(`brawnly_api_${key}`, payload);
+    const _pL = JSON.stringify({ ts: Date.now(), data: _d });
+    if (_pL.includes('mmwxnbhyhu6yewzmy6d0')) return;
+    localStorage.setItem(`brawnly_api_${_k}`, _pL);
+  } catch {
+    Object.keys(localStorage).filter(_x => _x.startsWith("brawnly_api_")).forEach(_x => localStorage.removeItem(_x));
+  }
+};
+
+const _gC = (_k: string) => {
+  try {
+    const _r = localStorage.getItem(`brawnly_api_${_k}`);
+    if (!_r) return null;
+    if (_r.includes('mmwxnbhyhu6yewzmy6d0') || _r.includes('supabase.co/storage')) {
+      localStorage.removeItem(`brawnly_api_${_k}`);
+      return null;
     }
-  } catch (err) {
-    // Ignore if completely failed
-  }
+    return JSON.parse(_r).data;
+  } catch { return null; }
 };
 
-// Mengambil cache instan
-const getSmartCache = (key: string) => {
-  try {
-    const cached = localStorage.getItem(`brawnly_api_${key}`);
-    if (!cached) return null;
-    const { data } = JSON.parse(cached);
-    return data;
-  } catch (e) {
-    return null;
-  }
-};
-
-const handleSupabaseError = (error: any, context: string) => {
-  // Jika error network (offline), jangan throw error fatal, tapi return null biar UI bisa handle fallback
-  if (error?.message?.includes('Failed to fetch') || !navigator.onLine) {
-    return null; 
-  }
-  if (import.meta.env.DEV) console.error(`[SYSTEM_FAULT_${context}]`, error);
-  throw error;
-};
-
-export const subscribersApi = {
-  insertIfNotExists: async (email: string, name?: string): Promise<void> => {
-    if (!email) return;
-    try {
-      await (supabase.from(_v(0) as string) as any).upsert(
-        [{ [_v(4) as string]: email.toLowerCase(), name: name ?? null }],
-        { onConflict: _v(4) }
-      );
-    } catch (error) {}
-  },
+const _hE = (_e: any, _c: string) => {
+  if (!navigator.onLine) return null;
+  if (import.meta.env.DEV) console.error(`[SYS_${_c}]`, _e);
+  throw _e;
 };
 
 export const articlesApi = {
-  getAll: async (limit = 10, offset = 0): Promise<Article[]> => {
-    const cacheKey = `list_${limit}_${offset}`;
-    
-    // 1. Cek Offline/Cache dulu (INSTANT LOAD)
-    const cachedData = getSmartCache(cacheKey);
-    if (!navigator.onLine && cachedData) {
-      return cachedData;
-    }
+  getAll: async (_l = 10, _o = 0): Promise<_At[]> => {
+    const _k = `list_${_l}_${_o}`;
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
 
-    // 2. Fetch Network
-    const { data, error } = await (supabase.from(_v(1) as string) as any)
-      .select("id, title, slug, thumbnail_url, published_at, category, views, description, featured_image") // Tambah featured_image agar cache list punya gambar
-      .order(_v(5) as string, { ascending: false })
-      .range(offset, offset + limit - 1);
-    
-    if (error) {
-      // Jika offline dan ada cache, kembalikan cache. Jika tidak, throw.
-      if (cachedData) return cachedData;
-      handleSupabaseError(error, "0x1");
+    const { data: _d, error: _e } = await _sb
+      .from(_v(1))
+      .select("*") // Ubah ke * agar properti content, author, dll tidak hilang dan tidak error assignable
+      .order(_v(5), { ascending: false })
+      .range(_o, _o + _l - 1);
+
+    if (_e) {
+      if (_cached) return _cached;
+      _hE(_e, "A1");
       return [];
     }
-    
-    const processed = (data || []).map((art: any) => ({
-      ...art,
-      // Prioritaskan featured_image jika thumbnail kosong (logic fix)
-      thumbnail_url: art.thumbnail_url 
-        ? generateFullImageUrl(art.thumbnail_url) 
-        : (art.featured_image ? generateFullImageUrl(art.featured_image) : "")
-    })) as Article[];
 
-    // 3. Update Cache (Background)
-    setSmartCache(cacheKey, processed);
-
-    return processed;
+    const _p = _d?.map(_a => ({ ..._a, featured_image: _oM(_a.featured_image) })) ?? [];
+    _sC(_k, _p);
+    return _p as _At[];
   },
 
-  getBySlug: async (slug: string): Promise<Article> => {
-    const cacheKey = `article_${slug}`;
+  getBySlug: async (_s: string): Promise<_At> => {
+    const _k = `article_${_s}`;
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
 
-    // 1. Cek Offline/Cache dulu
-    const cachedData = getSmartCache(cacheKey);
-    if (!navigator.onLine && cachedData) {
-      return cachedData;
-    }
+    const { data: _d, error: _e } = await _sb.from(_v(1)).select("*").eq(_v(6), _s).single();
+    if (_e || !_d) { if (_cached) return _cached; _hE(_e, "A2"); }
+    if (navigator.onLine && _d) { void _sb.rpc(_v(8), { [_v(7)]: _d.id }); }
 
-    // 2. Fetch Network
-    const { data, error } = await (supabase.from(_v(1) as string) as any)
-      .select("*")
-      .eq(_v(6) as string, slug)
-      .single();
-    
-    if (error || !data) {
-      if (cachedData) return cachedData; // Fallback ke cache jika network gagal
-      handleSupabaseError(error, "0x2");
-    }
-    
-    // Increment view async (jangan tunggu)
-    if (navigator.onLine) {
-      void (async () => {
-        await supabase.rpc("increment_views", { [_v(7) as string]: data.id });
-      })();
-    }
-    
-    const processed = {
-      ...data,
-      featured_image: data.featured_image ? generateFullImageUrl(data.featured_image) : ""
-    } as Article;
-
-    // 3. Update Cache
-    setSmartCache(cacheKey, processed);
-
-    return processed;
+    const _p = { ..._d, featured_image: _oM(_d.featured_image) } as _At;
+    _sC(_k, _p);
+    return _p;
   },
 };
 
 export const songsApi = {
   getAll: async (): Promise<Song[]> => {
-    const cacheKey = 'all_songs';
-    
-    // 1. Cek Cache
-    const cachedData = getSmartCache(cacheKey);
-    if (!navigator.onLine && cachedData) {
-      return cachedData;
-    }
+    const _k = "songs";
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
+    const { data: _d, error: _e } = await _sb.from(_v(9)).select("*").order(_v(10), { ascending: false });
+    if (_e) { if (_cached) return _cached; _hE(_e, "S1"); return []; }
+    const _p = _d?.map(_s => ({ ..._s, thumbnail_url: _oM(_s.thumbnail_url) })) ?? [];
+    _sC(_k, _p);
+    return _p as Song[];
+  },
+};
 
-    const { data, error } = await (supabase.from(_v(12) as string) as any)
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-       if (cachedData) return cachedData;
-       handleSupabaseError(error, "0x7");
-       return [];
-    }
-
-    const processed = data as Song[];
-    setSmartCache(cacheKey, processed); // Simpan Cache
-
-    return processed;
-  }
+export const subscribersApi = {
+  insertIfNotExists: async (_em: string, _n?: string) => {
+    if (!_em) return;
+    await _sb.from(_v(0)).upsert([{ [_v(4)]: _em.toLowerCase(), name: _n ?? null }], { onConflict: _v(4) });
+  },
 };
 
 export const authApi = {
-  getCurrentUser: async (): Promise<AuthUser | null> => {
-    // Auth session biasanya dihandle oleh Supabase Client (localStorage: sb-xxxx-auth-token)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      return {
-        ...user,
-        user_metadata: {
-          ...user.user_metadata,
-          avatar_url: user.user_metadata?.avatar_url ? generateFullImageUrl(user.user_metadata.avatar_url) : null
-        }
-      } as unknown as AuthUser;
-    }
-    return null;
+  getCurrentUser: async (): Promise<_Au | null> => {
+    const { data: _d } = await _sb.auth.getUser();
+    if (!_d?.user) return null;
+    return { ..._d.user, user_metadata: { ..._d.user.user_metadata, avatar_url: _oM(_d.user.user_metadata?.avatar_url) } } as unknown as _Au;
   },
-
-  signUp: async ({ email, name }: { email: string; name: string }) => {
-    if (!name || name.trim().length < 2) throw new Error("IDENT_SHORT");
-    
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        data: { full_name: name.trim() },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) handleSupabaseError(error, "0x3");
-    
-    return data;
+  signUp: async ({ email: _em, name: _n }: { email: string; name: string }) => {
+    if (!_n || _n.trim().length < 2) throw new Error("IDENT_SHORT");
+    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ email: _em.trim(), options: { data: { full_name: _n.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    if (_e) _hE(_e, "AUTH1");
+    return _d;
   },
-
-  signInWithEmailOnly: async (email: string) => {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    
-    if (error) handleSupabaseError(error, "0x4");
-    return data;
+  signInWithEmailOnly: async (_em: string) => {
+    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ email: _em.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    if (_e) _hE(_e, "AUTH2");
+    return _d;
   },
-
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) handleSupabaseError(error, "0x5");
-    // Clear API caches on logout if needed
-    // localStorage.clear(); // Optional: Hati-hati ini menghapus semua cache offline
-  }
+    const { error: _e } = await _sb.auth.signOut();
+    if (_e) _hE(_e, "AUTH3");
+  },
 };
 
 export const commentsApi = {
-  getCommentsByArticle: async (articleId: string): Promise<CommentWithUser[]> => {
-    const cacheKey = `comments_${articleId}`;
+  getCommentsByArticle: async (_aId: string): Promise<_Cu[]> => {
+    const _k = `comments_${_aId}`;
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
     
-    // Komentar boleh stale (agak lama), cek cache dulu
-    const cachedData = getSmartCache(cacheKey);
-    if (!navigator.onLine && cachedData) return cachedData;
-
-    const { data, error } = await (supabase.from(_v(3) as string) as any)
-      .select(`
-        id, content, created_at, user_id, parent_id,
-        ${_v(2) as string} ( username, avatar_url )
-      `)
-      .eq(_v(7) as string, articleId)
+    // Gunakan literal string "user_profiles" secara langsung untuk join agar TS tidak bingung dengan indeksasi dinamis
+    const { data: _d, error: _e } = await _sb
+      .from(_v(3))
+      .select(`id, content, created_at, user_id, parent_id, user_profiles ( username, avatar_url )`)
+      .eq(_v(7), _aId)
       .order("created_at", { ascending: true });
 
-    if (error) {
-       if (cachedData) return cachedData;
-       return [];
-    }
+    if (_e) return _cached || [];
     
-    const processed = (data || []).map((c: any) => ({
-      id: c.id,
-      article_id: articleId,
-      content: c.content,
-      created_at: c.created_at,
-      user_id: c.user_id,
-      parent_id: c.parent_id,
-      user_name: c[_v(2) as string]?.username ?? "Member",
-      user_avatar_url: c[_v(2) as string]?.avatar_url 
-        ? `${generateFullImageUrl(c[_v(2) as string].avatar_url)}?v=${new Date(c.created_at).getTime()}` 
-        : null,
-    }));
+    const _p = (_d as any[])?.map(_c => ({
+      id: _c.id,
+      article_id: _aId,
+      content: _c.content,
+      created_at: _c.created_at,
+      user_id: _c.user_id,
+      parent_id: _c.parent_id,
+      user_name: _c.user_profiles?.username ?? "Member",
+      user_avatar_url: _oM(_c.user_profiles?.avatar_url)
+    })) ?? [];
 
-    setSmartCache(cacheKey, processed);
-    return processed;
+    _sC(_k, _p);
+    return _p as _Cu[];
   },
-
-  addComment: async (articleId: string, content: string, parentId: string | null = null) => {
-    if (!navigator.onLine) throw new Error("OFFLINE_COMMENT"); // Gak bisa komen kalau offline
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("0xAUTH_REQ");
-    
-    const { error } = await (supabase.from(_v(3) as string) as any).insert({ 
-      [_v(7) as string]: articleId, 
-      user_id: user.id, 
-      content: content.trim(),
-      parent_id: parentId 
-    });
-    
-    if (error) handleSupabaseError(error, "0x6");
-    
-    localStorage.removeItem(`brawnly_api_comments_${articleId}`);
+  addComment: async (_aId: string, _c: string, _pId: string | null = null) => {
+    const { data: _d } = await _sb.auth.getUser();
+    if (!_d?.user) throw new Error("AUTH_REQUIRED");
+    const { error: _e } = await _sb.from(_v(3)).insert({ [_v(7)]: _aId, user_id: _d.user.id, content: _c.trim(), parent_id: _pId });
+    if (_e) _hE(_e, "C1");
+    localStorage.removeItem(`brawnly_api_comments_${_aId}`);
   },
 };

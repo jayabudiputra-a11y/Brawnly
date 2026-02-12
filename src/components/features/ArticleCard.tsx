@@ -3,176 +3,94 @@ import { Eye as _E } from "lucide-react";
 import { useTranslation as _uT } from "react-i18next";
 import { motion as _m } from "framer-motion";
 import { useEffect as _uE, useState as _uS } from "react";
-
 import _mA from "@/assets/myAvatar.jpg";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
-import { generateFullImageUrl as _gFI, type LangCode as _LC } from "@/utils/helpers";
+import { type LangCode as _LC } from "@/utils/helpers";
 import { useSaveData as _uSD } from "@/hooks/useSaveData";
+import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
 
 interface ArticleCardProps {
   article: any;
   priority?: boolean;
 }
 
-/* ------------------------------
-   Ultra lightweight hash
---------------------------------*/
 function _hS(s: string) {
   let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h << 5) - h + s.charCodeAt(i);
-    h |= 0;
-  }
+  for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; }
   return Math.abs(h).toString(36);
 }
 
-/* ------------------------------
-   Cookie setter minimal
---------------------------------*/
-function _sC(name: string, val: string, days = 30) {
-  const d = new Date();
-  d.setTime(d.getTime() + days * 864e5);
-  document.cookie = `${name}=${val}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-}
-
-/* ------------------------------
-   Reconnect Backoff (ric WS / basetime)
---------------------------------*/
-function _cRB(connectFn: () => Promise<void>) {
-  let a = 0;
-  let t: any = null;
-
-  const run = async () => {
-    if (!navigator.onLine) return;
-
-    try {
-      await connectFn();
-      a = 0;
-    } catch {
-      a++;
-      const base = Math.min(30000, 1000 * 2 ** a);
-      const jitter = Math.random() * 500;
-      t = setTimeout(run, base + jitter);
-    }
-  };
-
-  run();
-
-  window.addEventListener("online", run);
-
-  return () => {
-    if (t) clearTimeout(t);
-    window.removeEventListener("online", run);
-  };
+function _sC(n: string, v: string, d = 30) {
+  const e = new Date();
+  e.setTime(e.getTime() + d * 864e5);
+  document.cookie = `${n}=${v}; path=/; expires=${e.toUTCString()}; SameSite=Lax`;
 }
 
 export default function ArticleCard({ article: _a, priority: _p = false }: ArticleCardProps) {
   const { i18n: _i } = _uT();
   const _ln = (_i.language as _LC) || "en";
   const { isEnabled: _iE, saveData: _sD } = _uSD();
+  const [_oF, _sOF] = _uS(!navigator.onLine);
 
-  const [_offline, _setOffline] = _uS(!navigator.onLine);
-
-  /* ------------------------------
-     Offline detection
-  --------------------------------*/
   _uE(() => {
-    const goOn = () => _setOffline(false);
-    const goOff = () => _setOffline(true);
-    window.addEventListener("online", goOn);
-    window.addEventListener("offline", goOff);
+    const oN = () => _sOF(false);
+    const oF = () => _sOF(true);
+    window.addEventListener("online", oN);
+    window.addEventListener("offline", oF);
     return () => {
-      window.removeEventListener("online", goOn);
-      window.removeEventListener("offline", goOff);
+      window.removeEventListener("online", oN);
+      window.removeEventListener("offline", oF);
     };
   }, []);
 
-  /* ------------------------------
-     Text Resolve
-  --------------------------------*/
   const _t = _a[`title_${_ln}`] ?? _a.title_en ?? _a.title ?? "";
 
-  /* ------------------------------
-     Image Resolve
-  --------------------------------*/
-  const _fIP = _a.featured_image_path_clean
-    ? _a.featured_image_path_clean.split("\r\n")[0]?.trim()
-    : null;
+  const _fC = (_u: string) => {
+    if (!_u) return "";
+    if (_u.startsWith("http")) return _u;
+    return `${_CC.baseUrl}/${_u}`;
+  };
 
-  const _rIU = _fIP ? _gFI(_fIP) : null;
-  const _iLQM = _iE && _sD.quality === "low";
-  const _tW = _iLQM ? 200 : 400;
-  const _dU = _rIU ? _gOI(_rIU, _tW) : null;
+  const _rP = _a.featured_image ? _a.featured_image.split(/[\r\n]+/)[0]?.trim() : null;
+  const _hQ = _rP ? _fC(_rP) : null;
+  const _iL = _iE && _sD.quality === "low";
+  const _tW = _iL ? 200 : 400;
+  const _dU = _hQ ? _gOI(_hQ, _tW) : null;
 
-  /* ------------------------------
-     memory cache
-  --------------------------------*/
-  const _cacheKey = `ac_${_a.slug}`;
-  const _cacheHash = _hS(_cacheKey);
+  const _cK = `ac_${_a.slug}`;
+  const _cH = _hS(_cK);
 
   _uE(() => {
+    if (!_a.slug) return;
     try {
-      const payload = {
-        t: _t,
-        s: _a.slug,
-        i: _rIU
-      };
-
-      localStorage.setItem(_cacheKey, JSON.stringify(payload));
-      _sC("ac_h", _cacheHash);
+      const _pL = JSON.stringify({ t: _t, s: _a.slug, i: _hQ });
+      const _ex = localStorage.getItem(_cK);
+      if (_ex && (_ex.includes("supabase.co") || _ex.includes("f_auto,v"))) {
+        localStorage.removeItem(_cK);
+      }
+      localStorage.setItem(_cK, _pL);
+      _sC("ac_h", _cH);
     } catch {}
-  }, [_t, _a.slug, _rIU]);
+  }, [_t, _a.slug, _hQ]);
 
-  /* ------------------------------
-     time reconnect example
-     (Plubase connect inside)
-  --------------------------------*/
-  _uE(() => {
-    const stop = _cRB(async () => {
-      // Example only — replace with supabase realtime connect
-      // await supabase.realtime.connect()
-      return Promise.resolve();
-    });
-    return stop;
-  }, []);
-
-  /* ------------------------------
-     JSON-LD
-  --------------------------------*/
-  const _jLd = {
+  const _jL = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: _t,
-    image: _rIU,
-    author: {
-      "@type": "Person",
-      name: _a.author || "Budi Putra Jaya"
-    },
+    image: _hQ,
+    author: { "@type": "Person", name: _a.author || "Budi Putra Jaya" },
     publisher: {
       "@type": "Organization",
       name: "Brawnly",
-      logo: {
-        "@type": "ImageObject",
-        url: "https://brawnly.online/favicon.ico"
-      }
+      logo: { "@type": "ImageObject", url: "https://brawnly.online/favicon.ico" }
     },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `https://brawnly.online/article/${_a.slug}`
-    }
+    mainEntityOfPage: { "@type": "WebPage", "@id": `https://brawnly.online/article/${_a.slug}` }
   };
 
   return (
-    <article
-      className="group relative bg-transparent border-b border-gray-100 dark:border-neutral-900 last:border-0 py-6 outline-none overflow-hidden"
-      tabIndex={0}
-    >
-      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
-
-      <_L
-        to={`/article/${_a.slug}`}
-        className="flex flex-row items-center gap-4 md:gap-8 outline-none relative z-10"
-      >
+    <article className="group relative bg-transparent border-b border-gray-100 dark:border-neutral-900 last:border-0 py-6 outline-none overflow-hidden" tabIndex={0}>
+      <script type="application/ld+json">{JSON.stringify(_jL)}</script>
+      <_L to={`/article/${_a.slug}`} className="flex flex-row items-center gap-4 md:gap-8 outline-none relative z-10">
         <div className="relative flex-shrink-0 w-[110px] h-[110px] md:w-[200px] md:h-[130px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 rounded-xl border border-transparent group-hover:border-yellow-400/50 transition-colors duration-500">
           {_dU ? (
             <img
@@ -184,43 +102,21 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               className="w-full h-full object-cover grayscale transition-all duration-700 ease-in-out group-hover:grayscale-0 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 text-[10px] font-black uppercase">
-              No Image
-            </div>
+            <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px] font-black uppercase">No Media</div>
           )}
         </div>
-
         <div className="flex flex-col flex-1 min-w-0">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 text-[#00a354] group-hover:text-yellow-500 transition-colors duration-300">
             {_a.category || "BRAWNLY SELECTION"}
           </span>
-
-          <_m.h2
-            className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300"
-            variants={{
-              initial: { x: 0 },
-              hover: { x: 5, color: "#facc15" }
-            }}
-            initial="initial"
-            whileHover="hover"
-          >
+          <_m.h2 className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300" initial={{ x: 0 }} whileHover={{ x: 5, color: "#facc15" }}>
             {_t}
           </_m.h2>
-
           <div className="flex items-center gap-2">
-            <img
-              src={_gOI(_mA, 40)}
-              alt="Author"
-              className="w-4 h-4 rounded-full grayscale group-hover:grayscale-0 group-hover:ring-1 group-hover:ring-yellow-400 transition-all duration-500"
-            />
+            <img src={_gOI(_mA, 40)} alt="B" className="w-4 h-4 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500" />
             <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
-              <span className="text-black dark:text-white group-hover:text-yellow-400/80 transition-colors">
-                By {_a.author || "Budi Putra Jaya"}
-              </span>
-              <span className="flex items-center gap-1">
-                <_E className="w-3 h-3 text-[#00a354] group-hover:text-yellow-400" />
-                {_a.views ?? 0}
-              </span>
+              <span className="text-black dark:text-white group-hover:text-yellow-400/80 transition-colors">By {_a.author || "Budi Putra Jaya"}</span>
+              <span className="flex items-center gap-1"><_E className="w-3 h-3 text-[#00a354] group-hover:text-yellow-400" />{_a.views ?? 0}</span>
             </div>
           </div>
         </div>
