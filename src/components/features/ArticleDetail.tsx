@@ -67,7 +67,7 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
 }
 
 /* ============================================================
-    🗨️ COMMENT SECTION (Fix Bucket Path: avatars)
+    🗨️ COMMENT SECTION
    ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
@@ -112,32 +112,18 @@ function CommentSection({ articleId }: { articleId: string }) {
     if (_u?.user_metadata?.avatar_url) _hydrateAvatar(_u.user_metadata.avatar_url, "me");
   }, [_u]);
 
+  // FIX ERROR #310: Filter data dilakukan di tingkat atas, bukan di dalam render loop
+  const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
+  const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
+
   const _onAddComment = async (content: string, parentId: string | null = null) => {
     if (!content.trim() || !_u) return;
     _sSub(true);
-
-    const _optimisticAvatar = _blobCache["me"] || _u.user_metadata?.avatar_url || null;
-    const _newComment: _Cu = {
-      id: `temp-${Date.now()}`,
-      article_id: articleId,
-      content: content.trim(),
-      created_at: new Date().toISOString(),
-      user_id: _u.id,
-      user_name: _u.user_metadata?.full_name || "Member",
-      user_avatar_url: _optimisticAvatar,
-      parent_id: parentId
-    };
-
-    _setLocalComments(prev => [...prev, _newComment]);
-    _sTxt("");
-    _sReplyTo(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("401");
 
-      // FIX: Pastikan upsert mengarah ke bucket 'avatars' (diselesaikan di internal api.ts jika perlu, 
-      // namun di sini kita pastikan request table profiles aman)
       await supabase.from('user_profiles').upsert({
         id: session.user.id,
         username: session.user.user_metadata?.full_name || "Member",
@@ -147,8 +133,9 @@ function CommentSection({ articleId }: { articleId: string }) {
       await commentsApi.addComment(articleId, content.trim(), parentId);
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
       toast.success("Identity Perspective Synced");
+      _sTxt("");
+      _sReplyTo(null);
     } catch (e: any) {
-      _setLocalComments(prev => prev.filter(c => c.id !== _newComment.id));
       toast.error(e.message === "401" ? "Session Expired" : "Sync Failed");
     } finally {
       _sSub(false);
@@ -161,7 +148,7 @@ function CommentSection({ articleId }: { articleId: string }) {
   };
 
   return (
-    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900">
+    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
       <div className="flex items-center gap-4 mb-12">
         <div className="p-3 bg-red-600 text-white rounded-full"><_Ms size={20} /></div>
         <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Discussion ({_localComments.length})</h3>
@@ -172,23 +159,23 @@ function CommentSection({ articleId }: { articleId: string }) {
           <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-2xl">
             {_replyTo && (
               <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
                   <_Rp size={12} /> Replying to node_id: {_replyTo.slice(0, 8)}
                 </span>
-                <button type="button" onClick={() => _sReplyTo(null)}><_X size={14} /></button>
+                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
               </div>
             )}
             <textarea
               value={_txt}
               onChange={(e) => _sTxt(e.target.value)}
               placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
-              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white"
+              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white placeholder:opacity-20"
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
                 Posting as {_u.user_metadata?.full_name || "Member"}
               </span>
-              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert transition-all disabled:opacity-30">
+              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Post
               </button>
             </div>
@@ -202,7 +189,7 @@ function CommentSection({ articleId }: { articleId: string }) {
 
       <div className="space-y-12">
         <_AP mode="popLayout">
-          {_uM(() => _localComments.filter(c => !c.parent_id), [_localComments]).map((_c) => (
+          {_rootComments.map((_c) => (
             <_m.div key={_c.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group">
               <CommentItem
                 comment={_c}
@@ -210,7 +197,7 @@ function CommentSection({ articleId }: { articleId: string }) {
                 onReply={() => { _sReplyTo(_c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               />
               <div className="space-y-6">
-                {_uM(() => _localComments.filter(r => r.parent_id === _c.id), [_localComments]).map(r => (
+                {_replies.filter(r => r.parent_id === _c.id).map(r => (
                   <CommentItem
                     key={r.id}
                     comment={r}
@@ -299,6 +286,8 @@ export default function ArticleDetail() {
     }
   };
 
+  const { viewCount: _realtimeViews } = _uAV({ id: _art?.id ?? "", slug: _slV, initialViews: _art?.views ?? 0 });
+
   if (_iL && !_pD) return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
       <div className="w-20 h-[3px] bg-red-600 animate-pulse" />
@@ -315,10 +304,10 @@ export default function ArticleDetail() {
       </_Hm>
 
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
-        <button onClick={_hSv} className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${_iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500'}`}>
+        <button onClick={_hSv} className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${_iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl'}`}>
           {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
         </button>
-        <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link Copied"); }} className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500">
+        <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Node Link Copied"); }} className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500">
           <_Sh size={20} />
         </button>
       </aside>
@@ -343,6 +332,9 @@ export default function ArticleDetail() {
                 <span className="block text-[13px] md:text-[15px] font-black uppercase italic">By {_art.author || "Brawnly"}</span>
                 <span className="text-[10px] md:text-[12px] uppercase opacity-80"><FormattedDate dateString={_art.published_at} /></span>
               </div>
+            </div>
+            <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
+              {_realtimeViews.toLocaleString()} <_Ey size={20} className="text-red-600" />
             </div>
           </div>
         </header>
