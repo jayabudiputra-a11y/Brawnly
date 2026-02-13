@@ -82,13 +82,15 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      const response = await fetch(url);
+      // Fix 400: Deteksi jika URL salah arah (mengandung bucket lama) dan arahkan ke 'avatars'
+      const _correctedUrl = url.replace('brawnly-assets/avatars', 'avatars');
+      const response = await fetch(_correctedUrl);
       if (!response.ok) throw new Error("400");
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
     } catch (e) {
-      console.warn("Avatar Fetch Fault for node:", userId);
+      console.warn("Avatar Node Fault:", userId);
     }
   };
 
@@ -112,7 +114,6 @@ function CommentSection({ articleId }: { articleId: string }) {
     if (_u?.user_metadata?.avatar_url) _hydrateAvatar(_u.user_metadata.avatar_url, "me");
   }, [_u]);
 
-  // FIX ERROR #310: Filter data dilakukan di tingkat atas, bukan di dalam render loop
   const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
   const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
 
@@ -121,9 +122,11 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("401");
+      // FIX 401: Segarkan sesi secara eksplisit sebelum aksi tulis
+      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      if (sErr || !session) throw new Error("401");
 
+      // Pastikan profil tersinkron ke tabel publik
       await supabase.from('user_profiles').upsert({
         id: session.user.id,
         username: session.user.user_metadata?.full_name || "Member",
@@ -132,11 +135,12 @@ function CommentSection({ articleId }: { articleId: string }) {
 
       await commentsApi.addComment(articleId, content.trim(), parentId);
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+      
       toast.success("Identity Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      toast.error(e.message === "401" ? "Session Expired" : "Sync Failed");
+      toast.error(e.message === "401" ? "Auth Session Expired" : "Sync Failed");
     } finally {
       _sSub(false);
     }
@@ -160,7 +164,7 @@ function CommentSection({ articleId }: { articleId: string }) {
             {_replyTo && (
               <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                  <_Rp size={12} /> Replying to node_id: {_replyTo.slice(0, 8)}
+                  <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
                 </span>
                 <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
               </div>
@@ -173,17 +177,17 @@ function CommentSection({ articleId }: { articleId: string }) {
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                Posting as {_u.user_metadata?.full_name || "Member"}
+                Post_As: {_u.user_metadata?.full_name || "Member"}
               </span>
               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
-                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Post
+                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
               </button>
             </div>
           </div>
         </form>
       ) : (
-        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl text-center mb-16">
-          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg">Sign In to Comment</button>
+        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl text-center mb-16">
+          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg">Authorize Node to Comment</button>
         </div>
       )}
 
@@ -215,7 +219,7 @@ function CommentSection({ articleId }: { articleId: string }) {
 }
 
 /* ============================================================
-    📄 ARTICLE DETAIL COMPONENT
+    📄 ARTICLE DETAIL MAIN
    ============================================================ */
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
