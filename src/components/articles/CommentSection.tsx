@@ -1,249 +1,140 @@
-import React, { useEffect as _e, useState as _s, useRef as _r } from "react";
-import { commentsApi as _api } from "@/lib/api";
-import { useAuth as _uA } from "@/hooks/useAuth";
-import { toast as _t } from "sonner";
-import { ChevronLeft as _Cl, ChevronRight as _Cr, Clock as _Ck } from "lucide-react"; 
-import { getOptimizedImage as _gOI } from "@/lib/utils";
-import type { CommentWithUser as _CWU } from "@/types";
+import React, { useState as _s, useEffect as _e } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Send as _Sd, MessageSquare as _Ms, Loader2 as _L2 } from "lucide-react";
+import { commentsApi } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import FormattedDate from "@/components/features/FormattedDate";
+// Fix 1: Type-only import untuk verbatimModuleSyntax
+import type { CommentWithUser as _Cu } from "@/types";
 
 interface CommentSectionProps {
   articleId: string;
-  onOfflineSubmit?: (_cD: any) => Promise<void>;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ articleId, onOfflineSubmit }) => {
-  const { isAuthenticated: _isA } = _uA();
-  const [_c, _sc] = _s<_CWU[]>([]);
-  const [_cn, _scn] = _s("");
-  const [_rT, _srT] = _s<{ id: string; name: string } | null>(null);
-  const [_l, _sl] = _s(true);
-  const _fR = _r<HTMLFormElement>(null);
-  const [_cP, _scP] = _s(1);
-  const _cP_val = 10;
+export default function CommentSection({ articleId }: CommentSectionProps) {
+  const { user: _u } = useAuth();
+  const _qC = useQueryClient();
+  const [_txt, _sTxt] = _s("");
+  const [_sub, _sSub] = _s(false);
+  const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
 
-  const _lC = async () => {
-    if (!articleId) return;
-    try {
-      const _d = await _api.getCommentsByArticle(articleId);
-      _sc(_d);
-    } catch (_err) {
-      // Silent fail if offline
-    } finally {
-      _sl(false);
-    }
-  };
+  const { data: _serverComments, isLoading: _iL } = useQuery({
+    queryKey: ["comments", articleId],
+    queryFn: () => commentsApi.getCommentsByArticle(articleId),
+    enabled: !!articleId,
+  });
 
   _e(() => {
-    _lC();
-  }, [articleId]);
+    if (_serverComments) {
+      _setLocalComments(_serverComments);
+    }
+  }, [_serverComments]);
+
+  const _onAddComment = async (content: string) => {
+    if (!content.trim() || !_u) return;
+
+    // Fix 2: Mengatasi Assignable 'undefined' to 'string | null'
+    const _newCommentOptimistic: _Cu = {
+      id: `temp-${Date.now()}`,
+      article_id: articleId,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+      user_id: _u.id,
+      user_name: _u.user_metadata?.full_name || "You",
+      user_avatar_url: _u.user_metadata?.avatar_url || null, // Pastikan fallback null
+      parent_id: null
+    };
+
+    _setLocalComments(prev => [...prev, _newCommentOptimistic]);
+    _sTxt("");
+
+    try {
+      await commentsApi.addComment(articleId, content);
+      await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+    } catch (e) {
+      _setLocalComments(prev => prev.filter(c => c.id !== _newCommentOptimistic.id));
+      alert("FAILED TO POST COMMENT");
+    }
+  };
 
   const _hS = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!_cn.trim()) return;
-
-    // Logic Offline Handling
-    if (!navigator.onLine && onOfflineSubmit) {
-      await onOfflineSubmit({
-        article_id: articleId,
-        content: _cn,
-        parent_id: _rT?.id || null,
-        user_name: "You (Offline)" // Visual hint
-      });
-      _scn("");
-      _srT(null);
-      return;
-    }
-
-    try {
-      await _api.addComment(articleId, _cn, _rT?.id || null);
-      _scn("");
-      _srT(null);
-      _t.success(_rT ? "Reply sent successfully!" : "Comment sent successfully!");
-      await _lC();
-    } catch (_err: any) {
-      _t.error(_err.message);
-    }
+    if (_sub) return;
+    _sSub(true);
+    await _onAddComment(_txt);
+    _sSub(false);
   };
 
-  const _rC = _c.filter(_i => !_i.parent_id);
-  const _iL = _cP * _cP_val;
-  const _iF = _iL - _cP_val;
-  const _cRC = _rC.slice(_iF, _iL);
-  const _tP = Math.ceil(_rC.length / _cP_val);
-
-  const _gR = (_pId: string) => _c.filter(_i => _i.parent_id === _pId);
-
-  if (_l) {
-    return (
-      <p className="text-center py-10 text-neutral-600 dark:text-neutral-400 font-medium">
-        Loading discussion...
-      </p>
-    );
-  }
-
   return (
-    <section className="relative w-full">
-      <div className="flex justify-between items-baseline mb-8 -mt-4 relative z-20"> 
-        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter dark:text-white leading-none">
-          Discussion ({_c.length})
-        </h2>
-        {_tP > 1 && (
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
-            Page {_cP} / {_tP}
-          </span>
-        )}
+    <div className="max-w-[840px] mx-auto py-10">
+      <div className="flex items-center gap-3 mb-10">
+        <_Ms className="text-red-600" size={24} />
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter">
+          Discussion ({_localComments.length})
+        </h3>
       </div>
 
-      {_isA ? (
-        <form ref={_fR} onSubmit={_hS} className="mb-10 scroll-mt-32">
-          {_rT && (
-            <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 p-3 mb-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
-              <p className="text-sm text-emerald-800 dark:text-emerald-400 font-medium">
-                Replying to <span className="font-bold">@{_rT.name}</span>
-              </p>
-              <button
-                type="button"
-                onClick={() => _srT(null)}
-                className="text-[10px] bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-lg shadow-sm text-red-600 dark:text-red-400 font-black tracking-wider hover:bg-red-50 transition-all"
-              >
-                CANCEL
-              </button>
-            </div>
-          )}
-
-          <textarea
-            className="w-full border-2 p-4 rounded-2xl outline-none transition-all
-                       bg-white dark:bg-neutral-900 
-                       border-gray-100 dark:border-neutral-800 
-                       text-gray-900 dark:text-neutral-100
-                       focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/5 placeholder:text-neutral-400"
-            placeholder={_rT ? `Reply to ${_rT.name}...` : "Share your thoughts..."}
-            rows={3}
-            value={_cn}
-            onChange={(e) => _scn(e.target.value)}
-          />
-
-          <button
-            type="submit"
-            className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-          >
-            {_rT ? "Send Reply" : "Post Comment"}
-          </button>
+      {_u ? (
+        <form onSubmit={_hS} className="mb-16">
+          <div className="relative group">
+            <textarea
+              value={_txt}
+              onChange={(e) => _sTxt(e.target.value)}
+              placeholder="Join the conversation..."
+              className="w-full bg-neutral-50 dark:bg-neutral-900 border-2 border-black dark:border-white p-5 font-serif text-lg min-h-[120px] focus:outline-none focus:ring-4 focus:ring-red-600/20 transition-all"
+            />
+            <button
+              type="submit"
+              disabled={_sub || !_txt.trim()}
+              className="absolute bottom-4 right-4 bg-black dark:bg-white text-white dark:text-black px-6 py-3 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:invert transition-all disabled:opacity-50"
+            >
+              {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />}
+              Post
+            </button>
+          </div>
         </form>
       ) : (
-        <div className="p-8 bg-neutral-50 dark:bg-neutral-900/30 rounded-3xl text-center mb-10 border border-dashed border-neutral-200 dark:border-neutral-800">
-          <p className="mb-4 text-neutral-600 dark:text-neutral-400 font-bold uppercase text-[10px] tracking-[.2em]">
-            Join the conversation
+        <div className="p-8 border-2 border-dashed border-neutral-300 dark:border-neutral-700 text-center mb-16">
+          <p className="font-black uppercase text-[11px] tracking-widest opacity-50">
+            Please login to participate in the discussion
           </p>
-          <a
-            href="/signin"
-            className="inline-block bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-[.2em] hover:bg-emerald-600 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl active:scale-95"
-          >
-            Sign in to Comment
-          </a>
         </div>
       )}
 
-      <div className="space-y-10">
-        {_cRC.length > 0 ? (
-          _cRC.map((_item) => (
-            <div key={_item.id} className="group/comment">
-              <article className="flex gap-4">
-                <img
-                  src={_item.user_avatar_url ? _gOI(_item.user_avatar_url, 100) : `https://ui-avatars.com/api/?name=${encodeURIComponent(_item.user_name)}&background=random`}
-                  className="w-10 h-10 rounded-xl object-cover ring-2 ring-neutral-50 dark:ring-neutral-900 shrink-0"
-                  alt={_item.user_name}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="font-bold text-sm text-neutral-900 dark:text-white truncate">
-                      {_item.user_name}
+      <div className="space-y-12">
+        {_iL && _localComments.length === 0 ? (
+          <div className="flex justify-center py-10">
+            <div className="w-10 h-1 bg-red-600 animate-pulse" />
+          </div>
+        ) : (
+          _localComments.map((_c) => (
+            <div key={_c.id} className="group relative">
+              <div className="flex gap-5">
+                <div className="flex-shrink-0">
+                  <img
+                    src={_c.user_avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${_c.user_id}`}
+                    alt={_c.user_name || "User"}
+                    className="w-12 h-12 border-2 border-black dark:border-white grayscale group-hover:grayscale-0 transition-all"
+                  />
+                </div>
+                <div className="flex-1 border-b border-neutral-100 dark:border-neutral-800 pb-8">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-black uppercase text-[13px] italic">
+                      {_c.user_name}
                     </span>
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
-                      <_Ck className="w-2.5 h-2.5" />
-                      <FormattedDate dateString={_item.created_at} formatString="MMM d, yyyy" />
+                    <span className="text-[10px] uppercase opacity-50">
+                      <FormattedDate dateString={_c.created_at} />
                     </span>
                   </div>
-                  <p className="text-[14px] md:text-[15px] leading-relaxed text-neutral-700 dark:text-neutral-300">
-                    {_item.content}
+                  <p className="text-lg leading-relaxed text-neutral-700 dark:text-neutral-300 font-serif">
+                    {_c.content}
                   </p>
-                  <button
-                    onClick={() => {
-                      _srT({ id: _item.id, name: _item.user_name });
-                      _fR.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="mt-2 text-[9px] uppercase font-black text-emerald-600 dark:text-emerald-500 hover:underline tracking-widest"
-                  >
-                    Reply
-                  </button>
                 </div>
-              </article>
-
-              {_gR(_item.id).length > 0 && (
-                <div className="ml-10 md:ml-14 mt-6 space-y-6 border-l-2 border-neutral-100 dark:border-neutral-900 pl-6">
-                  {_gR(_item.id).map((_reply) => (
-                    <div key={_reply.id} className="flex gap-3 items-start">
-                      <img 
-                         src={_reply.user_avatar_url ? _gOI(_reply.user_avatar_url, 60) : `https://ui-avatars.com/api/?name=${encodeURIComponent(_reply.user_name)}&background=random`}
-                         className="w-7 h-7 rounded-lg object-cover shrink-0"
-                         alt=""
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-bold text-[13px] dark:text-white">{_reply.user_name}</span>
-                          <span className="text-[8px] font-bold text-neutral-400 uppercase">
-                            <FormattedDate dateString={_reply.created_at} formatString="MMM d" />
-                          </span>
-                        </div>
-                        <p className="text-[13px] text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                          {_reply.content}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
           ))
-        ) : (
-          <div className="text-center py-16 bg-neutral-50/50 dark:bg-neutral-900/10 rounded-[2rem] border-2 border-dotted border-neutral-100 dark:border-neutral-800">
-            <p className="text-neutral-400 uppercase text-[9px] font-black tracking-[.3em]">
-              No discussions yet
-            </p>
-          </div>
         )}
       </div>
-
-      {_tP > 1 && (
-        <nav className="mt-16 flex justify-center items-center gap-4" aria-label="Pagination">
-          <button
-            disabled={_cP === 1}
-            onClick={() => {
-              _scP(_p => _p - 1);
-              window.scrollTo({ top: _fR.current?.offsetTop ? _fR.current.offsetTop - 200 : 0, behavior: 'smooth' });
-            }}
-            className="p-2.5 rounded-full bg-neutral-100 dark:bg-neutral-900 disabled:opacity-20 hover:bg-emerald-600 hover:text-white transition-all text-neutral-600 dark:text-neutral-400"
-          >
-            <_Cl size={18} />
-          </button>
-          <span className="text-[9px] font-black uppercase tracking-[.2em] text-neutral-500">
-            {_cP} / {_tP}
-          </span>
-          <button
-            disabled={_cP === _tP}
-            onClick={() => {
-              _scP(_p => _p + 1);
-              window.scrollTo({ top: _fR.current?.offsetTop ? _fR.current.offsetTop - 200 : 0, behavior: 'smooth' });
-            }}
-            className="p-2.5 rounded-full bg-neutral-100 dark:bg-neutral-900 disabled:opacity-20 hover:bg-emerald-600 hover:text-white transition-all text-neutral-600 dark:text-neutral-400"
-          >
-            <_Cr size={18} />
-          </button>
-        </nav>
-      )}
-    </section>
+    </div>
   );
-};
-
-export default CommentSection;
+}

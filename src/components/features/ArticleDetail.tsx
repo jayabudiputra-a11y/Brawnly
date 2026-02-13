@@ -20,13 +20,16 @@ import { useArticles as _uAs } from "@/hooks/useArticles";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 import { enqueue as _enQ } from "@/lib/idbQueue";
 import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
-
+// Tambahkan keyword 'type' sebelum kurung kurawal
+import type { CommentWithUser as _Cu } from "@/types";
 // Enterprise Libs (Synced with your V3 system)
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 import { mirrorQuery as _mQ, setCookieHash as _sCH } from "@/lib/enterpriseStorage";
 import { backoffRetry as _bOR } from "@/lib/backoff";
+
+const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
 
 /* ============================================================
    🧠 ENTERPRISE MEMORY MANAGEMENT
