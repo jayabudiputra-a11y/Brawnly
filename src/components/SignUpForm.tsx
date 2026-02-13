@@ -54,7 +54,7 @@ const SignUpForm: React.FC = () => {
           const _decrypted = _dec(_cached);
           const _d = JSON.parse(_decrypted);
           if (_d && _d[_r(5)]) {
-             toast.info("Handshake Recognized", { description: "Device already bound to an identity. Accessing gate..." });
+             // Silently redirect if already bound
              navigate("/articles");
           }
         } catch (err) { localStorage.removeItem(_K); }
@@ -74,15 +74,19 @@ const SignUpForm: React.FC = () => {
 
   const _onCommit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (proc) return;
     setProc(true);
     setFail(null);
 
     try {
       let _addr = "0.0.0.0";
       try {
-        const _res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
-        const _data = await _res.json();
-        _addr = _data.ip;
+        // PERBAIKAN: Hapus AbortSignal.timeout(3000) untuk mencegah AbortError
+        const _res = await fetch('https://api64.ipify.org?format=json').catch(() => null);
+        if (_res) {
+          const _data = await _res.json();
+          _addr = _data.ip;
+        }
       } catch (ipErr) {
         console.warn("Trace capture bypassed.");
       }
@@ -110,8 +114,9 @@ const SignUpForm: React.FC = () => {
 
         setTimeout(() => {
           navigate("/articles");
-          setTimeout(() => window.location.reload(), 150);
-        }, 1184);
+          // Re-syncing node session
+          setTimeout(() => window.location.reload(), 200);
+        }, 1500);
       }
     } catch (err: any) {
       const _msg = err?.message || "Protocol Error 0x82";
@@ -120,7 +125,7 @@ const SignUpForm: React.FC = () => {
     } finally {
       setProc(false);
     }
-  }, [v, navigate, _K]);
+  }, [v, navigate, _K, proc]);
 
   return (
     <div className="perspective-1000 flex justify-center items-center py-6 min-h-[500px]">
@@ -163,7 +168,7 @@ const SignUpForm: React.FC = () => {
               </div>
 
               {fail && (
-                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-[9px] font-black uppercase tracking-widest animate-pulse">
+                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-[8px] font-black uppercase tracking-widest animate-pulse">
                   {fail}
                 </div>
               )}
@@ -199,9 +204,13 @@ const SignUpForm: React.FC = () => {
               </div>
 
               <div className="mt-10">
-                <Button type="submit" disabled={proc}>
+                <button 
+                  type="submit" 
+                  disabled={proc}
+                  className="w-full bg-emerald-700 text-white px-4 py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-emerald-800 disabled:opacity-50 transition-all active:scale-95"
+                >
                   {proc ? "Establishing Link..." : "Bind Identity & Enter"}
-                </Button>
+                </button>
               </div>
 
               <div className="flex flex-col items-center gap-4 mt-8 pt-6 border-t border-neutral-50">
