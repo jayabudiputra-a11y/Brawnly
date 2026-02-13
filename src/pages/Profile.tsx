@@ -47,7 +47,10 @@ export default function Profile() {
       🔄 INIT: LOAD SNAPSHOT & FETCH FRESH DATA
      ============================================================ */
   _e(() => {
+    // 🔥 RACE CONDITION FIX: Jangan redirect jika status auth masih memuat (loading)
     if (_authL) return;
+
+    // Jika loading selesai dan benar-benar tidak ada user, baru pindah ke signin
     if (!_u) { 
       _nav("/signin"); 
       return; 
@@ -66,12 +69,12 @@ export default function Profile() {
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
       } catch (e) {
-        console.warn("Snapshot hydration failed.");
+        console.warn("Snapshot hydration bypassed.");
       }
 
       _sLoad(false); 
 
-      // 2. Network Fetch (Jika Online)
+      // 2. Network Fetch (Sinkronisasi Database Publik)
       if (navigator.onLine) {
         try {
           const { data: _d } = await supabase
@@ -82,6 +85,7 @@ export default function Profile() {
 
           if (_d) {
             _sName(_d.username || "");
+            // Update Avatar URL hanya jika user tidak sedang memilih file baru
             if (!_fileBlob && _d.avatar_url) {
                _sAvaUrl(_d.avatar_url);
             }
@@ -89,7 +93,7 @@ export default function Profile() {
             mirrorQuery({ type: "PROFILE_FETCH", id: _u.id, ts: Date.now() });
           }
         } catch (e) {
-          console.error("Cloud sync failed, reverting to local snapshot.");
+          console.error("Cloud sync failed.");
         }
       }
       
@@ -126,6 +130,7 @@ export default function Profile() {
       _sAvaUrl(_preview);
       _sFileBlob(_optimizedBlob);
 
+      // Simpan preview base64 untuk offline instant load
       const _b64 = await _blobToBase64(_optimizedBlob);
       localStorage.setItem(OFFLINE_AVA_KEY, _b64);
 
@@ -163,13 +168,14 @@ export default function Profile() {
           avatar_url: _avaUrl 
         }));
 
-        toast.warning("Offline: Changes queued in IndexedDB");
+        toast.warning("Offline: Data disimpan ke antrean lokal.");
         _sUp(false);
         return;
       }
 
       let _finalAvatarUrl = null;
 
+      // 1. Upload Avatar ke Storage Publik
       if (_fileBlob) {
         const _ext = _fileBlob.type.split("/")[1] || "webp";
         const _path = `avatars/${_u.id}-${Date.now()}.${_ext}`;
@@ -187,6 +193,7 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
+      // 2. Update Metadata Tabel Profil
       const _dbPayload = {
         username: _name,
         ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl })
@@ -198,12 +205,13 @@ export default function Profile() {
 
       if (_dbErr) throw _dbErr;
 
+      // 3. Update Auth Metadata agar sesi konsisten
       await supabase.auth.updateUser({
         data: { full_name: _name, ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl }) }
       });
 
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
-      toast.success("Identity Synced Successfully");
+      toast.success("Identity Synced to Cloud");
 
     } catch (err: any) {
       toast.error("Sync Failed: " + (err.message || "Unknown error"));
@@ -217,7 +225,7 @@ export default function Profile() {
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Initializing Node...</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse text-black dark:text-white">Initializing Node...</p>
         </div>
       </div>
     );
@@ -244,6 +252,8 @@ export default function Profile() {
         </header>
 
         <section className="space-y-12">
+          
+          {/* AVATAR WASM VIEWPORT */}
           <_m.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col md:flex-row items-center gap-10 bg-neutral-50 dark:bg-[#111] p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800"
@@ -257,11 +267,11 @@ export default function Profile() {
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center opacity-20"><_Hd size={48} /></div>
+                  <div className="w-full h-full flex items-center justify-center opacity-20 text-black dark:text-white"><_Hd size={48} /></div>
                 )}
                 {_avaUrl?.startsWith('data:image') && (
                   <div className="absolute bottom-0 inset-x-0 bg-yellow-500/80 h-4 flex justify-center items-center">
-                    <span className="text-[6px] font-black uppercase">Offline Cache</span>
+                    <span className="text-[6px] font-black uppercase text-black">Offline Cache</span>
                   </div>
                 )}
               </div>
