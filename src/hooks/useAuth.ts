@@ -18,22 +18,25 @@ export const useAuth = () => {
   };
 
   /**
-   * REVISI: Jangan gunakan localStorage.clear()
-   * Kita hanya menghapus key yang spesifik agar identitas verifikasi tidak hilang
+   * REVISI: Bersihkan sesi tapi amankan sidik jari hardware (v_identity_v1)
    */
   const _cleanAuthData = () => {
-    // Cari dan hapus hanya key yang berkaitan dengan session, bukan identitas hardware
-    const keysToRemove = ["sb-access-token", "sb-refresh-token", "brawnly_profile_snap_v3"];
+    const keysToRemove = [
+      "sb-access-token", 
+      "sb-refresh-token", 
+      "brawnly_profile_snap_v3",
+      "auth_session_snapshot",
+      "brawnly_auth_processing" 
+    ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     
-    // Opsional: Hapus cookie hash aktif
     if (user?.id) {
         _chQ("user_" + user.id).then(key => localStorage.removeItem(key)).catch(()=>{});
     }
   };
 
   const _forceLogout = _uC(async () => {
-    console.warn("[AUTH] Session expired. Stabilizing identity...");
+    console.warn("[AUTH] Neural stabilization triggered.");
     await authApi.signOut(); 
     _cleanAuthData();
     setUser(null);
@@ -66,7 +69,7 @@ export const useAuth = () => {
             }
         }
       } catch (error: any) {
-        if (error.message?.includes("403") || error.status === 403 || error.code === "PGRST301") {
+        if (error.message?.includes("403") || error.status === 401 || error.code === "PGRST301") {
             await _forceLogout();
         }
       } finally {
@@ -76,6 +79,10 @@ export const useAuth = () => {
 
     initAuth();
 
+    /**
+     * KUNCI: Gunakan Event Filter.
+     * Mencegah SIGNED_IN memicu navigasi otomatis ke Articles jika flag processing ada.
+     */
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const currentUser = await authApi.getCurrentUser();
@@ -85,9 +92,10 @@ export const useAuth = () => {
         }
       } 
       else if (event === 'SIGNED_OUT') {
-        if (mounted) setUser(null);
-        // JANGAN localStorage.clear() di sini
-        _cleanAuthData();
+        if (mounted) {
+          setUser(null);
+          _cleanAuthData();
+        }
       }
       
       if (mounted) setLoading(false);
@@ -105,11 +113,12 @@ export const useAuth = () => {
       await authApi.signOut();
       _cleanAuthData();
       setUser(null);
-      window.location.href = '/'; 
+      // Gunakan REPLACE untuk membunuh semua sisa fetch (Fix AbortError)
+      window.location.replace('/'); 
     } catch (error) {
       _cleanAuthData();
       setUser(null);
-      window.location.href = '/';
+      window.location.replace('/');
     } finally {
         setLoading(false);
     }
