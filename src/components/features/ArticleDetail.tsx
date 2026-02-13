@@ -82,10 +82,14 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      // Fix 400: Deteksi jika URL salah arah (mengandung bucket lama) dan arahkan ke 'avatars'
-      const _correctedUrl = url.replace('brawnly-assets/avatars', 'avatars');
-      const response = await fetch(_correctedUrl);
-      if (!response.ok) throw new Error("400");
+      // FIX PATH: Pastikan mengarah ke bucket 'avatars' dan folder 'avatars'
+      let _finalUrl = url;
+      if (_finalUrl.includes('brawnly-assets')) {
+         _finalUrl = _finalUrl.replace('brawnly-assets/avatars', 'avatars/avatars');
+      }
+      
+      const response = await fetch(_finalUrl);
+      if (!response.ok) throw new Error();
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
@@ -122,11 +126,11 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      // FIX 401: Segarkan sesi secara eksplisit sebelum aksi tulis
-      const { data: { session }, error: sErr } = await supabase.auth.getSession();
-      if (sErr || !session) throw new Error("401");
+      // FIX 401: Hard refresh session header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("401");
 
-      // Pastikan profil tersinkron ke tabel publik
+      // Sync Profile dengan metadata asli (avatars/avatars)
       await supabase.from('user_profiles').upsert({
         id: session.user.id,
         username: session.user.user_metadata?.full_name || "Member",
@@ -140,7 +144,7 @@ function CommentSection({ articleId }: { articleId: string }) {
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      toast.error(e.message === "401" ? "Auth Session Expired" : "Sync Failed");
+      toast.error(e.message === "401" ? "Session Expired" : "Sync Failed");
     } finally {
       _sSub(false);
     }
@@ -173,11 +177,11 @@ function CommentSection({ articleId }: { articleId: string }) {
               value={_txt}
               onChange={(e) => _sTxt(e.target.value)}
               placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
-              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white placeholder:opacity-20"
+              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white"
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                Post_As: {_u.user_metadata?.full_name || "Member"}
+                Identity: {_u.user_metadata?.full_name || "Member"}
               </span>
               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit

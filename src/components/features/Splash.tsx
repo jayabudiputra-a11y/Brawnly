@@ -12,7 +12,7 @@ const texts = [
 
 const photos = [
   `${SUPABASE_URL}/storage/v1/object/public/Shawty/bbUBA8bbYBjuh8Bb8BBgb8GVrrv.jpg`,
-  `${SUPABASE_URL}/storage/v1/object/public/Shawty/B8b1bsjuannomnnsNHGAB.jpg`,
+  `https://res.cloudinary.com/dtkiwn8i4/image/upload/v1770883490/c8ixfb8zot9ncrt2n63m.png`,
   `${SUPABASE_URL}/storage/v1/object/public/Shawty/Hguba8b1u19hb.jpg`,
   `${SUPABASE_URL}/storage/v1/object/public/Shawty/hb81V78BNjubBUHBBUB.jpg`,
 ];
