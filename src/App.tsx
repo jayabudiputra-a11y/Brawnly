@@ -48,15 +48,21 @@ const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
 
-// REVISI PROTECTED ROUTE: Lebih toleran terhadap sesi yang sedang sinkron
+// PROTECTED ROUTE REVISI: Mencegah tendangan balik saat token sedang diproses
 const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = _uL();
+
   if (loading) return (
     <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!user) return <_Nv to="/signin" replace />;
+
+  // Jika tidak ada user dan tidak ada token di URL, baru pindah ke signin
+  const hasToken = location.hash.includes("access_token");
+  if (!user && !hasToken) return <_Nv to="/signin" replace />;
+  
   return <>{children}</>;
 };
 

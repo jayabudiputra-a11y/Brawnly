@@ -39,15 +39,16 @@ export default function Profile() {
   };
 
   /* ============================================================
-      🔄 INIT: OPTIMIZED FOR MOBILE
+      🔄 INIT: OPTIMIZED FOR ALL DEVICES
      ============================================================ */
   _e(() => {
-    // BARRIER: Jika tidak ada user, biarkan App.tsx menghandle redirect
+    // Barrier: Jika sesi benar-benar tidak ada (null), berhenti.
+    // Redirect sudah ditangani oleh _PR di App.tsx
     if (!_u) return;
 
     const _init = async () => {
       try {
-        // 1. PRIORITAS UTAMA: Load dari Local Storage (Instan di HP)
+        // 1. PRIORITAS: Hydration dari Local Storage (Instan)
         const _snap = localStorage.getItem(PROFILE_SNAP_KEY);
         const _offlineAva = localStorage.getItem(OFFLINE_AVA_KEY);
         
@@ -58,13 +59,12 @@ export default function Profile() {
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
 
-        // Matikan loading segera setelah snapshot lokal terbaca
-        // Ini mencegah "Loading Terus" meskipun internet lambat
+        // Matikan loading segera setelah snapshot dibaca agar UI tidak macet
         _sLoad(false); 
 
-        // 2. BACKGROUND SYNC: Ambil data dari Cloud jika Online
+        // 2. NETWORK: Sinkronisasi Cloud
         if (navigator.onLine) {
-          const { data: _d } = await supabase
+          const { data: _d, error: _err } = await supabase
             .from("user_profiles")
             .select("username, avatar_url")
             .eq("id", _u.id)
@@ -80,7 +80,6 @@ export default function Profile() {
           }
         }
         
-        // Handshake dilakukan di background
         setCookieHash(_u.id).catch(() => null);
       } catch (e) {
         console.warn("Hydration error:", e);
@@ -149,6 +148,7 @@ export default function Profile() {
 
       let _finalAvatarUrl = _avaUrl;
 
+      // 1. Upload ke Storage
       if (_fileBlob) {
         const _path = `avatars/${_u.id}-${Date.now()}.webp`;
         const { error: _upErr } = await supabase.storage
@@ -160,11 +160,22 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
-      const _dbPayload = { id: _u.id, username: _name, avatar_url: _finalAvatarUrl, updated_at: new Date().toISOString() };
+      // 2. Database Update
+      const _dbPayload = { 
+        id: _u.id, 
+        username: _name, 
+        avatar_url: _finalAvatarUrl, 
+        updated_at: new Date().toISOString() 
+      };
+      
       const { error: _dbErr } = await supabase.from("user_profiles").upsert(_dbPayload);
       if (_dbErr) throw _dbErr;
 
-      await supabase.auth.updateUser({ data: { full_name: _name, avatar_url: _finalAvatarUrl } });
+      // 3. Auth Metadata Update
+      await supabase.auth.updateUser({ 
+        data: { full_name: _name, avatar_url: _finalAvatarUrl } 
+      });
+
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
       toast.success("Profile Synced");
     } catch (err: any) {
@@ -187,14 +198,14 @@ export default function Profile() {
   }
 
   return (
-    <main className="min-h-screen bg-white dark:bg-[#0a0a0a] pt-24 md:pt-32 pb-20 px-6">
+    <main className="min-h-screen bg-white dark:bg-[#0a0a0a] pt-24 md:pt-32 pb-20 px-6 transition-colors duration-500">
       <div className="max-w-2xl mx-auto">
         <header className="mb-12 border-l-[8px] md:border-l-[12px] border-black dark:border-white pl-6 md:pl-8">
           <h1 className="text-[36px] md:text-[64px] font-black uppercase tracking-tighter leading-none italic text-black dark:text-white">
             Node_Identity
           </h1>
           <div className="flex items-center gap-4 mt-4">
-            <p className="text-[9px] font-black uppercase tracking-[0.4em] opacity-50 flex items-center gap-2 text-black dark:text-white">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 flex items-center gap-2 text-black dark:text-white">
               <_Sc size={12} className="text-emerald-500" /> Brawnly_V3 // ID: {_u?.id.slice(0,8)}
             </p>
           </div>
@@ -203,7 +214,7 @@ export default function Profile() {
         <section className="space-y-10">
           <_m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col md:flex-row items-center gap-8 bg-neutral-50 dark:bg-[#111] p-8 md:p-10 rounded-[2rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800">
             <div className="relative group">
-              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 shadow-2xl">
+              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 shadow-2xl relative">
                 {_avaUrl ? (
                   <img src={_avaUrl.startsWith('blob:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} alt="avatar" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                 ) : (
@@ -222,7 +233,7 @@ export default function Profile() {
                 <input type="text" value={_name} onChange={(e) => _sName(e.target.value)} className="w-full bg-transparent border-b-2 border-black dark:border-white py-2 text-xl md:text-2xl font-black focus:outline-none focus:border-emerald-500 transition-colors" placeholder="IDENTIFIER" />
               </div>
               <div className="p-3 bg-white dark:bg-black rounded-xl border border-neutral-100 dark:border-neutral-800">
-                <p className="text-[9px] font-mono opacity-60 break-all">{_u?.email}</p>
+                <p className="text-[10px] font-mono opacity-60 break-all">{_u?.email}</p>
               </div>
             </div>
           </_m.div>
