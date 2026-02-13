@@ -1,80 +1,128 @@
 import { Link } from 'react-router-dom';
-import { Dumbbell, Heart, Mail } from 'lucide-react';
+import { Dumbbell, Heart, Mail, ShieldCheck, Scale, FileText, ExternalLink } from 'lucide-react';
 import React from 'react';
 import NewsletterForm from '@/components/common/NewsletterForm'; 
 
 const Footer = () => {
-    const emailAddress = "budi.putra.jaya20@gmail.com";
-    const subject = "Muscle Worship & Ideal Man Discussion";
-    const body = "Hi Budi,\n\nI'm very interested in the 'Muscle Worship' and 'Mindset' content on Brawnly. I'd love to discuss the concept of an ideal/dream man further based on your perspective. Do you think I fit the description of the type of man you usually admire?";
-    
-    const mailtoUrl = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const emailAddress = "bbudi6621@gmail.com";
+    const subject = "Brawnly Editorial / Ideal Man Discussion";
+    const body = "Hi Budi,\n\nI'm very interested in the 'Muscle Worship' and 'Mindset' content on Brawnly. I'd love to discuss the concept of an ideal/dream man further based on your perspective.";
+
+    const handleDirectGmail = () => {
+        const encodedSubject = encodeURIComponent(subject);
+        const encodedBody = encodeURIComponent(body);
+
+        // 1. Konstruksi URL untuk Gmail Web (Paling Aman untuk Desktop)
+        const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${emailAddress}&su=${encodedSubject}&body=${encodedBody}`;
+
+        // 2. Konstruksi URL untuk Mailto Standard (Untuk memicu App di Mobile)
+        const mailtoUrl = `mailto:${emailAddress}?subject=${encodedSubject}&body=${encodedBody}`;
+
+        // Detection: Apakah ini mobile?
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            // Di Mobile: Pakai mailto agar memicu Gmail App / Mail App bawaan
+            window.location.href = mailtoUrl;
+        } else {
+            // Di Desktop: Paksa buka Tab baru langsung ke Gmail Web Compose
+            window.open(gmailWebUrl, '_blank');
+        }
+    };
 
     return (
-        <footer className="bg-gray-900 text-white py-12 transition-colors duration-300">
-            <div className="container mx-auto px-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    <div>
-                        <div className="flex items-center space-x-2 mb-4">
+        <footer className="bg-gray-900 text-white py-16 transition-colors duration-300 border-t-4 border-black">
+            <div className="container mx-auto px-4 md:px-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                    
+                    {/* Brand Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
                             <Dumbbell className="w-8 h-8 text-emerald-500" />
-                            <span className="text-2xl font-black bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                            <span className="text-3xl font-black uppercase tracking-tighter italic bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
                                 Brawnly
                             </span>
                         </div>
-                        <p className="text-gray-300">
-                            LGBTQ+ Fitness Inspiration • Muscle Worship • Mindset • Wellness
+                        <p className="text-gray-400 text-sm font-medium leading-relaxed">
+                            LGBTQ+ Fitness Inspiration • Muscle Worship • Mindset • Wellness. 
+                            Operating at the intersection of Tech and Physical Performance.
                         </p>
                     </div>
 
+                    {/* Legal Links */}
                     <div>
-                        <h2 className="text-base font-semibold mb-4 border-b border-gray-800 pb-2">
-                            Quick Links
+                        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6 border-b border-gray-800 pb-2">
+                            Standards & Legal
                         </h2>
-                        <ul className="space-y-2">
+                        <ul className="space-y-4">
                             <li>
-                                <Link to="/about" className="text-gray-300 hover:text-red-400 transition-colors duration-300">About</Link>
+                                <Link to="/ethics" className="flex items-center gap-2 text-gray-300 hover:text-red-500 transition-all font-bold uppercase text-[11px] tracking-widest group">
+                                    <Scale size={14} className="group-hover:rotate-12 transition-transform" /> 
+                                    Editorial Ethics
+                                </Link>
                             </li>
                             <li>
-                                <Link to="/contact" className="text-gray-300 hover:text-yellow-400 transition-colors duration-300">Contact</Link>
+                                <Link to="/privacy" className="flex items-center gap-2 text-gray-300 hover:text-emerald-500 transition-all font-bold uppercase text-[11px] tracking-widest group">
+                                    <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" /> 
+                                    Privacy Policy
+                                </Link>
                             </li>
                             <li>
-                                <Link to="/articles" className="text-gray-300 hover:text-blue-400 transition-colors duration-300">All Articles</Link>
+                                <Link to="/terms" className="flex items-center gap-2 text-gray-300 hover:text-blue-500 transition-all font-bold uppercase text-[11px] tracking-widest group">
+                                    <FileText size={14} className="group-hover:-translate-y-0.5 transition-transform" /> 
+                                    Terms of Service
+                                </Link>
                             </li>
                         </ul>
                     </div>
                     
+                    {/* Newsletter */}
                     <div>
-                        <h2 className="text-base font-semibold mb-4">Stay Inspired</h2>
-                        <p className="text-gray-300 mb-4 text-sm">
-                            Get the latest articles on fitness and mindset delivered to your inbox.
+                        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6">Stay Inspired</h2>
+                        <div className="mb-4">
+                             <NewsletterForm />
+                        </div>
+                        <p className="text-gray-400 text-[10px] font-serif italic leading-tight">
+                            Latest protocols synced to your local archive weekly.
                         </p>
-                        <NewsletterForm />
                     </div>
 
+                    {/* Contact - DIRECT GMAIL ENGINE */}
                     <div>
-                        <h2 className="text-base font-semibold mb-4">Get In Touch</h2>
-                        <p className="text-gray-300 mb-4 italic flex items-center gap-1">
-                            Made with <Heart className="inline w-5 h-5 text-red-500 animate-pulse" /> for the community.
+                        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6">Direct Contact</h2>
+                        <p className="text-gray-400 mb-6 italic text-xs flex items-center gap-1">
+                            Made with <Heart className="inline w-4 h-4 text-red-500 animate-pulse" /> in Medan, 2026.
                         </p>
 
-                        <a 
-                            href={mailtoUrl}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-gray-300 hover:text-emerald-400 transition-all duration-300 group"
+                        <button 
+                            onClick={handleDirectGmail}
+                            className="w-full inline-flex items-center justify-between px-4 py-3 border border-gray-700 rounded-none bg-gray-800/50 text-gray-300 hover:text-white hover:bg-black hover:border-emerald-500 transition-all duration-500 group"
                         >
-                            <Mail className="w-5 h-5 group-hover:scale-110" />
-                            <span className="truncate">{emailAddress}</span>
-                        </a>
+                            <div className="flex items-center gap-3">
+                                <Mail className="w-4 h-4 text-emerald-500 group-hover:animate-bounce" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Open Gmail Direct</span>
+                            </div>
+                            <ExternalLink size={12} className="opacity-30 group-hover:opacity-100" />
+                        </button>
+                        <p className="text-[8px] text-gray-600 mt-2 uppercase tracking-tighter">
+                            Bypassing generic mailto via Gmail Interface
+                        </p>
                     </div>
                 </div>
 
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-700 to-transparent my-8" />
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-800 to-transparent my-12" />
 
-                <div className="text-center text-gray-300 text-sm">
-                    © 2025 <span className="font-bold text-white">Brawnly</span>. All rights reserved. 
-                    <p className="mt-1 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent font-medium">
-                        Built with passion and purpose.
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">
+                    <div>
+                        © 2026 <span className="text-white">Brawnly.online</span>. All Protocols Logged.
+                    </div>
+                    <div className="flex gap-8">
+                        <Link to="/about" className="hover:text-white transition-colors">About</Link>
+                        <Link to="/articles" className="hover:text-white transition-colors">Archive</Link>
+                        <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
+                    </div>
+                    <p className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent italic">
+                        Built for the community.
                     </p>
                 </div>
             </div>

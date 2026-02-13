@@ -4,19 +4,16 @@ import { songsApi as _sa, type Song as _S } from "@/lib/api";
 import Header from "./Header";
 import Footer from "./Footer";
 import Splash from "../features/Splash";
-import AdvancedTranslate from "@/components/features/AdvancedTranslate";
 
 const Layout = () => {
   const _l = _uL();
   const _iH = _l.pathname === "/";
   const [_sS, _ssS] = _s(_iH);
   
-  // States untuk Brawnly Sonic Engine
   const [_mL, _smL] = _s<_S[]>([]);
   const [_cL, _scL] = _s(0);
   const [_pR, _spR] = _s(false); 
   
-  // State SENSOR OFFLINE
   const [_isOnline, _setIsOnline] = _s(navigator.onLine);
   const _aR = _r<HTMLIFrameElement>(null);
 
@@ -29,12 +26,11 @@ const Layout = () => {
     }
   }, [_iH]);
 
-  // Listener Online/Offline Status
   _e(() => {
     const handleOnline = () => _setIsOnline(true);
     const handleOffline = () => {
       _setIsOnline(false);
-      _spR(false); // Matikan paksa Sonic Engine jika tiba-tiba offline
+      _spR(false); 
     };
     
     window.addEventListener('online', handleOnline);
@@ -45,7 +41,6 @@ const Layout = () => {
     };
   }, []);
 
-  // 1. USE-EFFECT LOAD DATA: HANYA BERJALAN SEKALI SAAT MOUNT
   _e(() => {
     let isMounted = true;
     
@@ -59,17 +54,18 @@ const Layout = () => {
 
         const _d = await _sa.getAll();
         if (_d && _d.length > 0) {
-          if (isMounted) _smL(_d);
-          localStorage.setItem("brawnly_music_cache", JSON.stringify(_d));
+          if (isMounted) {
+             _smL(_d);
+             localStorage.setItem("brawnly_music_cache", JSON.stringify(_d));
+          }
         }
       } catch (e) {}
     };
     _fL();
     
     return () => { isMounted = false; };
-  }, [_isOnline]); // HAPUS _mL dari sini agar tidak infinite loop
+  }, [_isOnline]);
 
-  // 2. USE-EFFECT CUSTOM EVENT LISTENER
   _e(() => {
     const _hM = (e: any) => {
       if (!_isOnline) {
@@ -86,19 +82,20 @@ const Layout = () => {
     };
     window.addEventListener("BRAWNLY_MUSIC", _hM);
     return () => window.removeEventListener("BRAWNLY_MUSIC", _hM);
-  }, [_mL, _isOnline]); // _mL dibutuhkan di sini untuk pencarian index
+  }, [_mL, _isOnline]);
 
-  // 3. USE-EFFECT YOUTUBE AUTO-SHUFFLE LISTENER
   _e(() => {
     const _hY = (e: MessageEvent) => {
       if (e.origin !== "https://www.youtube.com") return;
       try {
-        const _d = JSON.parse(e.data);
-        if (_d.event === "infoDelivery" && _d.info && _d.info.playerState === 0) {
-          if (_mL.length > 0 && _isOnline) { 
-            const _nI = Math.floor(Math.random() * _mL.length);
-            _scL(_nI);
-          }
+        if (typeof e.data === 'string') {
+            const _d = JSON.parse(e.data);
+            if (_d.event === "infoDelivery" && _d.info && _d.info.playerState === 0) {
+              if (_mL.length > 0 && _isOnline) { 
+                const _nI = Math.floor(Math.random() * _mL.length);
+                _scL(_nI);
+              }
+            }
         }
       } catch {}
     };
@@ -109,7 +106,8 @@ const Layout = () => {
 
   const _gY = (u: string) => {
     const r = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    return u.match(r)?.[2] || null;
+    const match = u.match(r);
+    return (match && match[2].length === 11) ? match[2] : null;
   };
 
   const _jL = {
@@ -127,7 +125,6 @@ const Layout = () => {
     <div className="min-h-screen flex flex-col bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <script type="application/ld+json">{JSON.stringify(_jL)}</script>
       <Header />
-      <AdvancedTranslate />
       
       <main className="flex-1 focus:outline-none" id="main-content">
         <Outlet />

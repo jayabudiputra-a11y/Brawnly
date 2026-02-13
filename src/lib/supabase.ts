@@ -1,51 +1,70 @@
 import { createClient } from "@supabase/supabase-js";
 
-const _0xS = [
-  "VITE_SUPABASE_URL",
-  "VITE_SUPABASE_ANON_KEY",
-  "VITE_CLOUDINARY_CLOUD_NAME",
-  "VITE_CLOUDINARY_PRESET",
-  "persistSession",
-  "autoRefreshToken",
-  "detectSessionInUrl",
-] as const;
+const _URL = import.meta.env.VITE_SUPABASE_URL?.trim();
+const _KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const _CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const _PRESET = import.meta.env.VITE_CLOUDINARY_PRESET;
 
-const _gS = (_i: number) => _0xS[_i] as string;
+console.log("Supabase URL Check:", _URL); 
+console.log("Supabase Key Check:", _KEY ? "EXISTS" : "MISSING");
 
-const _U = import.meta.env[_gS(0)] || "";
-const _K = import.meta.env[_gS(1)] || "";
-const _N = import.meta.env[_gS(2)] || "";
-const _P = import.meta.env[_gS(3)] || "";
+if (!_URL || !_KEY) {
+  console.error("🚨 [SUPABASE] FATAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Check your .env file.");
+}
 
-export const supabase = createClient(_U, _K, {
+export const supabase = createClient(_URL || "", _KEY || "", {
   auth: {
-    [_gS(4)]: true,
-    [_gS(5)]: true,
-    [_gS(6)]: true,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
   },
-  realtime: { params: { eventsPerSecond: 2 } },
   global: {
-    fetch: (..._a) => {
-      if (!navigator.onLine) return Promise.reject(new Error("OFFLINE"));
-      return fetch(..._a);
+    headers: {
+      apikey: _KEY || "",
+      Authorization: `Bearer ${_KEY || ""}`
+    },
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
     },
   },
 });
 
 export const CLOUDINARY_CONFIG = {
-  cN: _N,
-  uP: _P,
+  cN: _CLOUD_NAME,
+  uP: _PRESET,
   rD: "res.cloudinary.com",
-  baseUrl: _N ? `https://res.cloudinary.com/${_N}/image/upload` : "",
-  uploadUrl: _N ? `https://api.cloudinary.com/v1_1/${_N}/image/upload` : "",
+  baseUrl: _CLOUD_NAME ? `https://res.cloudinary.com/${_CLOUD_NAME}/image/upload` : "",
+  uploadUrl: _CLOUD_NAME ? `https://api.cloudinary.com/v1_1/${_CLOUD_NAME}/image/upload` : "",
 };
 
 export const uploadToCloudinary = async (_f: File) => {
-  if (!_N || !_P) throw new Error("ERR_ENV");
+  if (!_CLOUD_NAME || !_PRESET) {
+    console.error("🚨 [CLOUDINARY] Missing Cloud Name or Preset");
+    throw new Error("ERR_ENV_CLOUDINARY");
+  }
+
   const _fD = new FormData();
   _fD.append("file", _f);
-  _fD.append("upload_preset", _P);
-  const _r = await fetch(CLOUDINARY_CONFIG.uploadUrl, { method: "POST", body: _fD });
-  if (!_r.ok) throw new Error("ERR_UP");
-  return _r.json();
+  _fD.append("upload_preset", _PRESET);
+  _fD.append("folder", "brawnly_uploads");
+
+  try {
+    const _r = await fetch(CLOUDINARY_CONFIG.uploadUrl, { 
+      method: "POST", 
+      body: _fD 
+    });
+
+    if (!_r.ok) {
+      const errDetail = await _r.json();
+      console.error("[CLOUDINARY] Upload Failed:", errDetail);
+      throw new Error("ERR_UP_FAILED");
+    }
+
+    return await _r.json();
+  } catch (err) {
+    console.error("[CLOUDINARY] Network Error:", err);
+    throw err;
+  }
 };

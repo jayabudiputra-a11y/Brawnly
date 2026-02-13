@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import ArticleList from "@/components/features/ArticleList";
+import { supabase } from "@/lib/supabase";
 
 import centralGif from "@/assets/Brawnly-17aDfvayqUvay.gif";
 import leftGif from "@/assets/Brawnly-17VaIyauwVGvanab8Vf.gif";
 import rightGif from "@/assets/Brawnly.gif";
 import prideMustache from "@/assets/myPride.gif";
 
-/* ENTERPRISE STORAGE & SNAP */
 import {
   getArticlesSnap,
   mirrorQuery,
@@ -15,76 +15,68 @@ import {
 } from "@/lib/enterpriseStorage";
 import { loadSnap, saveSnap, type SnapArticle } from "@/lib/storageSnap";
 
-/* SUPABASE OFFLINE SYNC */
 import { syncArticles } from "@/lib/supabaseSync";
 
-/* PWA */
 import { registerSW } from "@/pwa/swRegister";
-
-/* ===============================
-    ENTERPRISE HOME
-=============================== */
+import { openDB } from "@/lib/idbQueue";
+import { detectBestFormat } from "@/lib/imageFormat";
 
 const Home = () => {
-  // Logic: Ambil data cepat dari Snap sebelum API/Sync selesai
   const [articles, setArticles] = useState<any[]>(() => {
-    return loadSnap();
+    const localData = getArticlesSnap();
+    return localData.length > 0 ? localData : loadSnap();
   });
+  const [isSyncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    let _mounted = true;
+
+    const _initEnterpriseNode = async () => {
       try {
-        /* ===============================
-            PWA REGISTER
-        =============================== */
-        await registerSW();
+        await Promise.all([
+          registerSW(),
+          openDB(),
+          warmupEnterpriseStorage(),
+          detectBestFormat()
+        ]);
 
-        /* ===============================
-            STORAGE WARMUP
-        =============================== */
-        warmupEnterpriseStorage();
-
-        /* ===============================
-            SNAP HYDRATE (LOGIC GABUNGAN)
-        =============================== */
         const snap = getArticlesSnap();
-        const fastSnap = loadSnap();
-
-        if (Array.isArray(snap) && snap.length) {
-          window.__BRAWNLY_SNAP__ = snap;
-          // Sinkronisasi ke state lokal jika diperlukan
-          if (articles.length === 0) setArticles(snap);
+        if (snap && snap.length > 0 && _mounted) {
+          setArticles(snap);
         }
 
-        /* ===============================
-            COOKIE HASH & QUERY MIRROR
-        =============================== */
         setCookieHash("brawnly_session");
-        mirrorQuery("home_feed");
+        mirrorQuery({ type: "HOME_FEED_INIT", ts: Date.now() });
 
-        /* ===============================
-            SUPABASE SYNC & SNAP SAVE
-        =============================== */
-        // syncArticles akan mengambil data fresh dari network/cache
-        const freshData = await syncArticles(async () => snap || fastSnap || []);
+        if (navigator.onLine) {
+          setSyncing(true);
+          const _fetcher = async () => {
+            const { data, error } = await supabase
+              .from("articles")
+              .select("*, author:profiles(username, avatar_url)")
+              .eq("published", true)
+              .order("published_at", { ascending: false })
+              .limit(20);
+            
+            if (error) throw error;
+            return data || [];
+          };
 
-        if (freshData && Array.isArray(freshData)) {
-          // Update UI dengan data terbaru
-          setArticles(freshData);
-          window.__BRAWNLY_SNAP__ = freshData;
+          const freshData = await syncArticles(_fetcher);
 
-          // Simpan snapshot terbaru untuk kunjungan berikutnya (Fast-Cache)
-          const snapData: SnapArticle[] = freshData.slice(0, 10).map(a => ({
-            title: a.title,
-            slug: a.slug,
-            image: a.featured_image
-          }));
-          saveSnap(snapData);
+          if (freshData && Array.isArray(freshData) && _mounted) {
+            setArticles(freshData);
+            window.__BRAWNLY_SNAP__ = freshData;
+
+            const snapData: SnapArticle[] = freshData.slice(0, 10).map(a => ({
+              title: a.title,
+              slug: a.slug,
+              image: a.featured_image
+            }));
+            saveSnap(snapData);
+          }
         }
 
-        /* ===============================
-            BACKGROUND SYNC
-        =============================== */
         if ("serviceWorker" in navigator) {
           const reg = await navigator.serviceWorker.ready;
           if (reg.sync) {
@@ -93,15 +85,19 @@ const Home = () => {
             } catch {}
           }
         }
-      } catch {}
-    })();
+      } catch (err) {
+        console.error("[NODE_INIT_FAIL]", err);
+      } finally {
+        if (_mounted) setSyncing(false);
+      }
+    };
+
+    _initEnterpriseNode();
+    return () => { _mounted = false; };
   }, []);
 
-  /* ===============================
-      ORIGINAL UI Styles
-  =============================== */
   const _s = {
-    main: "min-h-screen bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans",
+    main: "min-h-screen bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans transition-colors duration-500",
     hero: "pt-12 pb-6 border-b-4 border-black dark:border-white mb-2",
     inner: "max-w-[1280px] mx-auto px-4 md:px-8",
     topGrid: "flex flex-col md:flex-row gap-8 items-start mb-12",
@@ -109,16 +105,16 @@ const Home = () => {
     mainCenter: "flex-1 border-t-2 border-black dark:border-white pt-4",
     category: "text-[12px] font-black uppercase tracking-wider text-red-600 mb-2 block",
     headline: "text-[42px] md:text-[84px] leading-[0.9] font-black uppercase tracking-tighter mb-6",
-    subline: "text-lg md:text-xl font-medium leading-tight text-neutral-600 dark:text-neutral-400 mb-6 max-w-2xl",
+    subline: "text-lg md:text-xl font-medium leading-tight text-neutral-600 dark:text-neutral-400 mb-6 max-w-2xl font-serif",
     author: "text-[11px] font-bold uppercase tracking-[0.2em] border-b-2 border-black dark:border-white pb-1 inline-block mb-10",
-    gifCentral: "w-full max-w-[480px] h-auto object-cover rounded-none mb-4 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] dark:shadow-[20px_20px_0px_0px_rgba(255,255,255,0.02)]",
-    gifSide: "w-full h-auto opacity-80 hover:opacity-100 transition-opacity duration-300 mb-2",
+    gifCentral: "w-full max-w-[480px] h-auto object-cover rounded-none mb-4 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] dark:shadow-[20px_20px_0px_0px_rgba(255,255,255,0.02)] border border-neutral-200 dark:border-neutral-800",
+    gifSide: "w-full h-auto opacity-80 hover:opacity-100 transition-opacity duration-300 mb-2 grayscale hover:grayscale-0",
     mustache: "h-5 w-auto object-contain mt-2 opacity-30"
   };
 
   const pProps = { fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>;
 
-  return (
+   return (
     <main className={_s.main}>
       <section className={_s.hero}>
         <div className={_s.inner}>
@@ -150,10 +146,10 @@ const Home = () => {
                 <div className="flex-1">
                   <p className={_s.subline}>
                     An exclusive editorial look at the aesthetic standards of 2026,
-                    curated specifically for the Brawnly community by our lead author.
+                    curated specifically for the Brawnly community by this gay man.
                   </p>
                   <span className={_s.author}>
-                    By Brawnly Editorial Staff
+                    By Brawnly Owner
                   </span>
                 </div>
               </div>

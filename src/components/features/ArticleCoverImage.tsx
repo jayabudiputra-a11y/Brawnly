@@ -3,7 +3,6 @@ import Card from '@/components/ui/Card';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
-import { useTranslation as _uT } from "react-i18next";
 
 interface ArticleCoverImageProps {
   imageUrl?: string | null;
@@ -18,7 +17,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
   slug: _sl,
   className: _cN = "" 
 }) => {
-  const { t: _tr } = _uT();
   const { isEnabled: _iE, saveData: _sD } = _uSD();
   const [_iL, _siL] = _s(false);
   const [_oW, _sOW] = _s<string | null>(null);
@@ -40,7 +38,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     return _u.split(/[\r\n]+/)[0].trim();
   }, [_u]);
 
-  // Logic Pendeteksi GIF: Jika GIF, kita matikan cropping 16:9
   const _isGif = _m(() => {
     if (!_sU) return false;
     const _path = _sU.toLowerCase();
@@ -50,7 +47,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
   const _tOpt = async (_src: string) => {
     try {
       const _isTrusted = _src.includes('cloudinary.com') || _src.includes('localhost') || _src.includes('supabase.co');
-      // Jangan di-fetch jika tidak dipercaya atau jika itu GIF (WASM GIF processing is heavy)
       if (!_isTrusted || _isGif) return _src;
 
       const r = await fetch(_src, { mode: "cors" });
@@ -93,7 +89,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     if (!_sU) return;
     let _activeBlob: string | null = null;
     (async () => {
-      // GIF tidak menggunakan gOI agar tidak terpotong (cropped) oleh Cloudinary
       const _sourceForBlob = _isGif ? _sU : _gOI(_sU, 1200);
       const u = await _tOpt(_sourceForBlob);
       _activeBlob = u;
@@ -116,10 +111,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     <div className={`w-full mb-6 ${_cN}`}>
       <Card variant="shadow" className="p-0 overflow-hidden border-none shadow-xl dark:shadow-neutral-900/50">
         <a href={_sU} className="block w-full h-full cursor-zoom-in" target="_blank" rel="noopener noreferrer">
-          {/* LOGIC SINKRONISASI:
-            Jika GIF: aspect-auto + object-contain (menampilkan file utuh 400x296)
-            Jika Biasa: aspect-[16/9] + object-cover (editorial look)
-          */}
           <div className={`${_isGif ? 'aspect-auto' : 'aspect-[16/9]'} bg-neutral-100 dark:bg-neutral-900 overflow-hidden ${_iL ? '' : 'animate-pulse'}`}>
             <img
               src={_fU}

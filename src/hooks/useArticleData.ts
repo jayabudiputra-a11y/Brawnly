@@ -1,10 +1,8 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { generateFullImageUrl } from "@/utils/helpers"; 
-import type { LangCode } from "@/utils/helpers"; 
 
 const _0xquery = ["articles_denormalized", "slug", "reverse", "split", "join"] as const;
 const _q = (i: number) => _0xquery[i] as any;
@@ -23,8 +21,6 @@ export interface Article {
 
 export const useArticleData = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { i18n, t } = useTranslation();
-  const lang = (i18n.language as LangCode) || "en";
   
   const { data: article, isLoading } = useQuery<Article | null>({ 
     queryKey: ["article", slug],
@@ -39,19 +35,13 @@ export const useArticleData = () => {
     retry: false,
   });
   
-  const getField = (base: string) => {
-    if (!article) return '';
-    const articleFields = article as Article & Record<string, any>; 
-    const langKey = lang === 'en' ? '' : `_${lang}`; 
-    return articleFields[`${base}${langKey}`] || articleFields[`${base}_en`] || articleFields[base];
-  }
-
   const processedData = useMemo(() => {
     if (!article) return null;
 
-    const title = getField("title") || t("Article Title");
-    const excerpt = getField("excerpt") || t("A short excerpt about the article.");
-    const content = getField("content") || t("Content not available.");
+    // Direct field access (No translation logic)
+    const title = article.title || "Untitled Article";
+    const excerpt = article.excerpt || "";
+    const content = article.content || "";
 
     const rawPaths = (article.featured_image_path_clean || article.featured_image_url_clean || "");
     
@@ -77,12 +67,18 @@ export const useArticleData = () => {
       .filter(Boolean);
 
     return {
-      article, title, excerpt, content, paragraphs,
-      coverImage, midGallery, bottomGallery,
+      article, 
+      title, 
+      excerpt, 
+      content, 
+      paragraphs,
+      coverImage, 
+      midGallery, 
+      bottomGallery,
     };
-  }, [article, lang, t]);
+  }, [article]);
 
   return { processedData, isLoading, article };
 };
 
-export const LANGS = ["en", "id", "zh", "ja", "ko", "es", "fr", "de", "ru", "ar", "th", "vi"] as const;
+export const LANGS = ["en"] as const;

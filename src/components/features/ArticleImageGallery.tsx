@@ -1,5 +1,4 @@
 import React, { useEffect as _e } from 'react';
-import { useTranslation as _uT } from "react-i18next";
 import { generateFullImageUrl as _gFI } from '@/utils/helpers';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
@@ -22,7 +21,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
   downloadPrefix: _dP,
   startIndex: _sI
 }) => {
-  const { t: _tr } = _uT();
   const { isEnabled: _iE, saveData: _sD } = _uSD();
 
   const _fC = (_u: string) => {
@@ -54,10 +52,9 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
       const _k = `brawnly_gallery_${_sl}_${_dP}`;
       const _pL = JSON.stringify({ t: _tS, s: _sl, i: _iP, ts: Date.now() });
       
-      /* --- AGGRESSIVE CACHE BUSTER --- */
       const _cch = localStorage.getItem(_k);
       if (_cch && _cch.includes("supabase.co")) {
-        localStorage.removeItem(_k); // Hancurkan cache jika ada link supabase
+        localStorage.removeItem(_k);
       }
 
       try {
@@ -74,22 +71,21 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
 
   if (!_iP.length) return null;
 
-  /* --- SEO SINKRONISASI CLOUDINARY --- */
   const _ld = {
     "@context": "https://schema.org",
     "@type": "ImageGallery",
     "name": _tS || `Gallery ${_sl}`,
-    "image": _iP.map(_p => _fC(_p)).filter(_u => !_u.includes("supabase.co")) // Filter ketat link supabase
+    "image": _iP.map(_p => _fC(_p)).filter(_u => !_u.includes("supabase.co"))
   };
 
   return (
     <div className={`${_cC} leading-[0] block overflow-hidden`}>
       <script type="application/ld+json">{JSON.stringify(_ld)}</script>
-      {_tS && <h2 className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white">{_tr(_tS)}</h2>}
+      {_tS && <h2 className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white">{_tS}</h2>}
       <div className="grid grid-cols-2 gap-2 md:gap-3 w-full">
         {_iP.map((_rP, _ix) => {
           const _hQ = _fC(_rP);
-          if (!_hQ || _hQ.includes("supabase.co")) return null; // Jangan render jika link supabase lolos
+          if (!_hQ || _hQ.includes("supabase.co")) return null;
 
           const _lQ = _iE && _sD.quality === 'low';
           const _w = _lQ ? 200 : 400;
@@ -101,7 +97,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                   src={_u}
                   loading="lazy"
                   crossOrigin="anonymous"
-                  alt={`${_tr("Gallery image")} ${_sI + _ix}`}
+                  alt={`Gallery item ${_sI + _ix}`}
                   style={{ opacity: 0, transition: "opacity .4s" }}
                   onLoad={_ev => { (_ev.currentTarget as HTMLImageElement).style.opacity = "1"; }}
                   onError={_ev => { (_ev.currentTarget as HTMLImageElement).style.display = "none"; }}

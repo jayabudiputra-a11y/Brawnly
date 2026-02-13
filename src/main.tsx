@@ -1,4 +1,7 @@
-import './index.css';import './App.css';import './styles/globals.css';import '@/lib/i18n';
+import './index.css';
+import './App.css';
+import './styles/globals.css';
+
 import {createRoot as _c} from 'react-dom/client';
 import {BrowserRouter as _R} from 'react-router-dom';
 import {QueryClient as _Q,QueryClientProvider as _QP} from '@tanstack/react-query';

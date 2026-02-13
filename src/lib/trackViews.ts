@@ -1,17 +1,8 @@
 /* ======================
-   CORE TRACK CONST (DO NOT BREAK SOURCE LOGIC)
+   CORE TRACK LOGIC (UPDATED FOR RPC)
 ====================== */
-const _0xtrk = [
-  "VITE_SUPABASE_URL",
-  "VITE_SUPABASE_ANON_KEY",
-  "/functions/v1/track-view",
-  "POST",
-  "application/json",
-  "Authorization",
-  "Bearer "
-] as const;
-
-const _t = (i: number) => _0xtrk[i] as string;
+import { supabase } from "@/lib/supabase";
+import { enqueue, openDB } from "@/lib/idbQueue";
 
 /* ======================
    ULTRA HASH (¼ MEMORY COOKIE STYLE)
@@ -46,70 +37,77 @@ function _mirrorQuery(d: any) {
 }
 
 /* ======================
-   VIEW SNAPSHOT STORAGE (TEXT INSTANT LOAD 0s)
+   OFFLINE QUEUE (IDB + BACKGROUND SYNC)
 ====================== */
-const _VSK = "brawnly_view_snapshot";
-
-export function saveViewSnapshot(meta: {
-  id: string;
-  title?: string;
-  slug?: string;
-  image?: string;
-}) {
+async function _queueOfflineTrack(articleId: string) {
   try {
-    const db = JSON.parse(localStorage.getItem(_VSK) || "{}");
-    db[meta.id] = {
-      t: meta.title || "",
-      s: meta.slug || "",
-      i: meta.image || "",
-      ts: Date.now()
-    };
-    localStorage.setItem(_VSK, JSON.stringify(db));
-  } catch {}
-}
+    // 1. Simpan ke IDB (Persistent Storage)
+    await enqueue({
+      type: "TRACK_VIEW",
+      articleId,
+      timestamp: Date.now(),
+      retryCount: 0
+    });
 
-/* ======================
-   OFFLINE QUEUE
-====================== */
-const _QK = "brawnly_track_queue";
-
-function _pushQ(job: any) {
-  try {
-    const q = JSON.parse(localStorage.getItem(_QK) || "[]");
-    q.push(job);
-    localStorage.setItem(_QK, JSON.stringify(q));
-  } catch {}
-}
-
-async function _flushQ() {
-  try {
-    const q = JSON.parse(localStorage.getItem(_QK) || "[]");
-    if (!q.length) return;
-
-    const next: any[] = [];
-
-    for (const j of q) {
-      try {
-        await _sendTrack(j.articleId, true);
-      } catch {
-        next.push(j);
-      }
+    // 2. Register Background Sync
+    if ("serviceWorker" in navigator && "SyncManager" in window) {
+      const reg = await navigator.serviceWorker.ready;
+      // @ts-ignore
+      await reg.sync.register("brawnly-sync");
     }
+  } catch (e) {
+    // Fallback LocalStorage
+    try {
+      const q = JSON.parse(localStorage.getItem("brawnly_track_fallback") || "[]");
+      q.push({ articleId, ts: Date.now() });
+      localStorage.setItem("brawnly_track_fallback", JSON.stringify(q));
+    } catch {}
+  }
+}
 
-    localStorage.setItem(_QK, JSON.stringify(next));
-  } catch {}
+/**
+ * Flush Queue: Membaca IDB dan mengirim via RPC
+ */
+async function _flushOfflineQueue() {
+  if (!navigator.onLine) return;
+
+  try {
+    const db = await openDB();
+    const tx = db.transaction("sync", "readwrite");
+    const store = tx.objectStore("sync");
+    const req = store.getAll();
+
+    req.onsuccess = async () => {
+      const items = req.result;
+      if (!items || items.length === 0) return;
+
+      for (const item of items) {
+        if (item.type === "TRACK_VIEW") {
+          try {
+            await _sendTrack(item.articleId, true);
+            // Hapus jika sukses
+            const delTx = db.transaction("sync", "readwrite");
+            delTx.objectStore("sync").delete(item.id || item.key); 
+          } catch (e) {
+            // Biarkan jika gagal (akan dicoba lagi nanti)
+          }
+        }
+      }
+    };
+  } catch (e) {
+    console.warn("Queue Flush Error", e);
+  }
 }
 
 /* ======================
-   RECONNECT BACKOFF
+   RECONNECT BACKOFF ENGINE
 ====================== */
 function _reconnectLoop() {
   let a = 0;
-
   const run = async () => {
     if (!navigator.onLine) return;
     try {
-      await _flushQ();
+      await _flushOfflineQueue();
       a = 0;
     } catch {
       a++;
@@ -117,64 +115,31 @@ function _reconnectLoop() {
       setTimeout(run, base + Math.random() * 500);
     }
   };
-
   run();
   window.addEventListener("online", run);
 }
 
 /* ======================
-   SERVICE WORKER MESSAGE (TRACK + CACHE IMAGE)
+   SERVICE WORKER MESSAGE
 ====================== */
 function _swTrackPush(articleId: string) {
   try {
     if (!navigator.serviceWorker?.controller) return;
-
-    navigator.serviceWorker.controller.postMessage({
-      type: "TRACK_VIEW",
-      articleId
-    });
+    navigator.serviceWorker.controller.postMessage({ type: "TRACK_VIEW", articleId });
   } catch {}
 }
 
 /* ======================
-   WASM SLOT FUTURE READY
-====================== */
-async function _initWASM() {
-  try {
-    // future transcoding / compression / crypto
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/* ======================
-   CORE TRACK SEND
+   CORE TRACK SEND (RPC VERSION)
+   Ini memperbaiki Error 500 dengan memanggil SQL Function langsung
 ====================== */
 async function _sendTrack(articleId: string, silent = false) {
-  const _B = import.meta.env[_t(0)];
-  const _K = import.meta.env[_t(1)];
+  // Panggil RPC 'increment_views' yang Anda buat di SQL Editor
+  const { error } = await supabase.rpc('increment_views', { article_id: articleId });
 
-  if (!_B || !_K) return;
-
-  const _E = `${_B.replace(/\/$/, "")}${_t(2)}`;
-
-  const res = await fetch(
-    `${_E}?article_id=${encodeURIComponent(articleId)}`,
-    {
-      method: _t(3),
-      headers: {
-        "Content-Type": _t(4),
-        "x-article-id": articleId,
-        [_t(5)]: `${_t(6)}${_K}`
-      },
-      body: JSON.stringify({ article_id: articleId })
-    }
-  );
-
-  if (!res.ok && import.meta.env.DEV && !silent) {
-    const txt = await res.text();
-    console.error("SYS_TRACK_FAULT:", res.status, txt);
+  if (error) {
+    if (!silent) console.error("RPC Track Failed:", error.message);
+    throw error; // Lempar error agar masuk antrean offline jika gagal
   }
 }
 
@@ -185,32 +150,24 @@ export async function trackPageView(articleId: string) {
   try {
     if (!articleId) return;
 
-    /* INIT */
-    _initWASM();
     _reconnectLoop();
-
-    /* COOKIE HASH (¼ MEMORY) */
     _sC("b_v", _hS(articleId), 7);
-
-    /* LOCAL QUERY MIRROR */
-    _mirrorQuery({
-      id: articleId,
-      ts: Date.now()
-    });
-
-    /* SERVICE WORKER TRACK PUSH */
+    _mirrorQuery({ id: articleId, ts: Date.now() });
     _swTrackPush(articleId);
 
-    /* NETWORK SEND */
     if (!navigator.onLine) {
-      _pushQ({ articleId });
+      await _queueOfflineTrack(articleId);
       return;
     }
 
-    await _sendTrack(articleId);
+    try {
+      await _sendTrack(articleId);
+    } catch (err) {
+      // Jika RPC gagal (misal koneksi putus tiba-tiba), queue lagi
+      await _queueOfflineTrack(articleId);
+    }
 
   } catch (err) {
-    if (import.meta.env.DEV) console.error("NET_SIGNAL_LOST:", err);
-    _pushQ({ articleId });
+    _queueOfflineTrack(articleId);
   }
 }

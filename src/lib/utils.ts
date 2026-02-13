@@ -29,7 +29,8 @@ export function slugify(_t: string): string {
   return _t.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "-");
 }
 
-export function getOptimizedImage(_u: string | null | undefined, _w: number): string {
+// FIX: Tambahkan nilai default '_w: number = 1200' agar parameter ini opsional
+export function getOptimizedImage(_u: string | null | undefined, _w: number = 1200): string {
   if (!_u) return "";
   const _D = _gM(0);
   const _U = _gM(1);
@@ -37,6 +38,7 @@ export function getOptimizedImage(_u: string | null | undefined, _w: number): st
   const _Q = _gM(3);
 
   if (!_u.includes(_D)) return _u;
+  
   if (_u.includes(_T) || _u.includes("w_")) return _u;
 
   if (_u.includes(_U)) {

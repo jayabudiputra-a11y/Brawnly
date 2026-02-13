@@ -3,7 +3,7 @@ import type { Article as _At, AuthUser as _Au, CommentWithUser as _Cu } from "..
 
 const _0xD = [
   "subscribers",
-  "articles",
+  "articles_denormalized",
   "user_profiles",
   "comments",
   "email",
@@ -36,7 +36,7 @@ const _oM = (_u?: string | null): string => {
 const _sC = (_k: string, _d: any) => {
   try {
     const _pL = JSON.stringify({ ts: Date.now(), data: _d });
-    if (_pL.includes('mmwxnbhyhu6yewzmy6d0')) return;
+    if (_pL.includes('mmwxnbhyhu6yewzmy6d0') || _pL.includes('ž')) return;
     localStorage.setItem(`brawnly_api_${_k}`, _pL);
   } catch {
     Object.keys(localStorage).filter(_x => _x.startsWith("brawnly_api_")).forEach(_x => localStorage.removeItem(_x));
@@ -47,26 +47,14 @@ const _gC = (_k: string) => {
   try {
     const _r = localStorage.getItem(`brawnly_api_${_k}`);
     if (!_r) return null;
-
-    // Security & Integrity Check: Hapus cache jika mengandung data biner korup (token ž)
-    if (
-      _r.includes('mmwxnbhyhu6yewzmy6d0') || 
-      _r.includes('supabase.co/storage') ||
-      _r.startsWith('\x1f') || 
-      _r.startsWith('\x89') || 
-      _r.includes('ž')
-    ) {
+    if (_r.includes('mmwxnbhyhu6yewzmy6d0') || _r.includes('supabase.co/storage') || _r.includes('ž')) {
       localStorage.removeItem(`brawnly_api_${_k}`);
       return null;
     }
-
-    // Validasi JSON Parsing
     const _parsed = JSON.parse(_r);
-    if (!_parsed || !_parsed.data) return null;
-    
+    if (navigator.onLine && (Date.now() - _parsed.ts > 864e5)) return null;
     return _parsed.data;
   } catch (e) {
-    // Jalur penyelamat jika JSON korup: bersihkan localStorage
     localStorage.removeItem(`brawnly_api_${_k}`);
     return null;
   }
@@ -74,7 +62,7 @@ const _gC = (_k: string) => {
 
 const _hE = (_e: any, _c: string) => {
   if (!navigator.onLine) return null;
-  if (import.meta.env.DEV) console.error(`[SYS_${_c}]`, _e);
+  if (import.meta.env.DEV) console.error(`[SYS_API_FAULT_${_c}]`, _e);
   throw _e;
 };
 
@@ -83,33 +71,19 @@ export const articlesApi = {
     const _k = `list_${_l}_${_o}`;
     const _cached = _gC(_k);
     if (!navigator.onLine && _cached) return _cached;
-
-    const { data: _d, error: _e } = await _sb
-      .from(_v(1))
-      .select("*")
-      .order(_v(5), { ascending: false })
-      .range(_o, _o + _l - 1);
-
-    if (_e) {
-      if (_cached) return _cached;
-      _hE(_e, "A1");
-      return [];
-    }
-
+    const { data: _d, error: _e } = await _sb.from(_v(1)).select("*").eq('published', true).order(_v(5), { ascending: false }).range(_o, _o + _l - 1);
+    if (_e) { if (_cached) return _cached; _hE(_e, "A1"); return []; }
     const _p = _d?.map(_a => ({ ..._a, featured_image: _oM(_a.featured_image) })) ?? [];
     _sC(_k, _p);
     return _p as _At[];
   },
-
   getBySlug: async (_s: string): Promise<_At> => {
     const _k = `article_${_s}`;
     const _cached = _gC(_k);
     if (!navigator.onLine && _cached) return _cached;
-
     const { data: _d, error: _e } = await _sb.from(_v(1)).select("*").eq(_v(6), _s).single();
     if (_e || !_d) { if (_cached) return _cached; _hE(_e, "A2"); }
-    if (navigator.onLine && _d) { void _sb.rpc(_v(8), { [_v(7)]: _d.id }); }
-
+    if (navigator.onLine && _d) { void _sb.rpc(_v(8), { [_v(7)]: _d.id }).match(() => null); }
     const _p = { ..._d, featured_image: _oM(_d.featured_image) } as _At;
     _sC(_k, _p);
     return _p;
@@ -143,7 +117,6 @@ export const authApi = {
     return { ..._d.user, user_metadata: { ..._d.user.user_metadata, avatar_url: _oM(_d.user.user_metadata?.avatar_url) } } as unknown as _Au;
   },
   signUp: async ({ email: _em, name: _n }: { email: string; name: string }) => {
-    if (!_n || _n.trim().length < 2) throw new Error("IDENT_SHORT");
     const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ email: _em.trim(), options: { data: { full_name: _n.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
     if (_e) _hE(_e, "AUTH1");
     return _d;
@@ -154,8 +127,7 @@ export const authApi = {
     return _d;
   },
   signOut: async () => {
-    const { error: _e } = await _sb.auth.signOut();
-    if (_e) _hE(_e, "AUTH3");
+    await _sb.auth.signOut();
   },
 };
 
@@ -164,54 +136,18 @@ export const commentsApi = {
     const _k = `comments_${_aId}`;
     const _cached = _gC(_k);
     if (!navigator.onLine && _cached) return _cached;
-    
-    const { data: _d, error: _e } = await _sb
-      .from(_v(3))
-      .select(`id, content, created_at, user_id, parent_id, user_profiles ( username, avatar_url )`)
-      .eq(_v(7), _aId)
-      .order("created_at", { ascending: true });
-
+    const { data: _d, error: _e } = await _sb.from(_v(3)).select(`id, content, created_at, user_id, parent_id, user_profiles ( username, avatar_url )`).eq(_v(7), _aId).order("created_at", { ascending: true });
     if (_e) return _cached || [];
-    
-    const _p = (_d as any[])?.map(_c => ({
-      id: _c.id,
-      article_id: _aId,
-      content: _c.content,
-      created_at: _c.created_at,
-      user_id: _c.user_id,
-      parent_id: _c.parent_id,
-      user_name: _c.user_profiles?.username ?? "Member",
-      user_avatar_url: _oM(_c.user_profiles?.avatar_url)
-    })) ?? [];
-
+    const _p = (_d as any[])?.map(_c => ({ id: _c.id, article_id: _aId, content: _c.content, created_at: _c.created_at, user_id: _c.user_id, parent_id: _c.parent_id, user_name: _c.user_profiles?.username ?? "Member", user_avatar_url: _oM(_c.user_profiles?.avatar_url) })) ?? [];
     _sC(_k, _p);
     return _p as _Cu[];
   },
   addComment: async (_aId: string, _c: string, _pId: string | null = null) => {
     const { data: _uD } = await _sb.auth.getUser();
     if (!_uD?.user) throw new Error("AUTH_REQUIRED");
-
-    const { data: _profile, error: _pErr } = await _sb
-      .from(_v(2))
-      .select("id")
-      .eq("id", _uD.user.id)
-      .single();
-
-    if (_pErr || !_profile) {
-      await _sb.from(_v(2)).insert({
-        id: _uD.user.id,
-        username: _uD.user.user_metadata?.full_name || "Member",
-        avatar_url: _uD.user.user_metadata?.avatar_url || null
-      });
-    }
-
-    const { error: _e } = await _sb.from(_v(3)).insert({ 
-      [_v(7)]: _aId, 
-      user_id: _uD.user.id, 
-      content: _c.trim(), 
-      parent_id: _pId 
-    });
-
+    const { data: _profile } = await _sb.from(_v(2)).select("id").eq("id", _uD.user.id).single();
+    if (!_profile) { await _sb.from(_v(2)).insert({ id: _uD.user.id, username: _uD.user.user_metadata?.full_name || "Member", avatar_url: _uD.user.user_metadata?.avatar_url || null }); }
+    const { error: _e } = await _sb.from(_v(3)).insert({ [_v(7)]: _aId, user_id: _uD.user.id, content: _c.trim(), parent_id: _pId });
     if (_e) _hE(_e, "C1");
     localStorage.removeItem(`brawnly_api_comments_${_aId}`);
   },

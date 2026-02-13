@@ -20,7 +20,6 @@ import _fS from "@/assets/Brawnly-favicon.svg";
 // ==========================================
 const _safeLazy = (importFunc: () => Promise<any>) => 
   _lz(() => importFunc().catch(() => {
-    // Jika offline, tampilkan UI darurat daripada aplikasi crash layar putih
     if (!navigator.onLine) {
       return { 
         default: () => (
@@ -39,12 +38,10 @@ const _safeLazy = (importFunc: () => Promise<any>) =>
         ) 
       };
     }
-    // Jika online tapi gagal (misal file chunk berubah saat deploy baru), paksa reload
     window.location.reload();
     return { default: () => null as any };
   }));
 
-// ROUTE DEFINITIONS MENGGUNAKAN SAFE LOADER
 const _H = _safeLazy(() => import("@/pages/Home"));
 const _As = _safeLazy(() => import("@/pages/Articles"));
 const _AP = _safeLazy(() => import("@/pages/ArticlePage"));
@@ -82,7 +79,6 @@ function App() {
     window.scrollTo(0, 0);
   }, [_p]);
 
-  // OFFLINE QUEUE SYNC LOGIC WITH EXPONENTIAL BACKOFF
   _e(() => {
     const handleOnline = async () => {
       console.log("⚡ [BRAWNLY] Connection Restored. Syncing Queue...");
