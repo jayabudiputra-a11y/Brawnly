@@ -27,12 +27,12 @@ export default function Profile() {
   const [_loading, _sLoad] = _s(true);
   const [_uploading, _sUp] = _s(false);
   const [_name, _sName] = _s("");
-  const [_avaUrl, _sAvaUrl] = _s<string | null>(null); // URL Display (Blob/Remote)
-  const [_fileBlob, _sFileBlob] = _s<Blob | null>(null); // Raw Blob untuk Upload
+  const [_avaUrl, _sAvaUrl] = _s<string | null>(null); 
+  const [_fileBlob, _sFileBlob] = _s<Blob | null>(null); 
   const [_isOffline, _sOffline] = _s(!navigator.onLine);
 
   /* ============================================================
-     🛠️ HELPER: BLOB TO BASE64 (Untuk Offline Storage)
+      🛠️ HELPER: BLOB TO BASE64
      ============================================================ */
   const _blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -44,11 +44,14 @@ export default function Profile() {
   };
 
   /* ============================================================
-     🔄 INIT: LOAD SNAPSHOT & FETCH FRESH DATA
+      🔄 INIT: LOAD SNAPSHOT & FETCH FRESH DATA
      ============================================================ */
   _e(() => {
     if (_authL) return;
-    if (!_u) { _nav("/signin"); return; }
+    if (!_u) { 
+      _nav("/signin"); 
+      return; 
+    }
 
     const _init = async () => {
       // 1. Load SNAPSHOT (Instant UI - Offline First)
@@ -59,18 +62,19 @@ export default function Profile() {
         if (_snap) {
           const _p = JSON.parse(_snap);
           _sName(_p.username || "");
-          // Prioritaskan offline base64 jika ada, agar gambar muncul tanpa internet
           if (_offlineAva) _sAvaUrl(_offlineAva);
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
-      } catch {}
+      } catch (e) {
+        console.warn("Snapshot hydration failed.");
+      }
 
-      _sLoad(false); // UI Ready
+      _sLoad(false); 
 
       // 2. Network Fetch (Jika Online)
       if (navigator.onLine) {
         try {
-          const { data: _d, error: _err } = await supabase
+          const { data: _d } = await supabase
             .from("user_profiles")
             .select("username, avatar_url")
             .eq("id", _u.id)
@@ -78,30 +82,22 @@ export default function Profile() {
 
           if (_d) {
             _sName(_d.username || "");
-            
-            // Update Avatar URL hanya jika tidak sedang mengedit local blob
             if (!_fileBlob && _d.avatar_url) {
                _sAvaUrl(_d.avatar_url);
             }
-
-            // Update Snapshot
             localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_d));
-            
-            // Enterprise Mirroring Log
             mirrorQuery({ type: "PROFILE_FETCH", id: _u.id, ts: Date.now() });
           }
         } catch (e) {
-          console.error("Profile Sync Error:", e);
+          console.error("Cloud sync failed, reverting to local snapshot.");
         }
       }
       
-      // 3. Set Enterprise Cookie Hash
       await setCookieHash(_u.id);
     };
 
     _init();
 
-    // Listener Network Status
     const _setOn = () => _sOffline(false);
     const _setOff = () => _sOffline(true);
     window.addEventListener('online', _setOn);
@@ -113,7 +109,7 @@ export default function Profile() {
   }, [_u, _authL, _nav]);
 
   /* ============================================================
-     📸 PIPELINE: WASM TRANSCODE & PREVIEW
+      📸 PIPELINE: WASM TRANSCODE & PREVIEW
      ============================================================ */
   const _handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -123,36 +119,27 @@ export default function Profile() {
 
     try {
       toast.info("WASM Transcoding initialized...");
-
-      // 1. Deteksi Format Terbaik
-      const _fmt = await _dBF(); // 'avif' | 'webp'
-
-      // 2. Jalankan WASM Image Pipeline (Compress & Convert)
-      // Signature: file, format, quality
+      const _fmt = await _dBF(); 
       const _optimizedBlob = await _wTI(_rawFile, _fmt, 0.75);
-
-      // 3. Generate Preview URL (Blob)
       const _preview = URL.createObjectURL(_optimizedBlob);
+      
       _sAvaUrl(_preview);
       _sFileBlob(_optimizedBlob);
 
-      // 4. Simpan ke LocalStorage sebagai Base64 (Agar Tampil Offline)
       const _b64 = await _blobToBase64(_optimizedBlob);
       localStorage.setItem(OFFLINE_AVA_KEY, _b64);
 
       toast.success(`Image Optimized: ${(_optimizedBlob.size / 1024).toFixed(1)}KB (${_fmt.toUpperCase()})`);
-
     } catch (error) {
-      console.error("WASM Pipeline Failed:", error);
-      toast.error("Image optimization failed. Using original.");
-      _sFileBlob(_rawFile); // Fallback
+      toast.error("WASM Pipeline error, using original.");
+      _sFileBlob(_rawFile);
     } finally {
       _sUp(false);
     }
   };
 
   /* ============================================================
-     💾 SAVE LOGIC: HYBRID SYNC (IDB QUEUE + SUPABASE)
+      💾 SAVE LOGIC: HYBRID SYNC (IDB QUEUE + SUPABASE)
      ============================================================ */
   const _saveProfile = async () => {
     if (!_u) return;
@@ -165,38 +152,30 @@ export default function Profile() {
     };
 
     try {
-      /* --- JALUR 1: OFFLINE MODE (Queueing) --- */
       if (!navigator.onLine) {
-        // Simpan metadata ke IDB Queue
         await _enQ({
           type: "PROFILE_UPDATE",
-          payload: { ..._payload, avatarBlob: _fileBlob } // Blob akan disimpan di IDB
+          payload: { ..._payload, avatarBlob: _fileBlob }
         });
 
-        // Update Snapshot Lokal
         localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify({ 
           username: _name, 
-          avatar_url: _avaUrl // Gunakan URL lokal/base64 sementara
+          avatar_url: _avaUrl 
         }));
 
-        toast.warning("Offline: Changes queued for sync", {
-          description: "Data stored in IndexedDB. Will sync when online."
-        });
+        toast.warning("Offline: Changes queued in IndexedDB");
         _sUp(false);
         return;
       }
 
-      /* --- JALUR 2: ONLINE MODE (Direct Sync) --- */
-      
       let _finalAvatarUrl = null;
 
-      // 1. Upload Blob ke Supabase Storage (Jika ada perubahan gambar)
       if (_fileBlob) {
         const _ext = _fileBlob.type.split("/")[1] || "webp";
         const _path = `avatars/${_u.id}-${Date.now()}.${_ext}`;
 
         const { error: _upErr } = await supabase.storage
-          .from("brawnly-assets") // Pastikan bucket ini ada
+          .from("brawnly-assets")
           .upload(_path, _fileBlob, { upsert: true });
 
         if (_upErr) throw _upErr;
@@ -208,10 +187,8 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
-      // 2. Update Table Data
       const _dbPayload = {
         username: _name,
-        // Jika tidak upload gambar baru, jangan overwrite url lama dengan null
         ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl })
       };
 
@@ -221,21 +198,14 @@ export default function Profile() {
 
       if (_dbErr) throw _dbErr;
 
-      // 3. Update Auth Metadata (Opsional, untuk konsistensi sesi)
       await supabase.auth.updateUser({
         data: { full_name: _name, ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl }) }
       });
 
-      // 4. Update Snapshot Lokal & Cleanup
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
-      // Jika sukses upload, hapus cache base64 offline berat agar hemat memori
-      // (Atau pertahankan jika ingin super-fast load berikutnya)
-      // localStorage.removeItem(OFFLINE_AVA_KEY); 
-
-      toast.success("Profile Synced to Node");
+      toast.success("Identity Synced Successfully");
 
     } catch (err: any) {
-      console.error("Sync Failed:", err);
       toast.error("Sync Failed: " + (err.message || "Unknown error"));
     } finally {
       _sUp(false);
@@ -257,13 +227,12 @@ export default function Profile() {
     <main className="min-h-screen bg-white dark:bg-[#0a0a0a] pt-32 pb-20 px-6 transition-colors duration-500">
       <div className="max-w-2xl mx-auto">
         
-        {/* HEADER */}
-        <header className="mb-16 border-l-[12px] border-black dark:border-white pl-8 relative">
-          <h1 className="text-[64px] font-black uppercase tracking-tighter leading-none italic text-black dark:text-white">
+        <header className="mb-16 border-l-[12px] border-black dark:border-white pl-8 relative text-black dark:text-white">
+          <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-tighter leading-none italic">
             Node_Identity
           </h1>
           <div className="flex items-center gap-4 mt-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 flex items-center gap-2 text-black dark:text-white">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 flex items-center gap-2">
               <_Sc size={12} className="text-emerald-500" /> Brawnly_Cloud_V3 // ID: {_u?.id.slice(0,8)}
             </p>
             {_isOffline && (
@@ -274,26 +243,22 @@ export default function Profile() {
           </div>
         </header>
 
-        {/* CONTENT */}
         <section className="space-y-12">
-          
-          {/* AVATAR WASM VIEWPORT */}
           <_m.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row items-center gap-10 bg-neutral-50 dark:bg-[#111] p-10 rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800"
+            className="flex flex-col md:flex-row items-center gap-10 bg-neutral-50 dark:bg-[#111] p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800"
           >
             <div className="relative group">
               <div className="w-40 h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 relative shadow-2xl">
                 {_avaUrl ? (
                   <img 
-                    src={_avaUrl.startsWith('blob:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} 
+                    src={_avaUrl.startsWith('blob:') || _avaUrl.startsWith('data:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} 
                     alt="ava" 
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center opacity-20"><_Hd size={48} /></div>
                 )}
-                {/* Offline Indicator Overlay */}
                 {_avaUrl?.startsWith('data:image') && (
                   <div className="absolute bottom-0 inset-x-0 bg-yellow-500/80 h-4 flex justify-center items-center">
                     <span className="text-[6px] font-black uppercase">Offline Cache</span>
@@ -326,12 +291,11 @@ export default function Profile() {
             </div>
           </_m.div>
 
-          {/* ACTION BRIDGE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button 
               onClick={_saveProfile}
               disabled={_uploading}
-              className={`bg-black dark:bg-white text-white dark:text-black p-8 rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:invert transition-all active:scale-95 disabled:opacity-30 disabled:scale-100 shadow-xl`}
+              className="bg-black dark:bg-white text-white dark:text-black p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:invert transition-all active:scale-95 disabled:opacity-30 disabled:scale-100 shadow-xl"
             >
               {_uploading ? <_L2 className="animate-spin" /> : (_isOffline ? <_Hd /> : <_Sv />)}
               {_isOffline ? "Queue_Offline_Sync" : "Sync_Identity"}
@@ -339,14 +303,13 @@ export default function Profile() {
             
             <button 
               onClick={() => _sO()}
-              className="border-4 border-black dark:border-white p-8 rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-red-600 hover:border-red-600 hover:text-white transition-all active:scale-95 text-black dark:text-white"
+              className="border-4 border-black dark:border-white p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-red-600 hover:border-red-600 hover:text-white transition-all active:scale-95 text-black dark:text-white"
             >
               <_Lo /> Kill_Session
             </button>
           </div>
         </section>
 
-        {/* ENTERPRISE FOOTER */}
         <footer className="mt-20 pt-10 border-t border-neutral-100 dark:border-neutral-900 text-center">
           <p className="text-[9px] font-black opacity-20 uppercase tracking-[0.5em] text-black dark:text-white">
             Brawnly_V3 // Neural_Link_Confirmed // {new Date().getFullYear()}

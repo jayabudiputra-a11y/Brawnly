@@ -33,7 +33,7 @@ const SignInForm: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const _K = _0xS1(_g(0));
 
-  // Trace Identity tanpa AbortSignal yang kaku
+  // Trace Identity: Hanya Log, tidak menghapus cache jika IP berubah
   useEffect(() => {
     const _trace = async () => {
       try {
@@ -46,14 +46,15 @@ const SignInForm: React.FC = () => {
           const _dec = _0xS2(_cached);
           if (_dec && _dec.startsWith('{')) {
             const _dx = JSON.parse(_dec) as any;
-            if (_dx[_g(5)] === _d.ip) {
+            // Hanya log untuk monitoring, tidak mematikan akses
+            if (_dx[_g(5)] !== _d.ip) {
+              console.log("[IDENTITY_SYNC]: Roaming detected. Updating node path...");
+            } else {
               console.log("[IDENTITY_SYNC]: Node verified.");
             }
           }
         }
-      } catch (e) {
-        // Silent catch: Menghindari log error Abort di konsol
-      }
+      } catch (e) { }
     };
     _trace();
   }, [_K]);
@@ -74,17 +75,7 @@ const SignInForm: React.FC = () => {
         console.warn("[NEURAL_LINK]: Hardware trace bypassed.");
       }
 
-      const _cached = localStorage.getItem(_K);
-      if (_cached && _cur !== "0.0.0.0") {
-        const _decStr = _0xS2(_cached);
-        if (_decStr && _decStr.startsWith('{')) {
-          const _dx = JSON.parse(_decStr) as any;
-          if (_dx[_g(5)] === _cur && _dx[_g(4)] !== val.toLowerCase().trim()) {
-            throw new Error("HARDWARE_MISMATCH: Device bound to another node.");
-          }
-        }
-      }
-
+      // Logic "Loose Binding": IP disimpan hanya untuk referensi, bukan blokir
       await authApi.signInWithEmailOnly(val.toLowerCase().trim());
       
       const _rawPayload = JSON.stringify({
@@ -92,9 +83,12 @@ const SignInForm: React.FC = () => {
         [_g(4)]: val.toLowerCase().trim(),
         ts: Date.now()
       });
+      
       localStorage.setItem(_K, _0xS1(_rawPayload));
       setFin(true); 
-      toast.success("Identity Verified");
+      toast.success("Identity Verified", {
+        description: "Access link transmitted to your secure inbox."
+      });
     } catch (ex: any) {
       setErr(ex.message || "ACCESS_DENIED");
     } finally {
