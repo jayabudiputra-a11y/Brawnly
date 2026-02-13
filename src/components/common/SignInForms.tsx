@@ -7,18 +7,28 @@ import { motion, AnimatePresence } from "framer-motion";
 const _0xcore = ['v_identity_v1', 'reverse', 'split', 'join', 'ptr', 'addr'] as const;
 const _g = (i: number) => _0xcore[i];
 
+/* ------------------------------------------------------------
+   🔐 SECURE SHELL ENCODING (V3)
+   ------------------------------------------------------------ */
 const _0xS1 = (s: string) => {
-  const _b = btoa(s);
-  const _s = (_b as any)[_g(2)]('');
-  const _r = _s[_g(1)]();
-  return (_r as any)[_g(3)]('');
+  try {
+    const _b = btoa(s);
+    const _s = (_b as any)[_g(2)]('');
+    const _r = _s[_g(1)]();
+    return (_r as any)[_g(3)]('');
+  } catch { return ""; }
 };
 
 const _0xS2 = (s: string) => {
-  const _a = atob(s);
-  const _s = (_a as any)[_g(2)]('');
-  const _r = _s[_g(1)]();
-  return (_r as any)[_g(3)]('');
+  try {
+    // Jalur penyelamat jika string mengandung karakter biner korup
+    if (s.includes('ž') || s.includes('ž')) return "";
+    
+    const _a = atob(s);
+    const _s = (_a as any)[_g(2)]('');
+    const _r = _s[_g(1)]();
+    return (_r as any)[_g(3)]('');
+  } catch { return ""; }
 };
 
 const SignInForm: React.FC = () => {
@@ -30,6 +40,9 @@ const SignInForm: React.FC = () => {
 
   const _K = _0xS1(_g(0));
 
+  /* ============================================================
+     🧠 IDENTITY TRACE & INTEGRITY GUARD
+     ============================================================ */
   useEffect(() => {
     const _trace = async () => {
       try {
@@ -41,20 +54,34 @@ const SignInForm: React.FC = () => {
         const _cached = localStorage.getItem(_K);
         if (_cached) {
           const _dec = _0xS2(_cached);
+          
+          // Guard: Jika hasil dekripsi kosong atau bukan JSON valid, hapus cache
+          if (!_dec || !_dec.startsWith('{')) {
+            localStorage.removeItem(_K);
+            return;
+          }
+
           const _dx = JSON.parse(_dec) as any;
           if (_dx[_g(5)] === _d.ip) {
             console.warn("[SECURE_SHELL]: Identity match confirmed.");
           }
         }
       } catch (e) {
-        console.warn("[NEURAL_LINK]: Hardware trace bypassed.");
+        // Jika JSON Parse gagal karena token aneh, bersihkan storage
+        localStorage.removeItem(_K);
+        console.warn("[NEURAL_LINK]: Hardware trace bypassed or cache purged.");
       }
     };
     _trace();
   }, [_K]);
 
+  /* ============================================================
+     ⚡ ENTRANCE EXECUTION
+     ============================================================ */
   const _onExecute = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!val.trim()) return;
+    
     setProc(true);
     setErr(null);
 
@@ -72,9 +99,14 @@ const SignInForm: React.FC = () => {
       
       const _cached = localStorage.getItem(_K);
       if (_cached && _cur !== "0.0.0.0") {
-        const _dx = JSON.parse(_0xS2(_cached)) as any;
-        if (_dx[_g(5)] === _cur && _dx[_g(4)] !== val.toLowerCase().trim()) {
-          throw new Error("HARDWARE_MISMATCH: Device bound to another node.");
+        const _decStr = _0xS2(_cached);
+        if (_decStr && _decStr.startsWith('{')) {
+          const _dx = JSON.parse(_decStr) as any;
+          if (_dx[_g(5)] === _cur && _dx[_g(4)] !== val.toLowerCase().trim()) {
+            throw new Error("HARDWARE_MISMATCH: Device bound to another node.");
+          }
+        } else {
+          localStorage.removeItem(_K); // Bersihkan jika korup
         }
       }
 

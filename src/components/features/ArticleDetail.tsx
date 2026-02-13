@@ -20,16 +20,14 @@ import { useArticles as _uAs } from "@/hooks/useArticles";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 import { enqueue as _enQ } from "@/lib/idbQueue";
 import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
-// Tambahkan keyword 'type' sebelum kurung kurawal
-import type { CommentWithUser as _Cu } from "@/types";
+
 // Enterprise Libs (Synced with your V3 system)
+import type { CommentWithUser as _Cu } from "@/types";
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 import { mirrorQuery as _mQ, setCookieHash as _sCH } from "@/lib/enterpriseStorage";
 import { backoffRetry as _bOR } from "@/lib/backoff";
-
-const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
 
 /* ============================================================
    🧠 ENTERPRISE MEMORY MANAGEMENT
@@ -172,7 +170,7 @@ export default function ArticleDetail() {
   }, [_art?.id, _isOff]);
 
   const { data: _allA } = _uAs();
-  const _hC = _allA ? [..._allA].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3) : [];
+  const _hC = _uM(() => _allA ? [..._allA].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3) : [], [_allA]);
 
   const _trN = (m: string, t: 'success' | 'info' = 'info') => {
     _sNt({ show: true, msg: m, type: t });
@@ -339,7 +337,7 @@ export default function ArticleDetail() {
                       <span className="text-4xl font-black text-neutral-100 dark:text-neutral-900 group-hover:text-red-600 transition-colors">0{i + 1}</span>
                       <div>
                         <p className="text-[15px] font-black leading-tight uppercase group-hover:underline line-clamp-2">{it.title}</p>
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">{it.views.toLocaleString()} Reads</span>
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">{(it.views || 0).toLocaleString()} Reads</span>
                       </div>
                     </div>
                   </_L>

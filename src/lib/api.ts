@@ -47,12 +47,29 @@ const _gC = (_k: string) => {
   try {
     const _r = localStorage.getItem(`brawnly_api_${_k}`);
     if (!_r) return null;
-    if (_r.includes('mmwxnbhyhu6yewzmy6d0') || _r.includes('supabase.co/storage')) {
+
+    // Security & Integrity Check: Hapus cache jika mengandung data biner korup (token ž)
+    if (
+      _r.includes('mmwxnbhyhu6yewzmy6d0') || 
+      _r.includes('supabase.co/storage') ||
+      _r.startsWith('\x1f') || 
+      _r.startsWith('\x89') || 
+      _r.includes('ž')
+    ) {
       localStorage.removeItem(`brawnly_api_${_k}`);
       return null;
     }
-    return JSON.parse(_r).data;
-  } catch { return null; }
+
+    // Validasi JSON Parsing
+    const _parsed = JSON.parse(_r);
+    if (!_parsed || !_parsed.data) return null;
+    
+    return _parsed.data;
+  } catch (e) {
+    // Jalur penyelamat jika JSON korup: bersihkan localStorage
+    localStorage.removeItem(`brawnly_api_${_k}`);
+    return null;
+  }
 };
 
 const _hE = (_e: any, _c: string) => {
