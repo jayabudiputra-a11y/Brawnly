@@ -4,7 +4,6 @@ import _L from "@/components/layout/Layout";
 import _IF from "@/components/common/IframeA11yFixer";
 import _ST from "@/components/features/ScrollToTopButton";
 import _MT from "@/components/seo/MetaTags";
-import type { AuthPageLayoutProps as _APLP } from "@/types";
 import { openDB } from '@/lib/idbQueue';
 import { commentsApi as _api } from "@/lib/api";
 import { backoffRetry as _boR } from "@/lib/backoff";
@@ -13,7 +12,6 @@ import { useAuth } from "@/hooks/useAuth";
 import _mP from "@/assets/myPride.gif";
 import _mL from "@/assets/masculineLogo.svg";
 import _bG from "@/assets/Brawnly.gif";
-import _fS from "@/assets/Brawnly-favicon.svg";
 
 const _safeLazy = (importFunc: () => Promise<any>) => 
   _lz(() => importFunc().catch(() => {
@@ -22,15 +20,7 @@ const _safeLazy = (importFunc: () => Promise<any>) =>
         default: () => (
           <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white text-center p-6 z-[9999] relative">
             <h1 className="text-4xl md:text-6xl font-black text-red-600 mb-4 tracking-widest italic">OFFLINE</h1>
-            <p className="text-xs md:text-sm uppercase tracking-widest opacity-50 mb-8 max-w-md">
-              Halaman ini belum tersimpan di memori lokal (Cache). Silakan sambungkan kembali internet Anda.
-            </p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-8 py-4 border-2 border-white text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
-            >
-              Coba Lagi
-            </button>
+            <button onClick={() => window.location.reload()} className="px-8 py-4 border-2 border-white text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95">Coba Lagi</button>
           </div>
         ) 
       };
@@ -58,6 +48,7 @@ const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
 
+// REVISI PROTECTED ROUTE: Lebih toleran terhadap sesi yang sedang sinkron
 const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -69,23 +60,10 @@ const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-const _AL: React.FC<_APLP> = ({ children: _c, title: _t }) => (
-  <div className="min-h-screen flex items-center justify-center bg-black p-4">
-    <div className="p-8 bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md shadow-2xl">
-      <h1 className="text-3xl font-black text-center mb-8 uppercase tracking-tighter bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 bg-clip-text text-transparent">
-        {_t}
-      </h1>
-      {_c}
-    </div>
-  </div>
-);
-
 function App() {
   const { pathname: _p } = _uL();
 
-  _e(() => {
-    window.scrollTo(0, 0);
-  }, [_p]);
+  _e(() => { window.scrollTo(0, 0); }, [_p]);
 
   _e(() => {
     const handleOnline = async () => {
@@ -94,15 +72,12 @@ function App() {
         const _tx = _db.transaction("sync", "readwrite");
         const _os = _tx.objectStore("sync");
         const _req = _os.getAll();
-
         _req.onsuccess = async () => {
           const _items = _req.result;
           if (_items.length === 0) return;
           for (const _item of _items) {
             if (_item.type === 'ADD_COMMENT') {
-              try {
-                await _boR(() => _api.addComment(_item.payload.article_id, _item.payload.content, _item.payload.parent_id));
-              } catch (e) { }
+              try { await _boR(() => _api.addComment(_item.payload.article_id, _item.payload.content, _item.payload.parent_id)); } catch (e) { }
             }
           }
           const _clearTx = _db.transaction("sync", "readwrite");
@@ -115,7 +90,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white selection:bg-green-500 selection:text-black transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <_MT title="Brawnly Smart Tracker" description="Next-gen fitness platform 2026." image={_mP} />
       <_IF />
       <_ST />

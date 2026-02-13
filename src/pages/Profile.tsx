@@ -1,6 +1,5 @@
 import React, { useState as _s, useEffect as _e } from "react";
-import { useNavigate as _uN } from "react-router-dom";
-import { motion as _m, AnimatePresence as _AP } from "framer-motion";
+import { motion as _m } from "framer-motion";
 import { Camera as _Cm, Save as _Sv, LogOut as _Lo, Loader2 as _L2, ShieldCheck as _Sc, WifiOff as _Wo, HardDrive as _Hd } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,8 +19,8 @@ const PROFILE_SNAP_KEY = "brawnly_profile_snap_v3";
 const OFFLINE_AVA_KEY = "brawnly_offline_avatar_blob";
 
 export default function Profile() {
-  const { user: _u, signOut: _sO, loading: _authL } = useAuth();
-  const _nav = _uN();
+  // Ambil status auth dari hook central
+  const { user: _u, signOut: _sO } = useAuth();
 
   // States
   const [_loading, _sLoad] = _s(true);
@@ -32,7 +31,7 @@ export default function Profile() {
   const [_isOffline, _sOffline] = _s(!navigator.onLine);
 
   /* ============================================================
-      🛠️ HELPER: BLOB TO BASE64
+      🛠️ HELPER: BLOB TO BASE64 (Untuk Offline Storage)
      ============================================================ */
   const _blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -44,21 +43,13 @@ export default function Profile() {
   };
 
   /* ============================================================
-      🔄 INIT: LOAD SNAPSHOT & FETCH FRESH DATA
+      🔄 INIT: LOAD DATA
      ============================================================ */
   _e(() => {
-    // 1. BARRIER: Jangan lakukan apapun jika auth masih loading
-    if (_authL) return;
-
-    // 2. PROTEKSI: Jika loading auth selesai dan benar-benar tidak ada user
-    if (!_u) { 
-      _nav("/signin"); 
-      return; 
-    }
+    if (!_u) return;
 
     const _init = async () => {
       try {
-        // A. Load SNAPSHOT (UI Instan)
         const _snap = localStorage.getItem(PROFILE_SNAP_KEY);
         const _offlineAva = localStorage.getItem(OFFLINE_AVA_KEY);
         
@@ -69,12 +60,8 @@ export default function Profile() {
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
 
-        // B. Matikan Loading Awal setelah snapshot masuk
-        _sLoad(false); 
-
-        // C. Network Sync (Jika Online)
         if (navigator.onLine) {
-          const { data: _d, error: _err } = await supabase
+          const { data: _d } = await supabase
             .from("user_profiles")
             .select("username, avatar_url")
             .eq("id", _u.id)
@@ -89,17 +76,16 @@ export default function Profile() {
             mirrorQuery({ type: "PROFILE_FETCH", id: _u.id, ts: Date.now() });
           }
         }
-        
         await setCookieHash(_u.id);
       } catch (e) {
-        console.warn("Init sequence error:", e);
-        _sLoad(false); // Pastikan loading mati meskipun error
+        console.warn("Hydration error:", e);
+      } finally {
+        _sLoad(false);
       }
     };
 
     _init();
 
-    // Listener Status Koneksi
     const _setOn = () => _sOffline(false);
     const _setOff = () => _sOffline(true);
     window.addEventListener('online', _setOn);
@@ -108,10 +94,10 @@ export default function Profile() {
       window.removeEventListener('online', _setOn);
       window.removeEventListener('offline', _setOff);
     };
-  }, [_u, _authL, _nav]);
+  }, [_u]);
 
   /* ============================================================
-      📸 PIPELINE: WASM TRANSCODE & PREVIEW
+      📸 PIPELINE: WASM TRANSCODE
      ============================================================ */
   const _handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -133,7 +119,7 @@ export default function Profile() {
 
       toast.success(`Optimized: ${(_optimizedBlob.size / 1024).toFixed(1)}KB`);
     } catch (error) {
-      toast.error("WASM Optimization failed.");
+      toast.error("WASM Optimization failed");
       _sFileBlob(_rawFile);
     } finally {
       _sUp(false);
@@ -141,41 +127,28 @@ export default function Profile() {
   };
 
   /* ============================================================
-      💾 SAVE LOGIC: HYBRID SYNC
+      💾 SAVE LOGIC: CLOUD SYNC
      ============================================================ */
   const _saveProfile = async () => {
     if (!_u) return;
     _sUp(true);
 
-    const _payload = {
-      id: _u.id,
-      username: _name,
-      updated_at: new Date().toISOString()
-    };
-
     try {
       if (!navigator.onLine) {
         await _enQ({
           type: "PROFILE_UPDATE",
-          payload: { ..._payload, avatarBlob: _fileBlob }
+          payload: { id: _u.id, username: _name, avatarBlob: _fileBlob }
         });
-
-        localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify({ 
-          username: _name, 
-          avatar_url: _avaUrl 
-        }));
-
-        toast.warning("Offline: Queued in IDB");
+        toast.warning("Offline: Changes queued");
         _sUp(false);
         return;
       }
 
-      let _finalAvatarUrl = null;
+      let _finalAvatarUrl = _avaUrl;
 
+      // 1. Upload ke Storage jika ada file baru
       if (_fileBlob) {
-        const _ext = _fileBlob.type.split("/")[1] || "webp";
-        const _path = `avatars/${_u.id}-${Date.now()}.${_ext}`;
-
+        const _path = `avatars/${_u.id}-${Date.now()}.webp`;
         const { error: _upErr } = await supabase.storage
           .from("brawnly-assets")
           .upload(_path, _fileBlob, { upsert: true });
@@ -189,24 +162,30 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
+      // 2. Update Tabel user_profiles di Database
       const _dbPayload = {
+        id: _u.id,
         username: _name,
-        ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl })
+        avatar_url: _finalAvatarUrl,
+        updated_at: new Date().toISOString()
       };
 
       const { error: _dbErr } = await supabase
         .from("user_profiles")
-        .upsert({ id: _u.id, ..._dbPayload });
+        .upsert(_dbPayload);
 
       if (_dbErr) throw _dbErr;
 
+      // 3. Update Supabase Auth Metadata (FIXED: _finalUrl -> _finalAvatarUrl)
       await supabase.auth.updateUser({
-        data: { full_name: _name, ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl }) }
+        data: { full_name: _name, avatar_url: _finalAvatarUrl }
       });
 
+      // 4. Update Snapshot Lokal
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
-      toast.success("Identity Synced");
-
+      _sAvaUrl(_finalAvatarUrl);
+      
+      toast.success("Identity Synced Successfully");
     } catch (err: any) {
       toast.error("Sync Failed: " + (err.message || "Unknown error"));
     } finally {
@@ -214,14 +193,10 @@ export default function Profile() {
     }
   };
 
-  // Rendering State
-  if (_authL || (_loading && !_name)) {
+  if (_loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse text-black dark:text-white">Initializing Node...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+        <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -229,25 +204,18 @@ export default function Profile() {
   return (
     <main className="min-h-screen bg-white dark:bg-[#0a0a0a] pt-32 pb-20 px-6 transition-colors duration-500">
       <div className="max-w-2xl mx-auto">
-        
-        <header className="mb-16 border-l-[12px] border-black dark:border-white pl-8 relative text-black dark:text-white">
-          <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-tighter leading-none italic">
+        <header className="mb-16 border-l-[12px] border-black dark:border-white pl-8 text-black dark:text-white">
+          <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-tighter leading-none italic text-black dark:text-white">
             Node_Identity
           </h1>
           <div className="flex items-center gap-4 mt-4">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 flex items-center gap-2">
               <_Sc size={12} className="text-emerald-500" /> Brawnly_Cloud_V3 // ID: {_u?.id.slice(0,8)}
             </p>
-            {_isOffline && (
-              <span className="flex items-center gap-2 text-red-500 text-[9px] font-black uppercase tracking-widest border border-red-500 px-2 py-1 rounded-full animate-pulse">
-                <_Wo size={10} /> OFFLINE
-              </span>
-            )}
           </div>
         </header>
 
         <section className="space-y-12">
-          
           <_m.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col md:flex-row items-center gap-10 bg-neutral-50 dark:bg-[#111] p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800"
@@ -256,41 +224,33 @@ export default function Profile() {
               <div className="w-40 h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 relative shadow-2xl">
                 {_avaUrl ? (
                   <img 
-                    src={_avaUrl.startsWith('blob:') || _avaUrl.startsWith('data:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} 
-                    alt="ava" 
+                    src={_avaUrl.startsWith('blob:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} 
+                    alt="avatar" 
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center opacity-20 text-black dark:text-white"><_Hd size={48} /></div>
                 )}
-                {_avaUrl?.startsWith('data:image') && (
-                  <div className="absolute bottom-0 inset-x-0 bg-yellow-500/80 h-4 flex justify-center items-center">
-                    <span className="text-[6px] font-black uppercase text-black">Offline Cache</span>
-                  </div>
-                )}
               </div>
-              <label className={`absolute bottom-2 right-2 bg-black dark:bg-white text-white dark:text-black p-3 rounded-full cursor-pointer hover:scale-110 transition-all shadow-xl ${_uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <label className={`absolute bottom-2 right-2 bg-black dark:bg-white text-white dark:text-black p-3 rounded-full cursor-pointer hover:scale-110 shadow-xl ${_uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                 {_uploading ? <_L2 size={20} className="animate-spin" /> : <_Cm size={20} />}
                 <input type="file" className="hidden" accept="image/*" onChange={_handleFileChange} disabled={_uploading} />
               </label>
             </div>
             
-            <div className="flex-1 space-y-6 w-full">
+            <div className="flex-1 space-y-6 w-full text-black dark:text-white">
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest opacity-40 text-black dark:text-white">Display_Name</label>
+                <label className="text-[9px] font-black uppercase tracking-widest opacity-40">Display_Name</label>
                 <input 
                   type="text" 
                   value={_name} 
                   onChange={(e) => _sName(e.target.value)}
-                  className="w-full bg-transparent border-b-2 border-black dark:border-white py-2 text-2xl font-black focus:outline-none focus:border-emerald-500 transition-colors text-black dark:text-white placeholder-neutral-300"
+                  className="w-full bg-transparent border-b-2 border-black dark:border-white py-2 text-2xl font-black focus:outline-none focus:border-emerald-500 transition-colors"
                   placeholder="IDENTIFIER_NAME"
                 />
               </div>
               <div className="p-4 bg-white dark:bg-black rounded-xl border border-neutral-100 dark:border-neutral-800">
-                <p className="text-[10px] font-mono opacity-60 flex items-center gap-2 text-black dark:text-white">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  {_u?.email} 
-                </p>
+                <p className="text-[10px] font-mono opacity-60 break-all">{_u?.email}</p>
               </div>
             </div>
           </_m.div>
@@ -299,26 +259,18 @@ export default function Profile() {
             <button 
               onClick={_saveProfile}
               disabled={_uploading}
-              className="bg-black dark:bg-white text-white dark:text-black p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:invert transition-all active:scale-95 disabled:opacity-30 disabled:scale-100 shadow-xl"
+              className="bg-black dark:bg-white text-white dark:text-black p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:invert transition-all active:scale-95 disabled:opacity-30 shadow-xl"
             >
-              {_uploading ? <_L2 className="animate-spin" /> : (_isOffline ? <_Hd /> : <_Sv />)}
-              {_isOffline ? "Queue_Offline_Sync" : "Sync_Identity"}
+              {_uploading ? <_L2 className="animate-spin" /> : <_Sv />} Sync_Identity
             </button>
-            
             <button 
               onClick={() => _sO()}
-              className="border-4 border-black dark:border-white p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-red-600 hover:border-red-600 hover:text-white transition-all active:scale-95 text-black dark:text-white"
+              className="border-4 border-black dark:border-white p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-red-600 hover:text-white transition-all text-black dark:text-white"
             >
               <_Lo /> Kill_Session
             </button>
           </div>
         </section>
-
-        <footer className="mt-20 pt-10 border-t border-neutral-100 dark:border-neutral-900 text-center">
-          <p className="text-[9px] font-black opacity-20 uppercase tracking-[0.5em] text-black dark:text-white">
-            Brawnly_V3 // Neural_Link_Confirmed // {new Date().getFullYear()}
-          </p>
-        </footer>
       </div>
     </main>
   );
