@@ -69,7 +69,7 @@ export const articlesApi = {
 
     const { data: _d, error: _e } = await _sb
       .from(_v(1))
-      .select("*") // Ubah ke * agar properti content, author, dll tidak hilang dan tidak error assignable
+      .select("*")
       .order(_v(5), { ascending: false })
       .range(_o, _o + _l - 1);
 
@@ -148,7 +148,6 @@ export const commentsApi = {
     const _cached = _gC(_k);
     if (!navigator.onLine && _cached) return _cached;
     
-    // Gunakan literal string "user_profiles" secara langsung untuk join agar TS tidak bingung dengan indeksasi dinamis
     const { data: _d, error: _e } = await _sb
       .from(_v(3))
       .select(`id, content, created_at, user_id, parent_id, user_profiles ( username, avatar_url )`)
@@ -172,9 +171,30 @@ export const commentsApi = {
     return _p as _Cu[];
   },
   addComment: async (_aId: string, _c: string, _pId: string | null = null) => {
-    const { data: _d } = await _sb.auth.getUser();
-    if (!_d?.user) throw new Error("AUTH_REQUIRED");
-    const { error: _e } = await _sb.from(_v(3)).insert({ [_v(7)]: _aId, user_id: _d.user.id, content: _c.trim(), parent_id: _pId });
+    const { data: _uD } = await _sb.auth.getUser();
+    if (!_uD?.user) throw new Error("AUTH_REQUIRED");
+
+    const { data: _profile, error: _pErr } = await _sb
+      .from(_v(2))
+      .select("id")
+      .eq("id", _uD.user.id)
+      .single();
+
+    if (_pErr || !_profile) {
+      await _sb.from(_v(2)).insert({
+        id: _uD.user.id,
+        username: _uD.user.user_metadata?.full_name || "Member",
+        avatar_url: _uD.user.user_metadata?.avatar_url || null
+      });
+    }
+
+    const { error: _e } = await _sb.from(_v(3)).insert({ 
+      [_v(7)]: _aId, 
+      user_id: _uD.user.id, 
+      content: _c.trim(), 
+      parent_id: _pId 
+    });
+
     if (_e) _hE(_e, "C1");
     localStorage.removeItem(`brawnly_api_comments_${_aId}`);
   },
