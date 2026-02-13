@@ -39,16 +39,17 @@ export default function Profile() {
   };
 
   /* ============================================================
-      🔄 INIT: OPTIMIZED FOR ALL DEVICES
+      🔄 INIT: STABILIZED SESSION LOGIC (FIXED TS ERROR)
      ============================================================ */
   _e(() => {
-    // Barrier: Jika sesi benar-benar tidak ada (null), berhenti.
-    // Redirect sudah ditangani oleh _PR di App.tsx
     if (!_u) return;
 
     const _init = async () => {
+      // 1. STABILISASI: Tunggu agar token benar-benar tersimpan di LocalStorage
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       try {
-        // 1. PRIORITAS: Hydration dari Local Storage (Instan)
+        // 2. PRIORITAS: Hydration dari Local Storage (UI Instan)
         const _snap = localStorage.getItem(PROFILE_SNAP_KEY);
         const _offlineAva = localStorage.getItem(OFFLINE_AVA_KEY);
         
@@ -59,16 +60,25 @@ export default function Profile() {
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
 
-        // Matikan loading segera setelah snapshot dibaca agar UI tidak macet
-        _sLoad(false); 
-
-        // 2. NETWORK: Sinkronisasi Cloud
+        // 3. NETWORK: Sinkronisasi Cloud dengan Validasi Sesi
         if (navigator.onLine) {
-          const { data: _d, error: _err } = await supabase
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+
+          const { data: _d, error: _dbErr } = await supabase
             .from("user_profiles")
             .select("username, avatar_url")
             .eq("id", _u.id)
             .maybeSingle();
+
+          if (_dbErr) {
+            // FIXED: Casting ke any untuk membaca status HTTP jika ada
+            const _errStatus = (_dbErr as any).status;
+            if (_dbErr.code === "PGRST301" || _errStatus === 401) {
+              console.warn("Session unstable, retrying...");
+              return; 
+            }
+          }
 
           if (_d) {
             _sName(_d.username || "");
@@ -83,6 +93,7 @@ export default function Profile() {
         setCookieHash(_u.id).catch(() => null);
       } catch (e) {
         console.warn("Hydration error:", e);
+      } finally {
         _sLoad(false); 
       }
     };
@@ -148,7 +159,6 @@ export default function Profile() {
 
       let _finalAvatarUrl = _avaUrl;
 
-      // 1. Upload ke Storage
       if (_fileBlob) {
         const _path = `avatars/${_u.id}-${Date.now()}.webp`;
         const { error: _upErr } = await supabase.storage
@@ -160,7 +170,6 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
-      // 2. Database Update
       const _dbPayload = { 
         id: _u.id, 
         username: _name, 
@@ -171,12 +180,12 @@ export default function Profile() {
       const { error: _dbErr } = await supabase.from("user_profiles").upsert(_dbPayload);
       if (_dbErr) throw _dbErr;
 
-      // 3. Auth Metadata Update
       await supabase.auth.updateUser({ 
         data: { full_name: _name, avatar_url: _finalAvatarUrl } 
       });
 
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
+      _sAvaUrl(_finalAvatarUrl);
       toast.success("Profile Synced");
     } catch (err: any) {
       toast.error("Sync Failed: " + (err.message || "Unknown error"));
@@ -214,11 +223,11 @@ export default function Profile() {
         <section className="space-y-10">
           <_m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col md:flex-row items-center gap-8 bg-neutral-50 dark:bg-[#111] p-8 md:p-10 rounded-[2rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800">
             <div className="relative group">
-              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 shadow-2xl relative">
+              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-black dark:border-white overflow-hidden bg-neutral-200 dark:bg-neutral-800 shadow-2xl relative text-black dark:text-white">
                 {_avaUrl ? (
                   <img src={_avaUrl.startsWith('blob:') ? _avaUrl : getOptimizedImage(_avaUrl, 300)} alt="avatar" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center opacity-20 text-black dark:text-white"><_Hd size={40} /></div>
+                  <div className="w-full h-full flex items-center justify-center opacity-20"><_Hd size={40} /></div>
                 )}
               </div>
               <label className={`absolute bottom-0 right-0 md:bottom-2 md:right-2 bg-black dark:bg-white text-white dark:text-black p-3 rounded-full cursor-pointer shadow-xl active:scale-90 transition-all ${_uploading ? 'opacity-50' : ''}`}>
@@ -240,7 +249,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <button onClick={_saveProfile} disabled={_uploading} className="bg-black dark:bg-white text-white dark:text-black p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl">
-              {_uploading ? <_L2 className="animate-spin" /> : <_Sv />} Sync_Identity
+              {_uploading ? <_L2 size={18} className="animate-spin" /> : <_Sv />} Sync_Identity
             </button>
             <button onClick={() => _sO()} className="border-4 border-black dark:border-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-[12px] tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 transition-all text-black dark:text-white hover:bg-red-600 hover:border-red-600 hover:text-white">
               <_Lo /> Kill_Session
