@@ -47,18 +47,18 @@ export default function Profile() {
       🔄 INIT: LOAD SNAPSHOT & FETCH FRESH DATA
      ============================================================ */
   _e(() => {
-    // 🔥 RACE CONDITION FIX: Jangan redirect jika status auth masih memuat (loading)
+    // 1. BARRIER: Jangan lakukan apapun jika auth masih loading
     if (_authL) return;
 
-    // Jika loading selesai dan benar-benar tidak ada user, baru pindah ke signin
+    // 2. PROTEKSI: Jika loading auth selesai dan benar-benar tidak ada user
     if (!_u) { 
       _nav("/signin"); 
       return; 
     }
 
     const _init = async () => {
-      // 1. Load SNAPSHOT (Instant UI - Offline First)
       try {
+        // A. Load SNAPSHOT (UI Instan)
         const _snap = localStorage.getItem(PROFILE_SNAP_KEY);
         const _offlineAva = localStorage.getItem(OFFLINE_AVA_KEY);
         
@@ -68,16 +68,13 @@ export default function Profile() {
           if (_offlineAva) _sAvaUrl(_offlineAva);
           else if (_p.avatar_url) _sAvaUrl(_p.avatar_url);
         }
-      } catch (e) {
-        console.warn("Snapshot hydration bypassed.");
-      }
 
-      _sLoad(false); 
+        // B. Matikan Loading Awal setelah snapshot masuk
+        _sLoad(false); 
 
-      // 2. Network Fetch (Sinkronisasi Database Publik)
-      if (navigator.onLine) {
-        try {
-          const { data: _d } = await supabase
+        // C. Network Sync (Jika Online)
+        if (navigator.onLine) {
+          const { data: _d, error: _err } = await supabase
             .from("user_profiles")
             .select("username, avatar_url")
             .eq("id", _u.id)
@@ -85,23 +82,24 @@ export default function Profile() {
 
           if (_d) {
             _sName(_d.username || "");
-            // Update Avatar URL hanya jika user tidak sedang memilih file baru
             if (!_fileBlob && _d.avatar_url) {
                _sAvaUrl(_d.avatar_url);
             }
             localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_d));
             mirrorQuery({ type: "PROFILE_FETCH", id: _u.id, ts: Date.now() });
           }
-        } catch (e) {
-          console.error("Cloud sync failed.");
         }
+        
+        await setCookieHash(_u.id);
+      } catch (e) {
+        console.warn("Init sequence error:", e);
+        _sLoad(false); // Pastikan loading mati meskipun error
       }
-      
-      await setCookieHash(_u.id);
     };
 
     _init();
 
+    // Listener Status Koneksi
     const _setOn = () => _sOffline(false);
     const _setOff = () => _sOffline(true);
     window.addEventListener('online', _setOn);
@@ -130,13 +128,12 @@ export default function Profile() {
       _sAvaUrl(_preview);
       _sFileBlob(_optimizedBlob);
 
-      // Simpan preview base64 untuk offline instant load
       const _b64 = await _blobToBase64(_optimizedBlob);
       localStorage.setItem(OFFLINE_AVA_KEY, _b64);
 
-      toast.success(`Image Optimized: ${(_optimizedBlob.size / 1024).toFixed(1)}KB (${_fmt.toUpperCase()})`);
+      toast.success(`Optimized: ${(_optimizedBlob.size / 1024).toFixed(1)}KB`);
     } catch (error) {
-      toast.error("WASM Pipeline error, using original.");
+      toast.error("WASM Optimization failed.");
       _sFileBlob(_rawFile);
     } finally {
       _sUp(false);
@@ -144,7 +141,7 @@ export default function Profile() {
   };
 
   /* ============================================================
-      💾 SAVE LOGIC: HYBRID SYNC (IDB QUEUE + SUPABASE)
+      💾 SAVE LOGIC: HYBRID SYNC
      ============================================================ */
   const _saveProfile = async () => {
     if (!_u) return;
@@ -168,14 +165,13 @@ export default function Profile() {
           avatar_url: _avaUrl 
         }));
 
-        toast.warning("Offline: Data disimpan ke antrean lokal.");
+        toast.warning("Offline: Queued in IDB");
         _sUp(false);
         return;
       }
 
       let _finalAvatarUrl = null;
 
-      // 1. Upload Avatar ke Storage Publik
       if (_fileBlob) {
         const _ext = _fileBlob.type.split("/")[1] || "webp";
         const _path = `avatars/${_u.id}-${Date.now()}.${_ext}`;
@@ -193,7 +189,6 @@ export default function Profile() {
         _finalAvatarUrl = _pub.publicUrl;
       }
 
-      // 2. Update Metadata Tabel Profil
       const _dbPayload = {
         username: _name,
         ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl })
@@ -205,13 +200,12 @@ export default function Profile() {
 
       if (_dbErr) throw _dbErr;
 
-      // 3. Update Auth Metadata agar sesi konsisten
       await supabase.auth.updateUser({
         data: { full_name: _name, ...(_finalAvatarUrl && { avatar_url: _finalAvatarUrl }) }
       });
 
       localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(_dbPayload));
-      toast.success("Identity Synced to Cloud");
+      toast.success("Identity Synced");
 
     } catch (err: any) {
       toast.error("Sync Failed: " + (err.message || "Unknown error"));
@@ -220,7 +214,8 @@ export default function Profile() {
     }
   };
 
-  if (_authL || _loading) {
+  // Rendering State
+  if (_authL || (_loading && !_name)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
@@ -253,7 +248,6 @@ export default function Profile() {
 
         <section className="space-y-12">
           
-          {/* AVATAR WASM VIEWPORT */}
           <_m.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col md:flex-row items-center gap-10 bg-neutral-50 dark:bg-[#111] p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-dashed border-neutral-200 dark:border-neutral-800"
