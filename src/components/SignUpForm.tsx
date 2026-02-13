@@ -113,7 +113,7 @@ const SignUpForm: React.FC = () => {
         });
 
         setTimeout(() => {
-          navigate("/articles");
+          navigate("/profile");
           // Re-syncing node session
           setTimeout(() => window.location.reload(), 200);
         }, 1500);

@@ -5,7 +5,7 @@ import { subscribersApi } from "@/lib/api";
 import { toast } from "sonner";
 
 /* --------------------------------
-   Ultra lightweight hash (¼ memory cookie pattern)
+    Ultra lightweight hash (¼ memory cookie pattern)
 -------------------------------- */
 function _hS(s: string) {
   let h = 0;
@@ -17,7 +17,7 @@ function _hS(s: string) {
 }
 
 /* --------------------------------
-   Cookie setter minimal
+    Cookie setter minimal
 -------------------------------- */
 function _sC(name: string, val: string, days = 30) {
   const d = new Date();
@@ -26,7 +26,7 @@ function _sC(name: string, val: string, days = 30) {
 }
 
 /* --------------------------------
-   Offline Sync Queue (PWA Engine Core)
+    Offline Sync Queue (PWA Engine Core)
 -------------------------------- */
 const _QK = "brawnly_sync_queue";
 
@@ -42,9 +42,7 @@ async function _flushQ() {
   try {
     const q = JSON.parse(localStorage.getItem(_QK) || "[]");
     if (!q.length) return;
-
     const next: any[] = [];
-
     for (const job of q) {
       try {
         if (job.type === "profile_upsert") {
@@ -57,78 +55,16 @@ async function _flushQ() {
         next.push(job);
       }
     }
-
     localStorage.setItem(_QK, JSON.stringify(next));
   } catch {}
-}
-
-/* --------------------------------
-   Reconnect Backoff Engine
--------------------------------- */
-function _reconnectLoop(fn: () => Promise<void>) {
-  let a = 0;
-  let t: any = null;
-
-  const run = async () => {
-    if (!navigator.onLine) return;
-    try {
-      await fn();
-      a = 0;
-    } catch {
-      a++;
-      const base = Math.min(30000, 1000 * 2 ** a);
-      const jitter = Math.random() * 500;
-      t = setTimeout(run, base + jitter);
-    }
-  };
-
-  run();
-  window.addEventListener("online", run);
-
-  return () => {
-    if (t) clearTimeout(t);
-    window.removeEventListener("online", run);
-  };
-}
-
-/* --------------------------------
-   Service Worker Register (PWA Enterprise)
--------------------------------- */
-async function _regSW() {
-  if ("serviceWorker" in navigator) {
-    try {
-      await navigator.serviceWorker.register("/sw.js");
-    } catch {}
-  }
-}
-
-/* --------------------------------
-   WASM Ready Loader (future image / crypto / transcoding)
--------------------------------- */
-async function _initWASM() {
-  try {
-    // placeholder future pipeline
-    // const wasm = await WebAssembly.instantiateStreaming(fetch("/wasm/core.wasm"));
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export default function AuthCallback() {
   const navigate = useNavigate();
   const processed = useRef(false);
 
-  useEffect(() => {
-    _regSW();
-    _initWASM();
-
-    const stopReconnect = _reconnectLoop(async () => {
-      await _flushQ();
-    });
-
-    return stopReconnect;
-  }, []);
+  // Kunci Sinkronisasi Profile V3
+  const PROFILE_SNAP_KEY = "brawnly_profile_snap_v3";
 
   useEffect(() => {
     const handleAuth = async () => {
@@ -136,105 +72,86 @@ export default function AuthCallback() {
       processed.current = true;
 
       try {
-        const code = new URLSearchParams(window.location.search).get("code");
+        // Mendukung hash (email link) dan query (OAuth)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const queryParams = new URLSearchParams(window.location.search);
+        const code = queryParams.get("code") || hashParams.get("access_token");
 
         if (!code) {
           navigate("/");
           return;
         }
 
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await supabase.auth.getSession();
 
         if (error || !data.session) {
-          toast.error("Session expired or invalid.");
-          navigate("/signin");
-          return;
+          // Jika pakai code (PKCE), tukar dulu
+          const codeParam = queryParams.get("code");
+          if (codeParam) {
+            await supabase.auth.exchangeCodeForSession(codeParam);
+          } else {
+             navigate("/signin");
+             return;
+          }
         }
 
-        const user = data.user;
+        const user = data.session?.user || (await supabase.auth.getUser()).data.user;
 
-        /* -----------------------------
-           Local Snapshot (FB Query style mirror)
-        ----------------------------- */
-        try {
-          const snap = {
-            id: user?.id,
-            email: user?.email,
-            ts: Date.now()
-          };
-          localStorage.setItem("auth_session_snapshot", JSON.stringify(snap));
-          _sC("b_auth", _hS(user?.id || "0"));
-        } catch {}
+        if (user) {
+          const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
 
-        if (user?.email) {
-          const fullName =
-            user.user_metadata?.full_name || user.email.split("@")[0];
-
-          /* -----------------------------
-             Subscriber Sync (Offline Safe)
-          ----------------------------- */
+          // 1. Sync Subscriber
           try {
-            await subscribersApi.insertIfNotExists(user.email, fullName);
+            await subscribersApi.insertIfNotExists(user.email!, fullName);
           } catch {
-            _pushQ({
-              type: "subscriber_insert",
-              payload: { email: user.email, name: fullName }
-            });
+            _pushQ({ type: "subscriber_insert", payload: { email: user.email, name: fullName } });
           }
 
-          /* -----------------------------
-             Profile Sync (Offline Safe)
-          ----------------------------- */
+          // 2. Sync Profile Table (PENTING)
           const profilePayload = {
             id: user.id,
             username: fullName,
-            avatar_url: user.user_metadata?.avatar_url || null
+            avatar_url: user.user_metadata?.avatar_url || null,
+            updated_at: new Date().toISOString()
           };
 
           try {
-            await supabase
-              .from("user_profiles")
-              .upsert(profilePayload, { onConflict: "id" });
+            await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id" });
           } catch {
-            _pushQ({
-              type: "profile_upsert",
-              payload: profilePayload
-            });
+            _pushQ({ type: "profile_upsert", payload: profilePayload });
           }
 
-          /* -----------------------------
-             Local Profile Snapshot
-          ----------------------------- */
-          try {
-            localStorage.setItem(
-              "profile_snapshot",
-              JSON.stringify(profilePayload)
-            );
-          } catch {}
+          // 3. Set Lokal Snapshot Profile V3 agar halaman Profile langsung tampil
+          localStorage.setItem(PROFILE_SNAP_KEY, JSON.stringify(profilePayload));
+          _sC("b_auth", _hS(user.id));
+          
+          toast.success("Identity Verified", {
+            description: "Neural link established. Redirecting to identity node..."
+          });
+
+          // REVISI: Langsung arahkan ke Profile, bukan Articles
+          navigate("/profile", { replace: true });
+        } else {
+          navigate("/signin");
         }
-
-        toast.success("Identity Synced", {
-          description: "Welcome to Brawnly Cloud."
-        });
-
-        navigate("/articles");
       } catch (err) {
-        console.error("Auth callback system fault:", err);
+        console.error("Callback Fault:", err);
         navigate("/signin");
       }
     };
 
     handleAuth();
+    _flushQ();
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-emerald-600/20 border-t-emerald-600 rounded-full animate-spin mx-auto mb-8" />
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-black dark:text-white">
+        <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-8" />
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-black dark:text-white italic">
           Verifying_Node
         </h2>
-        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-[0.4em] mt-4 animate-pulse">
+        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mt-4 animate-pulse">
           Establishing Secure Link...
         </p>
       </div>

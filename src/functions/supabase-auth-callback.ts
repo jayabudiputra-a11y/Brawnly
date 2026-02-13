@@ -1,8 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
-/* ======================
-    
-   ====================== */
 const _0xcb = [
   "VITE_SUPABASE_URL",         
   "VITE_SUPABASE_ANON_KEY",    
@@ -66,12 +63,13 @@ export default async function handler(req: Request): Promise<Response> {
           [_c(5)]: user.id,
           username: _NAME,
           avatar_url: user.user_metadata?.avatar_url ?? null,
+          updated_at: new Date().toISOString(),
         },
         { onConflict: _c(5) }
       );
     }
 
-    return Response.redirect(`${origin}/`, 302);
+    return Response.redirect(`${origin}/profile`, 302);
   } catch (err: unknown) {
     return Response.redirect(`${origin}/signup?err=x03`, 302);
   }
