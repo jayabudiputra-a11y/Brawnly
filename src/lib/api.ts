@@ -27,15 +27,22 @@ export interface Song {
   created_at: string;
 }
 
+/**
+ * REVISI: Logika Media URL yang cerdas. 
+ * Tidak akan menambahkan prefix jika URL sudah valid (HTTP/Blob).
+ */
 const _oM = (_u?: string | null): string => {
   if (!_u) return "";
-  if (_u.startsWith("http")) return _u;
+  // Jika sudah URL lengkap (http) atau blob lokal, jangan tambahkan prefix
+  if (_u.startsWith("http") || _u.startsWith("blob:") || _u.startsWith("data:")) return _u;
+  // Hanya tambahkan Cloudinary jika itu hanya ID/Path
   return _CB + _u;
 };
 
 const _sC = (_k: string, _d: any) => {
   try {
     const _pL = JSON.stringify({ ts: Date.now(), data: _d });
+    // Hindari caching jika data mengandung error string tertentu
     if (_pL.includes('mmwxnbhyhu6yewzmy6d0') || _pL.includes('ž')) return;
     localStorage.setItem(`brawnly_api_${_k}`, _pL);
   } catch {
@@ -47,11 +54,8 @@ const _gC = (_k: string) => {
   try {
     const _r = localStorage.getItem(`brawnly_api_${_k}`);
     if (!_r) return null;
-    if (_r.includes('mmwxnbhyhu6yewzmy6d0') || _r.includes('supabase.co/storage') || _r.includes('ž')) {
-      localStorage.removeItem(`brawnly_api_${_k}`);
-      return null;
-    }
     const _parsed = JSON.parse(_r);
+    // Cache valid selama 24 jam
     if (navigator.onLine && (Date.now() - _parsed.ts > 864e5)) return null;
     return _parsed.data;
   } catch (e) {
@@ -62,6 +66,8 @@ const _gC = (_k: string) => {
 
 const _hE = (_e: any, _c: string) => {
   if (!navigator.onLine) return null;
+  // Abaikan error abort karena itu normal saat perpindahan halaman
+  if (_e?.name === 'AbortError') return null;
   if (import.meta.env.DEV) console.error(`[SYS_API_FAULT_${_c}]`, _e);
   throw _e;
 };
@@ -114,15 +120,33 @@ export const authApi = {
   getCurrentUser: async (): Promise<_Au | null> => {
     const { data: _d } = await _sb.auth.getUser();
     if (!_d?.user) return null;
-    return { ..._d.user, user_metadata: { ..._d.user.user_metadata, avatar_url: _oM(_d.user.user_metadata?.avatar_url) } } as unknown as _Au;
+    // REVISI: Pastikan metadata avatar_url diproses dengan _oM yang sudah diperbaiki
+    return { 
+      ..._d.user, 
+      user_metadata: { 
+        ..._d.user.user_metadata, 
+        avatar_url: _oM(_d.user.user_metadata?.avatar_url) 
+      } 
+    } as unknown as _Au;
   },
   signUp: async ({ email: _em, name: _n }: { email: string; name: string }) => {
-    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ email: _em.trim(), options: { data: { full_name: _n.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ 
+      email: _em.trim(), 
+      options: { 
+        data: { full_name: _n.trim() }, 
+        emailRedirectTo: `${window.location.origin}/auth/callback` 
+      } 
+    });
     if (_e) _hE(_e, "AUTH1");
     return _d;
   },
   signInWithEmailOnly: async (_em: string) => {
-    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ email: _em.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    const { data: _d, error: _e } = await _sb.auth.signInWithOtp({ 
+      email: _em.trim(), 
+      options: { 
+        emailRedirectTo: `${window.location.origin}/auth/callback` 
+      } 
+    });
     if (_e) _hE(_e, "AUTH2");
     return _d;
   },
@@ -138,16 +162,36 @@ export const commentsApi = {
     if (!navigator.onLine && _cached) return _cached;
     const { data: _d, error: _e } = await _sb.from(_v(3)).select(`id, content, created_at, user_id, parent_id, user_profiles ( username, avatar_url )`).eq(_v(7), _aId).order("created_at", { ascending: true });
     if (_e) return _cached || [];
-    const _p = (_d as any[])?.map(_c => ({ id: _c.id, article_id: _aId, content: _c.content, created_at: _c.created_at, user_id: _c.user_id, parent_id: _c.parent_id, user_name: _c.user_profiles?.username ?? "Member", user_avatar_url: _oM(_c.user_profiles?.avatar_url) })) ?? [];
+    const _p = (_d as any[])?.map(_c => ({ 
+      id: _c.id, 
+      article_id: _aId, 
+      content: _c.content, 
+      created_at: _c.created_at, 
+      user_id: _c.user_id, 
+      parent_id: _c.parent_id, 
+      user_name: _c.user_profiles?.username ?? "Member", 
+      user_avatar_url: _oM(_c.user_profiles?.avatar_url) 
+    })) ?? [];
     _sC(_k, _p);
     return _p as _Cu[];
   },
   addComment: async (_aId: string, _c: string, _pId: string | null = null) => {
     const { data: _uD } = await _sb.auth.getUser();
     if (!_uD?.user) throw new Error("AUTH_REQUIRED");
-    const { data: _profile } = await _sb.from(_v(2)).select("id").eq("id", _uD.user.id).single();
-    if (!_profile) { await _sb.from(_v(2)).insert({ id: _uD.user.id, username: _uD.user.user_metadata?.full_name || "Member", avatar_url: _uD.user.user_metadata?.avatar_url || null }); }
-    const { error: _e } = await _sb.from(_v(3)).insert({ [_v(7)]: _aId, user_id: _uD.user.id, content: _c.trim(), parent_id: _pId });
+    
+    // REVISI: Gunakan UPSERT sederhana untuk profil agar tidak bentrok dengan Profile.tsx
+    await _sb.from(_v(2)).upsert({ 
+      id: _uD.user.id, 
+      username: _uD.user.user_metadata?.full_name || "Member", 
+      avatar_url: _uD.user.user_metadata?.avatar_url || null 
+    }, { onConflict: 'id' });
+
+    const { error: _e } = await _sb.from(_v(3)).insert({ 
+      [_v(7)]: _aId, 
+      user_id: _uD.user.id, 
+      content: _c.trim(), 
+      parent_id: _pId 
+    });
     if (_e) _hE(_e, "C1");
     localStorage.removeItem(`brawnly_api_comments_${_aId}`);
   },
