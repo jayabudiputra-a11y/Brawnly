@@ -33,12 +33,17 @@ const SignInForm: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const _K = _0xS1(_g(0));
 
-  // Trace Identity: Hanya Log, tidak menghapus cache jika IP berubah
   useEffect(() => {
+    // Gunakan controller standar untuk cleanup unmount saja, bukan timeout
+    const controller = new AbortController();
+    
     const _trace = async () => {
       try {
-        const _res = await fetch('https://api64.ipify.org?format=json');
-        if (!_res.ok) return;
+        const _res = await fetch('https://api64.ipify.org?format=json', {
+          signal: controller.signal 
+        }).catch(() => null);
+
+        if (!_res || !_res.ok) return;
         
         const _d = await _res.json();
         const _cached = localStorage.getItem(_K);
@@ -46,17 +51,22 @@ const SignInForm: React.FC = () => {
           const _dec = _0xS2(_cached);
           if (_dec && _dec.startsWith('{')) {
             const _dx = JSON.parse(_dec) as any;
-            // Hanya log untuk monitoring, tidak mematikan akses
-            if (_dx[_g(5)] !== _d.ip) {
-              console.log("[IDENTITY_SYNC]: Roaming detected. Updating node path...");
-            } else {
+            if (_dx[_g(5)] === _d.ip) {
               console.log("[IDENTITY_SYNC]: Node verified.");
             }
           }
         }
-      } catch (e) { }
+      } catch (e: any) {
+        // Abaikan error jika itu adalah pembatalan manual saat pindah halaman
+        if (e.name !== 'AbortError') {
+            console.warn("Identity trace bypassed.");
+        }
+      }
     };
+
     _trace();
+    // Cleanup: Membatalkan fetch jika user pindah halaman sebelum fetch selesai
+    return () => controller.abort();
   }, [_K]);
 
   const _onExecute = useCallback(async (e: React.FormEvent) => {
@@ -68,14 +78,12 @@ const SignInForm: React.FC = () => {
     try {
       let _cur = "0.0.0.0";
       try {
+        // Fetch simple tanpa timeout/signal untuk eksekusi login
         const _res = await fetch('https://api64.ipify.org?format=json');
         const _d = await _res.json();
         _cur = _d.ip;
-      } catch (e) {
-        console.warn("[NEURAL_LINK]: Hardware trace bypassed.");
-      }
+      } catch (e) {}
 
-      // Logic "Loose Binding": IP disimpan hanya untuk referensi, bukan blokir
       await authApi.signInWithEmailOnly(val.toLowerCase().trim());
       
       const _rawPayload = JSON.stringify({
@@ -86,9 +94,7 @@ const SignInForm: React.FC = () => {
       
       localStorage.setItem(_K, _0xS1(_rawPayload));
       setFin(true); 
-      toast.success("Identity Verified", {
-        description: "Access link transmitted to your secure inbox."
-      });
+      toast.success("Identity Verified");
     } catch (ex: any) {
       setErr(ex.message || "ACCESS_DENIED");
     } finally {
