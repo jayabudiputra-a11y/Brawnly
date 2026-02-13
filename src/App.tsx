@@ -4,14 +4,9 @@ import _L from "@/components/layout/Layout";
 import _IF from "@/components/common/IframeA11yFixer";
 import _ST from "@/components/features/ScrollToTopButton";
 import _MT from "@/components/seo/MetaTags";
-import { openDB } from '@/lib/idbQueue';
-import { commentsApi as _api } from "@/lib/api";
-import { backoffRetry as _boR } from "@/lib/backoff";
 import { useAuth } from "@/hooks/useAuth";
 
 import _mP from "@/assets/myPride.gif";
-import _mL from "@/assets/masculineLogo.svg";
-import _bG from "@/assets/Brawnly.gif";
 
 const _safeLazy = (importFunc: () => Promise<any>) => 
   _lz(() => importFunc().catch(() => {
@@ -48,66 +43,55 @@ const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
 
-// PROTECTED ROUTE REVISI: Mencegah tendangan balik saat token sedang diproses
+// PROTECTED ROUTE REVISI: Penjaga Identitas Ketat
 const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
-  const location = _uL();
+  const _loc = _uL();
 
+  // 1. Jika masih loading, tampilkan spinner (Sangat penting agar rute tidak melompat)
   if (loading) return (
     <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  // Jika tidak ada user dan tidak ada token di URL, baru pindah ke signin
-  const hasToken = location.hash.includes("access_token");
-  if (!user && !hasToken) return <_Nv to="/signin" replace />;
+  // 2. Deteksi Alur Verifikasi (Token di URL)
+  const _isAuthFlow = _loc.hash.includes("access_token") || 
+                     _loc.search.includes("code") || 
+                     _loc.pathname.includes("auth/callback");
+
+  // 3. JIKA SEDANG DI PROFILE: 
+  // Biarkan masuk jika ada user ATAU sedang proses verifikasi.
+  // Jika tidak ada keduanya, baru tendang ke signin.
+  if (_loc.pathname === "/profile") {
+    if (user || _isAuthFlow) return <>{children}</>;
+    return <_Nv to="/signin" replace />;
+  }
+
+  // 4. UNTUK HALAMAN PROTECTED LAINNYA:
+  if (!user && !_isAuthFlow) return <_Nv to="/signin" replace />;
   
   return <>{children}</>;
 };
 
 function App() {
   const { pathname: _p } = _uL();
-
   _e(() => { window.scrollTo(0, 0); }, [_p]);
-
-  _e(() => {
-    const handleOnline = async () => {
-      try {
-        const _db = await openDB();
-        const _tx = _db.transaction("sync", "readwrite");
-        const _os = _tx.objectStore("sync");
-        const _req = _os.getAll();
-        _req.onsuccess = async () => {
-          const _items = _req.result;
-          if (_items.length === 0) return;
-          for (const _item of _items) {
-            if (_item.type === 'ADD_COMMENT') {
-              try { await _boR(() => _api.addComment(_item.payload.article_id, _item.payload.content, _item.payload.parent_id)); } catch (e) { }
-            }
-          }
-          const _clearTx = _db.transaction("sync", "readwrite");
-          _clearTx.objectStore("sync").clear();
-        };
-      } catch (_err) { }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <_MT title="Brawnly Smart Tracker" description="Next-gen fitness platform 2026." image={_mP} />
-      <_IF />
-      <_ST />
-
+      <_IF /><_ST />
       <_Sp fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>}>
         <_Rs>
           <_Rt element={<_L />}>
             <_Rt path="/" element={<_H />} />
             <_Rt path="articles" element={<_As />} />
             <_Rt path="subscribe" element={<_Sb />} />
+            
+            {/* Rute Profile Terproteksi */}
             <_Rt path="profile" element={<_PR><_Pf /></_PR>} />
+            
             <_Rt path="library" element={<_Lb />} />
             <_Rt path="videos" element={<_Vd />} />
             <_Rt path="article/:slug" element={<_AP />} />
@@ -120,7 +104,6 @@ function App() {
             <_Rt path="privacy" element={<_Py />} />
             <_Rt path="ethics" element={<_Es />} />
           </_Rt>
-
           <_Rt path="/signup" element={<_SU />} />
           <_Rt path="/signin" element={<_SI />} />
           <_Rt path="*" element={<_NF />} />
@@ -129,5 +112,4 @@ function App() {
     </div>
   );
 }
-
 export default App;

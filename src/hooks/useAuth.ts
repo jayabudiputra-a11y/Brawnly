@@ -17,9 +17,6 @@ export const useAuth = () => {
     } catch {}
   };
 
-  /**
-   * REVISI: Bersihkan sesi tapi amankan sidik jari hardware (v_identity_v1)
-   */
   const _cleanAuthData = () => {
     const keysToRemove = [
       "sb-access-token", 
@@ -48,12 +45,16 @@ export const useAuth = () => {
     const initAuth = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        const isProcessing = window.location.pathname.includes('auth/callback') || 
+                             window.location.hash.includes('access_token');
+
         if (sessionError) throw sessionError;
 
         if (!session) {
           if (mounted) {
             setUser(null);
-            setLoading(false);
+            if (!isProcessing) setLoading(false);
           }
           return;
         }
@@ -73,32 +74,33 @@ export const useAuth = () => {
             await _forceLogout();
         }
       } finally {
-        if (mounted) setLoading(false);
+        const isAuthFlow = window.location.pathname.includes('auth') || 
+                           window.location.hash.includes('access_token');
+                           
+        if (mounted && !isAuthFlow) setLoading(false);
       }
     };
 
     initAuth();
 
-    /**
-     * KUNCI: Gunakan Event Filter.
-     * Mencegah SIGNED_IN memicu navigasi otomatis ke Articles jika flag processing ada.
-     */
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const currentUser = await authApi.getCurrentUser();
         if (mounted) {
             setUser(currentUser);
             if(currentUser) await _sUS(currentUser.id);
+            
+            const isCallback = window.location.pathname.includes('auth');
+            if (!isCallback) setLoading(false);
         }
       } 
       else if (event === 'SIGNED_OUT') {
         if (mounted) {
           setUser(null);
           _cleanAuthData();
+          setLoading(false);
         }
       }
-      
-      if (mounted) setLoading(false);
     });
 
     return () => {
@@ -113,13 +115,13 @@ export const useAuth = () => {
       await authApi.signOut();
       _cleanAuthData();
       setUser(null);
-      // Gunakan REPLACE untuk membunuh semua sisa fetch (Fix AbortError)
       window.location.replace('/'); 
     } catch (error) {
       _cleanAuthData();
       setUser(null);
       window.location.replace('/');
     } finally {
+        // FIXED: mounted dihapus dari sini karena tidak berada dalam scope useEffect
         setLoading(false);
     }
   };
