@@ -1,4 +1,4 @@
-import { Routes as _Rs, Route as _Rt, useLocation as _uL } from "react-router-dom";
+import { Routes as _Rs, Route as _Rt, useLocation as _uL, Navigate as _Nv } from "react-router-dom";
 import React, { useEffect as _e, lazy as _lz, Suspense as _Sp } from "react";
 import _L from "@/components/layout/Layout";
 import _IF from "@/components/common/IframeA11yFixer";
@@ -8,16 +8,13 @@ import type { AuthPageLayoutProps as _APLP } from "@/types";
 import { openDB } from '@/lib/idbQueue';
 import { commentsApi as _api } from "@/lib/api";
 import { backoffRetry as _boR } from "@/lib/backoff";
+import { useAuth } from "@/hooks/useAuth";
 
 import _mP from "@/assets/myPride.gif";
 import _mL from "@/assets/masculineLogo.svg";
 import _bG from "@/assets/Brawnly.gif";
 import _fS from "@/assets/Brawnly-favicon.svg";
 
-// ==========================================
-// BRAWNLY OFFLINE-SAFE LAZY LOADER (V2)
-// Menangani Error "Failed to fetch dynamically imported module"
-// ==========================================
 const _safeLazy = (importFunc: () => Promise<any>) => 
   _lz(() => importFunc().catch(() => {
     if (!navigator.onLine) {
@@ -54,12 +51,23 @@ const _Sb = _safeLazy(() => import("@/pages/Subscription"));
 const _Pf = _safeLazy(() => import("@/pages/Profile"));
 const _AC = _safeLazy(() => import("@/pages/AuthCallback"));
 const _Lb = _safeLazy(() => import("@/pages/Library"));
-const _Vd = _safeLazy(() => import("@/pages/Videos")); // ROUTE VIDEOS DITAMBAHKAN DI SINI
+const _Vd = _safeLazy(() => import("@/pages/Videos"));
 const _Ts = _safeLazy(() => import("@/pages/Terms"));
 const _Py = _safeLazy(() => import("@/pages/Privacy"));
 const _Es = _safeLazy(() => import("@/pages/Ethics"));
-const _SUF = _safeLazy(() => import("@/components/SignUpForm"));
-const _SIF = _safeLazy(() => import("@/components/common/SignInForms"));
+const _SU = _safeLazy(() => import("@/pages/SignUp"));
+const _SI = _safeLazy(() => import("@/pages/SignIn"));
+
+const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+  if (!user) return <_Nv to="/signin" replace />;
+  return <>{children}</>;
+};
 
 const _AL: React.FC<_APLP> = ({ children: _c, title: _t }) => (
   <div className="min-h-screen flex items-center justify-center bg-black p-4">
@@ -81,7 +89,6 @@ function App() {
 
   _e(() => {
     const handleOnline = async () => {
-      console.log("⚡ [BRAWNLY] Connection Restored. Syncing Queue...");
       try {
         const _db = await openDB();
         const _tx = _db.transaction("sync", "readwrite");
@@ -91,75 +98,37 @@ function App() {
         _req.onsuccess = async () => {
           const _items = _req.result;
           if (_items.length === 0) return;
-
           for (const _item of _items) {
             if (_item.type === 'ADD_COMMENT') {
               try {
-                // Menggunakan backoffRetry untuk membungkus pengiriman komentar
-                await _boR(() => 
-                  _api.addComment(
-                    _item.payload.article_id, 
-                    _item.payload.content, 
-                    _item.payload.parent_id
-                  )
-                );
-                console.log("✅ Comment Synced Successfully");
-              } catch (e) {
-                console.error("❌ Sync failed after multiple attempts for item:", _item);
-              }
+                await _boR(() => _api.addComment(_item.payload.article_id, _item.payload.content, _item.payload.parent_id));
+              } catch (e) { }
             }
           }
-          // Bersihkan antrean hanya setelah proses percobaan selesai
           const _clearTx = _db.transaction("sync", "readwrite");
           _clearTx.objectStore("sync").clear();
         };
-      } catch (_err) {
-        console.error("Critical Sync Error:", _err);
-      }
+      } catch (_err) { }
     };
-
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, []);
 
-  const _jLd = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Brawnly",
-    "url": "https://brawnly.online",
-    "logo": `https://brawnly.online${_mL}`,
-    "image": `https://brawnly.online${_bG}`,
-    "description": "Smart Fitness and Wellness Tracker Application 2026",
-    "author": {
-      "@type": "Person",
-      "name": "Budi Putra Jaya"
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white selection:bg-green-500 selection:text-black transition-colors duration-300">
-      <_MT 
-        title="Brawnly Smart Tracker" 
-        description="Next-gen fitness and wellness intelligence platform 2026."
-        image={_mP}
-      />
-      <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
+      <_MT title="Brawnly Smart Tracker" description="Next-gen fitness platform 2026." image={_mP} />
       <_IF />
       <_ST />
 
-      <_Sp fallback={
-        <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      }>
+      <_Sp fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>}>
         <_Rs>
           <_Rt element={<_L />}>
             <_Rt path="/" element={<_H />} />
             <_Rt path="articles" element={<_As />} />
             <_Rt path="subscribe" element={<_Sb />} />
-            <_Rt path="profile" element={<_Pf />} />
+            <_Rt path="profile" element={<_PR><_Pf /></_PR>} />
             <_Rt path="library" element={<_Lb />} />
-            <_Rt path="videos" element={<_Vd />} /> {/* ROUTE VIDEOS DITAMBAHKAN DI SINI */}
+            <_Rt path="videos" element={<_Vd />} />
             <_Rt path="article/:slug" element={<_AP />} />
             <_Rt path="category/:slug" element={<_Cy />} />
             <_Rt path="about" element={<_Ab />} />
@@ -171,8 +140,8 @@ function App() {
             <_Rt path="ethics" element={<_Es />} />
           </_Rt>
 
-          <_Rt path="/signup" element={<_AL title="Join Brawnly"><_SUF /></_AL>} />
-          <_Rt path="/signin" element={<_AL title="Welcome Back"><_SIF /></_AL>} />
+          <_Rt path="/signup" element={<_SU />} />
+          <_Rt path="/signin" element={<_SI />} />
           <_Rt path="*" element={<_NF />} />
         </_Rs>
       </_Sp>

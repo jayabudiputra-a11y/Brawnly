@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth"; // Tambahkan ini
 import SignUpForm from "@/components/SignUpForm";
 
 const _0xkey = ['v_identity_v1', 'reverse', 'split', 'join'] as const;
-
 const _f = (i: number) => _0xkey[i] as any;
-
 
 const _0xS3 = (s: string) => {
   const _b = btoa(s) as any;
@@ -16,28 +15,36 @@ const _0xS3 = (s: string) => {
 };
 
 const SignUpPage = () => {
+  const { user, loading } = useAuth(); // Tambahkan ini
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // PROTEKSI: Jika user sudah login, jangan biarkan daftar lagi
+    if (!loading && user) {
+      navigate("/articles");
+      return;
+    }
+
     const _checkInteg = () => {
       const _K = _0xS3(_f(0));
       const _auth = localStorage.getItem(_K);
       
       if (_auth) {
         setIsAuthorized(true);
-        setTimeout(() => navigate("/signin"), 2000);
+        setTimeout(() => navigate("/signin"), 1500);
       } else {
         setIsAuthorized(false);
       }
     };
 
     _checkInteg();
-  }, [navigate]);
+  }, [navigate, user, loading]);
+
+  if (loading) return null;
 
   return (
     <main className="flex items-center justify-center min-h-[90vh] bg-white dark:bg-black transition-colors duration-500 overflow-hidden relative">
-      
       <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.04),rgba(0,255,0,0.01),rgba(0,0,255,0.04))] bg-[length:100%_4px,3px_100%]" />
 
       <AnimatePresence mode="wait">
@@ -68,25 +75,6 @@ const SignUpPage = () => {
           </motion.div>
         ) : null}
       </AnimatePresence>
-
-      <div className="fixed inset-0 pointer-events-none -z-10">
-        <motion.div 
-          animate={{ 
-            opacity: isAuthorized ? [0.05, 0.1, 0.05] : [0.03, 0.07, 0.03],
-            scale: isAuthorized ? [1.2, 1.4, 1.2] : [1, 1.15, 1],
-          }}
-          transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full blur-[120px] transition-colors duration-1000 ${
-            isAuthorized ? 'bg-emerald-500/30' : 'bg-emerald-500/10'
-          }`} 
-        />
-      </div>
-
-      <div className="absolute bottom-6 w-full text-center opacity-10 select-none">
-        <p className="text-[7px] font-mono tracking-[0.4em] uppercase dark:text-white">
-          Protocol: Reverse-Auth-V1 // Node: {isAuthorized ? "SECURE_BIND" : "GUEST_HANDSHAKE"}
-        </p>
-      </div>
     </main>
   );
 };

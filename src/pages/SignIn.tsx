@@ -1,26 +1,31 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import SignInForm from '@/components/common/SignInForms';
 
-/* ======================
-    DECRYPTION FRAGMENT
-====================== */
 const _0xsys = ['v_identity_v1', 'reverse', 'split', 'join'] as const;
-
 const _f = (i: number) => _0xsys[i];
 
 const _0xS4 = (s: string) => {
   const _b = btoa(s);
-  // Fix Error 2349 dengan casting (as any) pada objek sebelum memanggil metode dinamis
   const _s = (_b as any)[_f(2)]('');
   const _r = _s[_f(1)]();
   return _r[_f(3)]('');
 };
 
 const SignInPage = () => {
+  const { user, loading } = useAuth(); // Tambahkan ini
+  const navigate = useNavigate();
   const [isRecognized, setIsRecognized] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // PROTEKSI: Jika user sudah terautentikasi, jangan biarkan di halaman ini
+    if (!loading && user) {
+      navigate("/articles");
+      return;
+    }
+
     const _neuralProbe = () => {
       try {
         const _K = _0xS4(_f(0));
@@ -32,11 +37,12 @@ const SignInPage = () => {
     };
 
     _neuralProbe();
-  }, []);
+  }, [user, loading, navigate]);
+
+  if (loading) return null; // Mencegah kedipan UI saat cek sesi
 
   return (
     <main className="flex items-center justify-center min-h-[90vh] bg-white dark:bg-black transition-colors duration-500 overflow-hidden relative">
-      
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05] z-0">
         <div className="w-full h-full bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
       </div>
@@ -67,12 +73,6 @@ const SignInPage = () => {
             }`} 
           />
         </AnimatePresence>
-      </div>
-
-      <div className="absolute bottom-6 w-full text-center select-none pointer-events-none opacity-20">
-        <p className="text-[7px] font-mono tracking-[0.5em] uppercase dark:text-white">
-          Access_Node: {isRecognized ? "AUTHORIZED_IDENTITY_DETECTED" : "UNBOUND_HARDWARE"} // Protocol_v1.0.2
-        </p>
       </div>
     </main>
   );
