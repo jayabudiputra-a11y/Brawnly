@@ -3,22 +3,16 @@ import { Link as _L } from "react-router-dom";
 import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc, HardDrive as _Hd } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 
-/* CORE HOOKS & API */
 import { useArticles as _uA } from "@/hooks/useArticles";
 import { songsApi as _sa, type Song as _S } from "@/lib/api"; 
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
-/* ENTERPRISE & WASM PIPELINE */
 import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
 import { setCookieHash as _sCH, mirrorQuery as _mQ, warmupEnterpriseStorage as _wES } from "@/lib/enterpriseStorage";
 import { getAssetFromShared as _gAS, saveAssetToShared as _sAS } from "@/lib/sharedStorage";
 import { openDB as _oDB } from "@/lib/idbQueue";
-
-/* ============================================================
-   🚀 BRAWNLY LIBRARY ENGINE (V3 ENTERPRISE)
-   ============================================================ */
 
 export default function Library() {
   const { isDark: _iD } = _uTP();
@@ -31,7 +25,6 @@ export default function Library() {
   const [_blobMap, _setBlobMap] = _s<Record<string, string>>({});
   const [_syncState, _setSyncState] = _s<"idle" | "optimizing" | "shared">("idle");
 
-  // 1. SYSTEM WARMUP & IDENTITY
   _e(() => {
     _wES();
     _sCH("library_node_" + Date.now());
@@ -56,7 +49,6 @@ export default function Library() {
     };
   }, []);
 
-  // 2. ARTICLE DATA HYDRATION
   _e(() => {
     if (_aD) {
       const _sv = _aD.filter((a: any) => localStorage.getItem(`brawnly_saved_${a.slug}`) === "true");
@@ -69,7 +61,6 @@ export default function Library() {
     }
   }, [_aD]);
 
-  // 3. SONIC ENGINE: WASM OPTIMIZATION & SHARED STORAGE
   _e(() => {
     let _active = true;
     
@@ -98,7 +89,7 @@ export default function Library() {
               await _sAS(_song.id.toString(), opt);
               const _url = URL.createObjectURL(opt);
               _setBlobMap(p => ({ ...p, [_song.id]: _url }));
-            } catch (e) { /* Fallback used automatically */ }
+            } catch (e) { }
           }
         }
         _setSyncState("shared");
@@ -187,7 +178,6 @@ export default function Library() {
           </div>
         </div>
 
-        {/* BRAWNLY BEATS (SONIC LIBRARY) */}
         <section className="mb-20">
           <div className="flex items-center justify-between mb-8 border-b-2 border-neutral-100 dark:border-neutral-900 pb-4">
             <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
@@ -226,7 +216,6 @@ export default function Library() {
           </div>
         </section>
 
-        {/* SAVED INTELLIGENCE (ARTICLES) */}
         <section>
           <h2 className={_x.st}><_Bo className="text-emerald-500" /> SAVED_ENTRIES</h2>
           {_sA.length === 0 ? (
@@ -238,7 +227,7 @@ export default function Library() {
           ) : (
             <div className={_x.g}>
               <_AP mode="popLayout">
-                {_sA.map((a, _idx) => (
+                {_sA.map((a) => (
                   <_m.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={a.id || a.slug} className={_x.cd}>
                     <div className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800">
                       {a.featured_image ? (
@@ -275,13 +264,6 @@ export default function Library() {
           )}
         </section>
       </div>
-      
-      <footer className="fixed bottom-0 left-0 w-full p-4 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-neutral-200 dark:border-neutral-900 z-50">
-        <div className="max-w-[1320px] mx-auto flex justify-between items-center opacity-40">
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">Footprint: SHA256_QUARTER_ENABLED</span>
-          <span className="text-[8px] font-black uppercase tracking-[0.4em]">Node_Status: ACTIVE_STABLE</span>
-        </div>
-      </footer>
     </main>
   );
 }

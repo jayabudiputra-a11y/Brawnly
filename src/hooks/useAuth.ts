@@ -8,10 +8,6 @@ export const useAuth = () => {
   const [user, setUser] = _s<AuthUser | null>(null);
   const [loading, setLoading] = _s(true);
 
-  /**
-   * Mengamankan session user di LocalStorage dengan hashing 1/4 memory
-   * (Logic Enterprise V3)
-   */
   const _sUS = async (uId: string) => {
     try {
       if (typeof _chQ === 'function') {
@@ -22,26 +18,35 @@ export const useAuth = () => {
   };
 
   /**
-   * Helper untuk membersihkan sesi jika terjadi error 403/401
+   * REVISI: Jangan gunakan localStorage.clear()
+   * Kita hanya menghapus key yang spesifik agar identitas verifikasi tidak hilang
    */
+  const _cleanAuthData = () => {
+    // Cari dan hapus hanya key yang berkaitan dengan session, bukan identitas hardware
+    const keysToRemove = ["sb-access-token", "sb-refresh-token", "brawnly_profile_snap_v3"];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Opsional: Hapus cookie hash aktif
+    if (user?.id) {
+        _chQ("user_" + user.id).then(key => localStorage.removeItem(key)).catch(()=>{});
+    }
+  };
+
   const _forceLogout = _uC(async () => {
-    console.warn("[AUTH] Session expired or invalid. Cleaning up...");
+    console.warn("[AUTH] Session expired. Stabilizing identity...");
     await authApi.signOut(); 
-    localStorage.clear();    
+    _cleanAuthData();
     setUser(null);
-  }, []);
+  }, [user?.id]);
 
   _e(() => {
     let mounted = true;
 
     const initAuth = async () => {
       try {
-        // 1. Cek Session di LocalStorage dulu
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
         if (sessionError) throw sessionError;
 
-        // 2. Jika tidak ada session
         if (!session) {
           if (mounted) {
             setUser(null);
@@ -50,7 +55,6 @@ export const useAuth = () => {
           return;
         }
 
-        // 3. Jika session ada, fetch user
         const currentUser = await authApi.getCurrentUser();
         
         if (mounted) {
@@ -61,13 +65,9 @@ export const useAuth = () => {
               await _forceLogout();
             }
         }
-
       } catch (error: any) {
-        // Fix 403 & Invalid Token loops
         if (error.message?.includes("403") || error.status === 403 || error.code === "PGRST301") {
             await _forceLogout();
-        } else {
-            if (import.meta.env.DEV) console.error("[AUTH_SYNC_ERROR]:", error);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -76,23 +76,18 @@ export const useAuth = () => {
 
     initAuth();
 
-    // 4. Listener Realtime
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // console.log("[AUTH_EVENT]", event); 
-
       if (event === 'SIGNED_IN' && session?.user) {
-        try {
-            const currentUser = await authApi.getCurrentUser();
-            if (mounted) {
-                setUser(currentUser);
-                if(currentUser) await _sUS(currentUser.id);
-            }
-        } catch { }
+        const currentUser = await authApi.getCurrentUser();
+        if (mounted) {
+            setUser(currentUser);
+            if(currentUser) await _sUS(currentUser.id);
+        }
       } 
-      // 🔥 FIX: Cast event ke string untuk mengatasi error TypeScript
-      else if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
+      else if (event === 'SIGNED_OUT') {
         if (mounted) setUser(null);
-        localStorage.clear(); 
+        // JANGAN localStorage.clear() di sini
+        _cleanAuthData();
       }
       
       if (mounted) setLoading(false);
@@ -108,12 +103,11 @@ export const useAuth = () => {
     try {
       setLoading(true);
       await authApi.signOut();
+      _cleanAuthData();
       setUser(null);
-      localStorage.clear();
       window.location.href = '/'; 
     } catch (error) {
-      console.error("[SIGNOUT_ERROR]:", error);
-      localStorage.clear();
+      _cleanAuthData();
       setUser(null);
       window.location.href = '/';
     } finally {
