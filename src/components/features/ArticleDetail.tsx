@@ -1,7 +1,7 @@
 import React, { useState as _s, useEffect as _e, useMemo as _uM } from "react";
 import { Link as _L, useParams as _uP, useNavigate as _uN } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
-import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X, Camera as _Ca, PlayCircle as _Pc, Film as _Fm, Aperture as _Ap } from "lucide-react";
+import { Eye as _Ey, Bookmark as _Bm, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X, Camera as _Ca, PlayCircle as _Pc, Aperture as _Ap } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import _mA from "@/assets/myAvatar.jpg";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
 
-// ASSETS DECORATION
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
 import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
 
@@ -25,14 +24,14 @@ import { commentsApi } from "@/lib/api";
 
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
-import { detectBestFormat as _dBF } from "@/lib/imageFormat";
-import { trackPageView as _tPV } from "@/lib/trackViews";
+import { detectBestFormat as _dBF, detectBestFormat } from "@/lib/imageFormat";
+import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
+import { enqueue } from "@/lib/idbQueue";
+import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
+import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
 
-/* ============================================================
-    💬 COMMENT ITEM COMPONENT
-   ============================================================ */
 function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _Cu, avatar: string | null, onReply?: () => void, isReply?: boolean }) {
   return (
     <div className={`flex gap-4 md:gap-6 relative ${isReply ? 'ml-10 md:ml-16 mt-6' : ''}`}>
@@ -42,7 +41,9 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
           {avatar ? (
             <img src={avatar} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt="" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-neutral-400"><_Us size={isReply ? 16 : 24} /></div>
+            <div className="w-full h-full flex items-center justify-center text-neutral-400 font-black tracking-tighter italic">
+              <_Us size={isReply ? 16 : 24} />
+            </div>
           )}
         </div>
       </div>
@@ -67,9 +68,6 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
   );
 }
 
-/* ============================================================
-    🗨️ COMMENT SECTION
-   ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
   const _nav = _uN();
@@ -83,13 +81,20 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      let _fU = url.includes('brawnly-assets') ? url.replace('brawnly-assets/avatars', 'avatars/avatars') : url;
-      const response = await fetch(_fU);
-      if (!response.ok) throw new Error();
+      const _fmt = await _dBF();
+      const response = await fetch(url);
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const optimized = await _wTI(blob, _fmt, 0.4);
+      const blobUrl = URL.createObjectURL(optimized);
       _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
-    } catch (e) {}
+    } catch (e) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
+      } catch (err) {}
+    }
   };
 
   const { data: _serverComments } = useQuery({
@@ -113,33 +118,35 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _onAddComment = async (content: string, parentId: string | null = null) => {
     if (!content.trim() || !_u) return;
     _sSub(true);
+    
+    const payload = {
+      article_id: articleId,
+      user_id: _u.id,
+      content: content.trim(),
+      parent_id: parentId
+    };
+
     try {
-      const { data: { session }, error: sErr } = await supabase.auth.getSession();
-      if (sErr || !session) throw new Error("AUTH_SESSION_MISSING");
-      const _uid = session.user.id;
-      await supabase.from('user_profiles').upsert({
-        id: _uid,
-        username: session.user.user_metadata?.full_name || "Member",
-        avatar_url: session.user.user_metadata?.avatar_url || null
-      }, { onConflict: 'id' });
-      const { error: cErr } = await supabase.from('comments').insert({
-        article_id: articleId,
-        user_id: _uid,
-        content: content.trim(),
-        parent_id: parentId
-      });
+      await setCookieHash(_u.id);
+      mirrorQuery({ type: "COMMENT_POST", articleId, ts: Date.now() });
+
+      if (!navigator.onLine) {
+        await enqueue({ type: "ADD_COMMENT", payload });
+        toast.info("Cached offline. Will sync when online.");
+        _sTxt("");
+        _sReplyTo(null);
+        return;
+      }
+
+      const { error: cErr } = await supabase.from('comments').insert(payload);
       if (cErr) throw cErr;
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
       toast.success("Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      if (e.message === "AUTH_SESSION_MISSING" || e.status === 401) {
-        toast.error("Session stale. Re-authorizing...");
-        _nav('/signin');
-      } else {
-        toast.error("Sync Failed");
-      }
+      await enqueue({ type: "ADD_COMMENT", payload });
+      toast.error("Network issue. Perspective queued.");
     } finally {
       _sSub(false);
     }
@@ -208,9 +215,6 @@ function CommentSection({ articleId }: { articleId: string }) {
   );
 }
 
-/* ============================================================
-    📄 ARTICLE DETAIL MAIN
-   ============================================================ */
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
@@ -228,17 +232,13 @@ export default function ArticleDetail() {
 
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
-  // --- LOGIC PEMISAHAN & KLASIFIKASI MEDIA ---
   const _allMedia = _uM(() => {
     const sourceStr = _art?.featured_image_url || _art?.featured_image;
     if (!sourceStr) return [];
     return sourceStr.split(/[\r\n]+/).filter(Boolean);
   }, [_art?.featured_image_url, _art?.featured_image]);
 
-  // Image Utama (Cover) adalah index ke-0
   const _rawImgSource = _uM(() => _allMedia[0] ? _fC(_allMedia[0]) : null, [_allMedia]);
-  
-  // Sisa media (index 1 ke atas)
   const _extraMedia = _uM(() => _allMedia.slice(1), [_allMedia]);
 
   const _youtubeShorts = _uM(() => 
@@ -266,14 +266,25 @@ export default function ArticleDetail() {
       return null;
     }
   };
-  // -------------------------------------------------
 
   _e(() => {
-    if (!_rawImgSource || !navigator.onLine) return;
+    warmupEnterpriseStorage();
+    registerSW();
+    detectBestFormat();
     
-    // 🔥 FIX: BYPASS TRANSCODING UNTUK GIF 🔥
-    // Jika format adalah GIF, langsung gunakan URL asli agar animasi berjalan.
-    // Transcoder (WASM) biasanya akan mengubahnya menjadi static webp/jpeg (mati).
+    const oN = () => _sOff(false);
+    const oF = () => _sOff(true);
+    window.addEventListener('online', oN);
+    window.addEventListener('offline', oF);
+    return () => {
+      window.removeEventListener('online', oN);
+      window.removeEventListener('offline', oF);
+    };
+  }, []);
+
+  _e(() => {
+    if (!_rawImgSource) return;
+    
     if (_rawImgSource.match(/\.(gif|gifv|webp)$/i)) {
       _setBlobUrl(_rawImgSource);
       return;
@@ -282,6 +293,12 @@ export default function ArticleDetail() {
     let _active = true;
     (async () => {
       try {
+        const cached = await getAssetFromShared(`cover_${_slV}`);
+        if (cached && _active) {
+          _setBlobUrl(URL.createObjectURL(cached));
+          return;
+        }
+
         const res = await fetch(_rawImgSource);
         const b = await res.blob();
         const placeholder = await _wCP(b);
@@ -290,30 +307,31 @@ export default function ArticleDetail() {
         const _fmt = await _dBF();
         let final;
         
-        // Cek video formats
         if (_rawImgSource.match(/\.(mp4|webm|ogg|mov)$/i)) {
-          final = URL.createObjectURL(await _wVT(b, 0.25));
+          const vThumb = await _wVT(b, 0.25);
+          final = URL.createObjectURL(vThumb);
+          await saveAssetToShared(`cover_${_slV}`, vThumb);
         } else {
-          // Optimasi Image Statis (JPG/PNG)
           const opt = await _wTI(b, _fmt, 0.75);
           final = URL.createObjectURL(opt);
+          await saveAssetToShared(`cover_${_slV}`, opt);
         }
         
         if (_active) _setBlobUrl(final);
       } catch (e) {
-        // Fallback jika fetch error
         if (_active) _setBlobUrl(_rawImgSource);
       }
     })();
     return () => { _active = false; };
-  }, [_rawImgSource]);
+  }, [_rawImgSource, _slV]);
 
   _e(() => {
     if (_art?.id && !_hasTracked) {
-      _tPV(_art.id);
+      setCookieHash(_slV);
+      mirrorQuery({ type: "ARTICLE_VIEW", id: _art.id, slug: _slV, ts: Date.now() });
       _sHasTracked(true);
     }
-  }, [_art?.id, _hasTracked]);
+  }, [_art?.id, _hasTracked, _slV]);
 
   const { data: _allA } = _uAs();
   const _hC = _uM(() => _allA ? [..._allA].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3) : [], [_allA]);
@@ -347,7 +365,6 @@ export default function ArticleDetail() {
         <meta property="og:image" content={_gOI(_rawImgSource || "", 1200)} />
       </_Hm>
 
-      {/* DESKTOP SIDEBAR ACTIONS */}
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button onClick={_hSv} className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${_iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl'}`}>
           {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
@@ -411,19 +428,15 @@ export default function ArticleDetail() {
               ))}
             </div>
 
-            {/* --- YOUTUBE SHORTS EMBED SECTION --- */}
             {_youtubeShorts.length > 0 && (
               <div className="my-16 max-w-[840px] mx-auto">
                  {_youtubeShorts.map((videoUrl: string, idx: number) => {
                     const embedUrl = _getEmbedUrl(videoUrl);
                     if (!embedUrl) return null;
-                    
                     return (
                       <div key={`yt-${idx}`} className="flex flex-col items-center justify-center mb-16">
                          <div className="relative w-full flex justify-center">
-                            {/* Decorative Glow */}
                             <div className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none" />
-                            
                             <iframe 
                                 width="459" 
                                 height="816" 
@@ -445,14 +458,12 @@ export default function ArticleDetail() {
               </div>
             )}
 
-            {/* --- GIF / TUMBLR-STYLE ANIMATION SECTION --- */}
             {_animatedImages.length > 0 && (
                 <section className="my-20 max-w-[600px] mx-auto">
                     <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
                         <_Ap size={18} className="animate-spin-slow" />
                         <span className="text-[10px] uppercase font-black tracking-[0.3em]">Motion_Capture</span>
                     </div>
-                    
                     <div className="flex flex-col gap-10 items-center">
                         {_animatedImages.map((img: string, idx: number) => (
                             <div key={`gif-${idx}`} className="w-auto max-w-[80%] md:max-w-full relative group">
@@ -472,7 +483,6 @@ export default function ArticleDetail() {
                 </section>
             )}
 
-            {/* --- STATIC PHOTOS SECTION --- */}
             {_galleryImages.length > 0 && (
                 <section className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
                     <div className="flex items-center gap-4 mb-10">
@@ -495,7 +505,6 @@ export default function ArticleDetail() {
                 </section>
             )}
 
-            {/* 📱 MOBILE ACTION BUTTONS */}
             <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8">
               <button
                 onClick={_hSv}
@@ -508,7 +517,6 @@ export default function ArticleDetail() {
                 {_iS ? <_Ck size={16} /> : <_Bm size={16} />}
                 {_iS ? 'Saved' : 'Save'}
               </button>
-
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
