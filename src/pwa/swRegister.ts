@@ -6,11 +6,8 @@ export async function registerSW() {
   if (!("serviceWorker" in navigator)) return;
 
   try {
-    // 1. Registrasi Service Worker
     const reg = await navigator.serviceWorker.register("/sw.js");
 
-    // 2. Tunggu sampai Service Worker benar-benar aktif (Ready)
-    // Ini krusial agar SyncManager tidak gagal (mencegah InvalidStateError)
     await navigator.serviceWorker.ready;
 
     // 3. Registrasi Background Sync

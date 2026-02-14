@@ -15,7 +15,6 @@ const _u=_SW({onNeedRefresh(){confirm('Brawnly Updated. Reload?')&&_u(!0)},onOff
 
 const _q=new _Q({defaultOptions:{queries:{staleTime:3e5,retry:1}}});
 
-// Main Render Function
 function _b(n:HTMLElement){
   _c(n).render(
     React.createElement(_H,null,

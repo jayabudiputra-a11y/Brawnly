@@ -54,7 +54,6 @@ const SignUpForm: React.FC = () => {
           const _decrypted = _dec(_cached);
           const _d = JSON.parse(_decrypted);
           if (_d && _d[_r(5)]) {
-             // Silently redirect if already bound
              navigate("/articles");
           }
         } catch (err) { localStorage.removeItem(_K); }
@@ -81,7 +80,6 @@ const SignUpForm: React.FC = () => {
     try {
       let _addr = "0.0.0.0";
       try {
-        // PERBAIKAN: Hapus AbortSignal.timeout(3000) untuk mencegah AbortError
         const _res = await fetch('https://api64.ipify.org?format=json').catch(() => null);
         if (_res) {
           const _data = await _res.json();
@@ -114,7 +112,6 @@ const SignUpForm: React.FC = () => {
 
         setTimeout(() => {
           navigate("/profile");
-          // Re-syncing node session
           setTimeout(() => window.location.reload(), 200);
         }, 1500);
       }

@@ -54,10 +54,8 @@ export const cleanAndValidateUrl = (url: string): string => {
 export const generateFullImageUrl = (relativePath: string): string => {
     if (!relativePath) return '';
     
-    // 1. Cek jika URL mengandung Supabase lama
     const _SB_DOM = _h(2); // 'zlwhvkexgjisyhakxyoe'
     if (relativePath.includes(_SB_DOM)) {
-        // PAKSA alihkan ke link Cloudinary fallback (agar Egress 0 MB)
         return "https://res.cloudinary.com/dtkiwn8i4/image/upload/v1770883496/mmwxnbhyhu6yewzmy6d0.jpg";
     }
 

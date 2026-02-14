@@ -3,7 +3,9 @@ import { Play as _Pl, Video as _Vd, WifiOff as _Wo, Zap as _Zp } from "lucide-re
 import { motion as _m } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
+
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
+import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 import { registerSW } from "@/pwa/swRegister";
 import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
 import { detectBestFormat } from "@/lib/imageFormat";
@@ -88,34 +90,51 @@ export default function Videos() {
         _sIsL(false);
         return;
       }
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
         .order('created_at', { ascending: false });
+
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
           let { u: _parsedU, ty: _vType, isShort, ratio: _vRatio } = _parseVid(v.url);
           let _thumbUrl = v.thumbnail_url;
+          
           if (!_thumbUrl && _vType === 'yt') {
             const ytId = _parsedU.split('/').pop()?.split('?')[0];
             _thumbUrl = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
           }
+
           try {
             const _cachedAsset = await getAssetFromShared(`vid_thumb_${v.id}`);
             if (_cachedAsset) {
               _thumbUrl = URL.createObjectURL(_cachedAsset);
-            } else if (_thumbUrl && navigator.onLine) {
-              const _res = await fetch(_thumbUrl);
-              const _blob = await _res.blob();
-              const _optimizedBlob = await _wTI(_blob, "webp", 0.25); 
-              await saveAssetToShared(`vid_thumb_${v.id}`, _optimizedBlob);
-              const _reader = new FileReader();
-              _thumbUrl = await new Promise((res) => {
-                _reader.onloadend = () => res(_reader.result as string);
-                _reader.readAsDataURL(_optimizedBlob);
-              });
+            } else if (navigator.onLine) {
+              let _finalBlob: Blob | null = null;
+
+              if (_thumbUrl) {
+                const _res = await fetch(_thumbUrl);
+                const _blob = await _res.blob();
+                _finalBlob = await _wTI(_blob, "webp", 0.25);
+              } else if (_vType === 'other' && (v.url.includes('.mp4') || v.url.includes('cloudinary'))) {
+                // If no thumbnail but is a raw video link, use wasmVideoPipeline to extract frame
+                const _vRes = await fetch(v.url);
+                const _vBlob = await _vRes.blob();
+                _finalBlob = await _wVT(_vBlob, 0.25);
+              }
+
+              if (_finalBlob) {
+                await saveAssetToShared(`vid_thumb_${v.id}`, _finalBlob);
+                const _reader = new FileReader();
+                _thumbUrl = await new Promise((res) => {
+                  _reader.onloadend = () => res(_reader.result as string);
+                  _reader.readAsDataURL(_finalBlob!);
+                });
+              }
             }
           } catch (e) { }
+
           return {
             i: v.id,
             t: v.title,
@@ -126,6 +145,7 @@ export default function Videos() {
             r: _vRatio
           };
         }));
+
         _sVids(_compact);
         localStorage.setItem("brawnly_vids_mini", JSON.stringify(_compact));
       }
@@ -165,6 +185,7 @@ export default function Videos() {
             </span>
           </div>
         </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12 items-start">
           {_vids.map((v) => (
             <_m.div
@@ -224,6 +245,7 @@ export default function Videos() {
             </_m.div>
           ))}
         </div>
+        
         {_isOff && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] md:w-auto bg-neutral-900 text-white px-8 py-4 rounded-2xl border border-white/10 shadow-2xl z-50 flex items-center gap-4 justify-center">
             <_Wo size={18} className="text-red-500 animate-pulse" />

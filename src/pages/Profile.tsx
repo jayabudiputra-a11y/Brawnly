@@ -15,7 +15,6 @@ import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 import { mirrorQuery, setCookieHash } from "@/lib/enterpriseStorage";
 import { enqueue as _enQ } from "@/lib/idbQueue";
 
-// Constants
 const PROFILE_SNAP_KEY = "brawnly_profile_snap_v3";
 const OFFLINE_AVA_KEY = "brawnly_offline_avatar_blob";
 

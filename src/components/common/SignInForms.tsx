@@ -34,7 +34,6 @@ const SignInForm: React.FC = () => {
   const _K = _0xS1(_g(0));
 
   useEffect(() => {
-    // Gunakan controller standar untuk cleanup unmount saja, bukan timeout
     const controller = new AbortController();
     
     const _trace = async () => {
@@ -65,7 +64,6 @@ const SignInForm: React.FC = () => {
     };
 
     _trace();
-    // Cleanup: Membatalkan fetch jika user pindah halaman sebelum fetch selesai
     return () => controller.abort();
   }, [_K]);
 
