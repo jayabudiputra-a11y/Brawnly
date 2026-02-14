@@ -4,29 +4,49 @@ import TagFilter from "@/components/features/TagFilter";
 import ArticleList from "@/components/features/ArticleList";
 import { useArticles as _uAs } from "@/hooks/useArticles";
 import { loadSnap as _lS, saveSnap as _sS, type SnapArticle as _SA } from "@/lib/storageSnap";
+import { registerSW as _rSW } from "@/pwa/swRegister";
+import { 
+  warmupEnterpriseStorage as _wES, 
+  saveArticlesSnap as _sAS, 
+  setCookieHash as _sCH, 
+  mirrorQuery as _mQ 
+} from "@/lib/enterpriseStorage";
+import { syncArticles as _sA } from "@/lib/supabaseSync";
+import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 
 const Articles = () => {
   const [_sT, _ssT] = _s<string | null>(null);
   const [_sTm] = _s<string>("");
-
-  // Logic: Ambil data cepat dari Snap sebelum API selesai
   const [_arts, _sArts] = _s<any[]>(() => _lS());
 
-  // Ambil data fresh dari hook
   const { data: _dF } = _uAs();
 
-  // Update State dan Snap saat data dari Supabase tersedia
+  _e(() => {
+    _rSW();
+    _wES();
+    _dBF();
+  }, []);
+
   _e(() => {
     if (_dF) {
       _sArts(_dF);
       
-      // Simpan snapshot terbaru (10 artikel teratas) untuk kunjungan berikutnya
       const _sD: _SA[] = _dF.slice(0, 10).map((a: any) => ({
         title: a.title,
         slug: a.slug,
-        image: a.featured_image
+        image: a.featured_image_url
       }));
+      
       _sS(_sD);
+      _sAS(_dF);
+      _sA(async () => _dF);
+
+      _dF.forEach((a: any) => {
+        if (a.slug) {
+          _sCH(a.slug);
+          _mQ({ type: "ARTICLE_SNAP", id: a.id, slug: a.slug, ts: Date.now() });
+        }
+      });
     }
   }, [_dF]);
 
@@ -69,8 +89,6 @@ const Articles = () => {
         </header>
 
         <div className="article-feed-container active:opacity-90 transition-opacity duration-200">
-          {/* Logic: ArticleList akan tetap melakukan rendering internal, 
-              namun snapshot sudah siap di background */}
           <ArticleList selectedTag={_sT} searchTerm={_sTm} />
         </div>
       </div>

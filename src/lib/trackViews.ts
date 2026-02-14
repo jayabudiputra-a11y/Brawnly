@@ -1,20 +1,12 @@
-/* ======================
-   CORE TRACK LOGIC (UPDATED FOR RPC)
-====================== */
 import { supabase } from "@/lib/supabase";
 import { enqueue, openDB } from "@/lib/idbQueue";
-
-/* ======================
-   ULTRA HASH (¼ MEMORY COOKIE STYLE)
-====================== */
-function _hS(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h << 5) - h + s.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h).toString(36);
-}
+import { cookieHashQuarter as _chQ } from "@/lib/cookieHash";
+import { 
+  setCookieHash, 
+  mirrorQuery as _mQ, 
+  warmupEnterpriseStorage 
+} from "@/lib/enterpriseStorage";
+import { registerSW } from "@/pwa/swRegister";
 
 function _sC(n: string, v: string, d = 30) {
   const dt = new Date();
@@ -22,26 +14,8 @@ function _sC(n: string, v: string, d = 30) {
   document.cookie = `${n}=${v}; path=/; expires=${dt.toUTCString()}; SameSite=Lax`;
 }
 
-/* ======================
-   LOCAL QUERY MIRROR (FB BIGQUERY STYLE LOCAL)
-====================== */
-const _LQK = "brawnly_local_query_mirror";
-
-function _mirrorQuery(d: any) {
-  try {
-    const q = JSON.parse(localStorage.getItem(_LQK) || "[]");
-    q.unshift(d);
-    if (q.length > 50) q.length = 50;
-    localStorage.setItem(_LQK, JSON.stringify(q));
-  } catch {}
-}
-
-/* ======================
-   OFFLINE QUEUE (IDB + BACKGROUND SYNC)
-====================== */
 async function _queueOfflineTrack(articleId: string) {
   try {
-    // 1. Simpan ke IDB (Persistent Storage)
     await enqueue({
       type: "TRACK_VIEW",
       articleId,
@@ -49,14 +23,14 @@ async function _queueOfflineTrack(articleId: string) {
       retryCount: 0
     });
 
-    // 2. Register Background Sync
-    if ("serviceWorker" in navigator && "SyncManager" in window) {
+    if ("serviceWorker" in navigator) {
       const reg = await navigator.serviceWorker.ready;
-      // @ts-ignore
-      await reg.sync.register("brawnly-sync");
+      if ("sync" in reg) {
+        // @ts-ignore
+        await reg.sync.register("brawnly-sync");
+      }
     }
   } catch (e) {
-    // Fallback LocalStorage
     try {
       const q = JSON.parse(localStorage.getItem("brawnly_track_fallback") || "[]");
       q.push({ articleId, ts: Date.now() });
@@ -65,9 +39,6 @@ async function _queueOfflineTrack(articleId: string) {
   }
 }
 
-/**
- * Flush Queue: Membaca IDB dan mengirim via RPC
- */
 async function _flushOfflineQueue() {
   if (!navigator.onLine) return;
 
@@ -85,23 +56,15 @@ async function _flushOfflineQueue() {
         if (item.type === "TRACK_VIEW") {
           try {
             await _sendTrack(item.articleId, true);
-            // Hapus jika sukses
             const delTx = db.transaction("sync", "readwrite");
             delTx.objectStore("sync").delete(item.id || item.key); 
-          } catch (e) {
-            // Biarkan jika gagal (akan dicoba lagi nanti)
-          }
+          } catch (e) {}
         }
       }
     };
-  } catch (e) {
-    console.warn("Queue Flush Error", e);
-  }
+  } catch (e) {}
 }
 
-/* ======================
-   RECONNECT BACKOFF ENGINE
-====================== */
 function _reconnectLoop() {
   let a = 0;
   const run = async () => {
@@ -119,9 +82,6 @@ function _reconnectLoop() {
   window.addEventListener("online", run);
 }
 
-/* ======================
-   SERVICE WORKER MESSAGE
-====================== */
 function _swTrackPush(articleId: string) {
   try {
     if (!navigator.serviceWorker?.controller) return;
@@ -129,30 +89,24 @@ function _swTrackPush(articleId: string) {
   } catch {}
 }
 
-/* ======================
-   CORE TRACK SEND (RPC VERSION)
-   Ini memperbaiki Error 500 dengan memanggil SQL Function langsung
-====================== */
 async function _sendTrack(articleId: string, silent = false) {
-  // Panggil RPC 'increment_views' yang Anda buat di SQL Editor
   const { error } = await supabase.rpc('increment_views', { article_id: articleId });
-
   if (error) {
     if (!silent) console.error("RPC Track Failed:", error.message);
-    throw error; // Lempar error agar masuk antrean offline jika gagal
+    throw error;
   }
 }
 
-/* ======================
-   PUBLIC API
-====================== */
 export async function trackPageView(articleId: string) {
   try {
     if (!articleId) return;
 
+    warmupEnterpriseStorage();
+    await registerSW();
     _reconnectLoop();
-    _sC("b_v", _hS(articleId), 7);
-    _mirrorQuery({ id: articleId, ts: Date.now() });
+    
+    await setCookieHash(articleId);
+    _mQ({ id: articleId, ts: Date.now(), type: "PAGE_VIEW" });
     _swTrackPush(articleId);
 
     if (!navigator.onLine) {
@@ -163,7 +117,6 @@ export async function trackPageView(articleId: string) {
     try {
       await _sendTrack(articleId);
     } catch (err) {
-      // Jika RPC gagal (misal koneksi putus tiba-tiba), queue lagi
       await _queueOfflineTrack(articleId);
     }
 

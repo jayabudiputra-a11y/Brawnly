@@ -4,14 +4,19 @@ import ArticleCard from "./ArticleCard";
 import ScrollToTopButton from "./ScrollToTopButton";
 import { motion as _mo, LayoutGroup as _LG, AnimatePresence as _AP } from "framer-motion";
 
+// Modul Infrastruktur
 import {
   getArticlesSnap,
   saveArticlesSnap,
   mirrorQuery,
-  setCookieHash
+  setCookieHash,
+  warmupEnterpriseStorage
 } from "@/lib/enterpriseStorage";
 
 import { syncArticles } from "@/lib/supabaseSync";
+import { loadSnap, saveSnap } from "@/lib/storageSnap";
+import { openDB, enqueue } from "@/lib/idbQueue";
+import { detectBestFormat } from "@/lib/imageFormat";
 
 interface Props {
   selectedTag: string | null;
@@ -20,39 +25,52 @@ interface Props {
 }
 
 export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initialData: _iD }: Props) {
-
-  // Logic i18n telah dihapus sepenuhnya. Default bahasa dianggap Inggris/Universal.
   
   const { data: _aA, isLoading: _iL, error: _e } = _uAs(_sT || null, _iD);
   const [_hI, _sHI] = _uS<number | null>(null);
 
   /* ======================
+      ⚡ ENTERPRISE WARMUP
+      ====================== */
+  _uE(() => {
+    warmupEnterpriseStorage();
+    // Warmup IndexedDB
+    openDB().catch(() => console.warn("IDB initialization deferred"));
+  }, []);
+
+  /* ======================
       ⚡ INSTANT SNAP LOAD
       ====================== */
   const _snap = _uM(() => {
-    // Jika ada data dari hook (bisa jadi initialData atau hasil fetch), gunakan.
+    // 1. Prioritas data live dari hook
     if (_aA?.length) return _aA;
-    // Fallback ke local snapshot jika hook belum return apa-apa
+    // 2. Fallback ke Storage Snap (V1)
+    const _v1Snap = loadSnap();
+    if (_v1Snap?.length) return _v1Snap;
+    // 3. Fallback ke Enterprise Snap (V3)
     return getArticlesSnap();
   }, [_aA]);
 
   /* ======================
-      ☁️ BACKGROUND SYNC (TTL 60 MENIT)
+      ☁️ BACKGROUND SYNC & PERSISTENCE
       ====================== */
   _uE(() => {
     if (!_aA?.length) return;
+
+    // A. Sync ke Supabase (TTL check internal)
     syncArticles(async () => _aA);
-  }, [_aA]);
 
-  /* ======================
-      💾 SNAPSHOT + MIRROR + COOKIE HASH
-      ====================== */
-  _uE(() => {
-    if (!_aA?.length) return;
+    // B. Simpan Snapshot di kedua versi (V1 & V3)
+    saveArticlesSnap(_aA);
+    // FIX: Tambahkan tipe data ': any' pada parameter 'a'
+    saveSnap(_aA.slice(0, 15).map((a: any) => ({
+      title: a.title,
+      slug: a.slug,
+      image: a.featured_image || a.featured_image_url
+    })));
 
+    // C. Mirroring & Cookie Hashing
     try {
-      saveArticlesSnap(_aA);
-
       _aA.forEach((a: any) => {
         mirrorQuery({
           id: a.id,
@@ -62,19 +80,20 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
         if (a.slug) setCookieHash(a.slug);
       });
-
-    } catch {}
+    } catch (err) {
+      // Enqueue error log ke IndexedDB jika sistem mirror gagal
+      enqueue({ type: "MIRROR_ERR", msg: "Failed to mirror row", ts: Date.now() });
+    }
 
   }, [_aA]);
 
   /* ======================
       🔎 FILTER PIPELINE
-      ====================== */
+      ===================== */
   const _fA = _uM(() => {
-    // Gunakan _snap (yang bisa berisi initialData) sebagai basis
     if (!_snap) return [];
 
-    let _cA = _snap;
+    let _cA = [..._snap];
 
     if (_sT) {
       const _lST = _sT.toLowerCase();
@@ -89,7 +108,6 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
     const _lS = _sSTm.toLowerCase();
 
     return _cA.filter((_art: any) => {
-      // Pencarian standar tanpa logic bahasa dinamis
       const _aTt = (_art.title || "").toLowerCase();
       return _aTt.includes(_lS);
     });
@@ -98,7 +116,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
   /* ======================
       📊 STRUCTURED DATA
-      ====================== */
+      ===================== */
   const _jLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -112,15 +130,14 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
   /* ======================
       ⏳ STATES (LOADING / ERROR / EMPTY)
-      ====================== */
+      ===================== */
   
-  // Loading hanya muncul jika benar-benar tidak ada data (bahkan snapshot pun kosong)
   if (_iL && !_snap?.length) {
     return (
       <div className="text-center py-12 bg-transparent" aria-live="polite">
         <div className="w-12 h-12 mx-auto mb-6 animate-spin rounded-full border-4 border-[#00a354] border-t-transparent shadow-[0_0_20px_rgba(0,163,84,0.2)]" />
         <p className="text-lg font-black uppercase tracking-widest animate-pulse bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 bg-clip-text text-transparent">
-          Loading articles...
+          Syncing Brawnly Nodes...
         </p>
       </div>
     );
@@ -130,7 +147,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
     return (
       <div className="text-center py-10">
         <p className="text-red-500 text-[10px] font-black uppercase tracking-[.3em]">
-          System error: failed to load articles
+          Uplink Failure: Offline Snapshot Missing
         </p>
       </div>
     );
@@ -140,7 +157,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
     return (
       <div className="text-center py-16 bg-transparent">
         <p className="text-neutral-400 dark:text-neutral-600 text-[11px] font-black uppercase tracking-[.4em] mb-4">
-          {_sT || _sTm.trim() !== "" ? "No matching data found" : "The feed is empty"}
+          {_sT || _sTm.trim() !== "" ? "No nodes found in this sector" : "The grid is currently empty"}
         </p>
         <div className="h-[1px] w-20 mx-auto bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-800 to-transparent" />
       </div>
@@ -149,7 +166,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
   /* ======================
       🚀 RENDER
-      ====================== */
+      ===================== */
   return (
     <>
       <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
@@ -161,7 +178,6 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
           className="flex flex-col max-w-[900px] mx-auto w-full px-0 divide-y divide-gray-100 dark:divide-neutral-900 mt-0 relative"
         >
           {_fA.map((_a: any, _idx: number) => {
-            // Unik Key Logic: ID -> Slug -> Index
             const itemKey = _a.id || _a.slug || `article-idx-${_idx}`;
             
             return (

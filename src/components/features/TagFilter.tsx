@@ -1,4 +1,7 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage'
+import { enqueue } from '@/lib/idbQueue'
 
 const tags = ['musc', 'fitness', 'gay', 'crush']
 
@@ -8,10 +11,28 @@ interface TagFilterProps {
 }
 
 const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
+  useEffect(() => {
+    if (selected) {
+      setCookieHash(`tag_${selected}`)
+      mirrorQuery({ type: 'TAG_FILTER', value: selected, ts: Date.now() })
+    }
+  }, [selected])
+
+  const handleSelect = async (tag: string | null) => {
+    try {
+      onSelect(tag)
+      if (tag) {
+        await enqueue({ type: 'TAG_SELECT', payload: tag, timestamp: Date.now() })
+      }
+    } catch (e) {
+      onSelect(tag)
+    }
+  }
+
   return (
     <div className="flex items-center space-x-2 overflow-x-auto pb-6 pt-2 no-scrollbar">
       <button
-        onClick={() => onSelect(null)}
+        onClick={() => handleSelect(null)}
         className="relative px-6 py-2 outline-none group"
       >
         <span className={`relative z-10 text-[11px] font-black uppercase tracking-[0.2em] transition-colors duration-300 ${
@@ -35,7 +56,7 @@ const TagFilter = ({ selected, onSelect }: TagFilterProps) => {
         return (
           <button
             key={tag}
-            onClick={() => onSelect(tag)}
+            onClick={() => handleSelect(tag)}
             className="relative px-6 py-2 outline-none group"
           >
             <span className={`relative z-10 text-[11px] font-black uppercase tracking-[0.2em] transition-colors duration-300 capitalize ${

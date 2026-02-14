@@ -1,13 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ArticleDetail from '../components/features/ArticleDetail';
 import StructuredData from '../components/seo/StructuredData';
 import MetaTags from '../components/seo/MetaTags';
 import { useArticles } from '../hooks/useArticles';
+import { registerSW } from '../pwa/swRegister';
+import { 
+  setCookieHash, 
+  mirrorQuery, 
+  warmupEnterpriseStorage 
+} from '../lib/enterpriseStorage';
+import { detectBestFormat } from '../lib/imageFormat';
 
 const ArticlePage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data: _d, isLoading: _l } = useArticles();
+
+  useEffect(() => {
+    registerSW();
+    warmupEnterpriseStorage();
+    detectBestFormat();
+  }, []);
+
+  useEffect(() => {
+    if (slug) {
+      setCookieHash(slug);
+      mirrorQuery({
+        type: "ARTICLE_VIEW",
+        slug: slug,
+        timestamp: Date.now()
+      });
+    }
+  }, [slug]);
 
   const _s = _d?.find((item: any) => item.slug === slug);
 
@@ -36,13 +60,17 @@ const ArticlePage = () => {
     );
   }
 
+  const metaImage = _s.featured_image_url 
+    ? _s.featured_image_url.split(/[\r\n]+/)[0] 
+    : (_s.featured_image || "");
+
   return (
     <main className="min-h-screen bg-white dark:bg-[#0a0a0a] transition-all">
       <MetaTags 
         title={`${_s.title} | Brawnly Online`} 
         description={_s.excerpt} 
         url={window.location.href} 
-        image={_s.featured_image_url_clean || _s.featured_image} 
+        image={metaImage} 
       />
       
       <StructuredData article={_s} />

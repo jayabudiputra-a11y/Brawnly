@@ -43,7 +43,6 @@ const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
 
-// PROTECTED ROUTE REVISI: Penjaga Identitas Ketat
 const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   const _loc = _uL();
@@ -62,7 +61,6 @@ const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   // 3. JIKA SEDANG DI PROFILE: 
   // Biarkan masuk jika ada user ATAU sedang proses verifikasi.
-  // Jika tidak ada keduanya, baru tendang ke signin.
   if (_loc.pathname === "/profile") {
     if (user || _isAuthFlow) return <>{children}</>;
     return <_Nv to="/signin" replace />;

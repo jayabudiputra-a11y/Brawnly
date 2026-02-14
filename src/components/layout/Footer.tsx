@@ -1,31 +1,34 @@
 import { Link } from 'react-router-dom';
 import { Dumbbell, Heart, Mail, ShieldCheck, Scale, FileText, ExternalLink } from 'lucide-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 import NewsletterForm from '@/components/common/NewsletterForm'; 
+import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
+import { registerSW } from '@/pwa/swRegister';
 
 const Footer = () => {
     const emailAddress = "bbudi6621@gmail.com";
     const subject = "Brawnly Editorial / Ideal Man Discussion";
     const body = "Hi Budi,\n\nI'm very interested in the 'Muscle Worship' and 'Mindset' content on Brawnly. I'd love to discuss the concept of an ideal/dream man further based on your perspective.";
 
-    const handleDirectGmail = () => {
+    useEffect(() => {
+        registerSW();
+    }, []);
+
+    const handleDirectGmail = async () => {
         const encodedSubject = encodeURIComponent(subject);
         const encodedBody = encodeURIComponent(body);
 
-        // 1. Konstruksi URL untuk Gmail Web (Paling Aman untuk Desktop)
-        const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${emailAddress}&su=${encodedSubject}&body=${encodedBody}`;
+        await setCookieHash("contact_intent");
+        mirrorQuery({ type: "CONTACT_CLICK", target: emailAddress, ts: Date.now() });
 
-        // 2. Konstruksi URL untuk Mailto Standard (Untuk memicu App di Mobile)
+        const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${emailAddress}&su=${encodedSubject}&body=${encodedBody}`;
         const mailtoUrl = `mailto:${emailAddress}?subject=${encodedSubject}&body=${encodedBody}`;
 
-        // Detection: Apakah ini mobile?
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
-            // Di Mobile: Pakai mailto agar memicu Gmail App / Mail App bawaan
             window.location.href = mailtoUrl;
         } else {
-            // Di Desktop: Paksa buka Tab baru langsung ke Gmail Web Compose
             window.open(gmailWebUrl, '_blank');
         }
     };
@@ -35,7 +38,6 @@ const Footer = () => {
             <div className="container mx-auto px-4 md:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
                     
-                    {/* Brand Section */}
                     <div className="space-y-4">
                         <div className="flex items-center space-x-2">
                             <Dumbbell className="w-8 h-8 text-emerald-500" />
@@ -49,7 +51,6 @@ const Footer = () => {
                         </p>
                     </div>
 
-                    {/* Legal Links */}
                     <div>
                         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6 border-b border-gray-800 pb-2">
                             Standards & Legal
@@ -76,7 +77,6 @@ const Footer = () => {
                         </ul>
                     </div>
                     
-                    {/* Newsletter */}
                     <div>
                         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6">Stay Inspired</h2>
                         <div className="mb-4">
@@ -87,7 +87,6 @@ const Footer = () => {
                         </p>
                     </div>
 
-                    {/* Contact - DIRECT GMAIL ENGINE */}
                     <div>
                         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6">Direct Contact</h2>
                         <p className="text-gray-400 mb-6 italic text-xs flex items-center gap-1">

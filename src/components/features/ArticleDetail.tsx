@@ -1,7 +1,7 @@
 import React, { useState as _s, useEffect as _e, useMemo as _uM } from "react";
 import { Link as _L, useParams as _uP, useNavigate as _uN } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
-import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X, Camera as _Ca } from "lucide-react";
+import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X, Camera as _Ca, PlayCircle as _Pc, Film as _Fm, Aperture as _Ap } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,7 +10,6 @@ import FormattedDate from "@/components/features/FormattedDate";
 import _mA from "@/assets/myAvatar.jpg";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
-import CommentSection from "@/components/articles/CommentSection";
 
 // ASSETS DECORATION
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
@@ -22,11 +21,192 @@ import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useArticles as _uAs } from "@/hooks/useArticles";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase, CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
+import { commentsApi } from "@/lib/api";
 
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 import { detectBestFormat as _dBF } from "@/lib/imageFormat";
 import { trackPageView as _tPV } from "@/lib/trackViews";
+
+import type { CommentWithUser as _Cu } from "@/types";
+
+/* ============================================================
+    💬 COMMENT ITEM COMPONENT
+   ============================================================ */
+function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _Cu, avatar: string | null, onReply?: () => void, isReply?: boolean }) {
+  return (
+    <div className={`flex gap-4 md:gap-6 relative ${isReply ? 'ml-10 md:ml-16 mt-6' : ''}`}>
+      {isReply && <_Cr className="absolute -left-10 top-2 text-neutral-300 dark:text-neutral-800" size={20} />}
+      <div className="flex-shrink-0">
+        <div className={`${isReply ? 'w-10 h-10' : 'w-14 h-14'} border-2 border-black dark:border-white overflow-hidden bg-neutral-100 dark:bg-neutral-900 shadow-sm`}>
+          {avatar ? (
+            <img src={avatar} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt="" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-neutral-400"><_Us size={isReply ? 16 : 24} /></div>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-center mb-2">
+          <h4 className={`font-black uppercase italic ${isReply ? 'text-[11px]' : 'text-[13px]'} flex items-center gap-2 text-black dark:text-white`}>
+            {comment.user_name}
+            {comment.id.toString().startsWith('temp-') && <span className="text-[9px] not-italic text-emerald-500 animate-pulse tracking-widest">SYNCING...</span>}
+          </h4>
+          <span className="text-[10px] font-bold opacity-40 uppercase"><FormattedDate dateString={comment.created_at} /></span>
+        </div>
+        <div className={`${isReply ? 'text-[15px]' : 'text-[18px]'} leading-relaxed font-serif text-neutral-800 dark:text-neutral-200 break-words mb-3`}>
+          {comment.content}
+        </div>
+        {!isReply && onReply && (
+          <button onClick={onReply} className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 text-emerald-600 hover:text-emerald-400 transition-colors">
+            <_Rp size={12} /> Reply
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+    🗨️ COMMENT SECTION
+   ============================================================ */
+function CommentSection({ articleId }: { articleId: string }) {
+  const { user: _u } = useAuth();
+  const _nav = _uN();
+  const _qC = useQueryClient();
+  const [_txt, _sTxt] = _s<string>("");
+  const [_sub, _sSub] = _s<boolean>(false);
+  const [_replyTo, _sReplyTo] = _s<string | null>(null);
+  const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
+  const [_blobCache, _sBlobCache] = _s<Record<string, string>>({});
+
+  const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
+    if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
+    try {
+      let _fU = url.includes('brawnly-assets') ? url.replace('brawnly-assets/avatars', 'avatars/avatars') : url;
+      const response = await fetch(_fU);
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
+    } catch (e) {}
+  };
+
+  const { data: _serverComments } = useQuery({
+    queryKey: ["comments", articleId],
+    queryFn: () => commentsApi.getCommentsByArticle(articleId),
+    enabled: !!articleId,
+  });
+
+  _e(() => {
+    if (_serverComments) {
+      _setLocalComments(_serverComments);
+      _serverComments.forEach(c => {
+        if (c.user_avatar_url) _hydrateAvatar(c.user_avatar_url, c.user_id);
+      });
+    }
+  }, [_serverComments]);
+
+  const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
+  const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
+
+  const _onAddComment = async (content: string, parentId: string | null = null) => {
+    if (!content.trim() || !_u) return;
+    _sSub(true);
+    try {
+      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      if (sErr || !session) throw new Error("AUTH_SESSION_MISSING");
+      const _uid = session.user.id;
+      await supabase.from('user_profiles').upsert({
+        id: _uid,
+        username: session.user.user_metadata?.full_name || "Member",
+        avatar_url: session.user.user_metadata?.avatar_url || null
+      }, { onConflict: 'id' });
+      const { error: cErr } = await supabase.from('comments').insert({
+        article_id: articleId,
+        user_id: _uid,
+        content: content.trim(),
+        parent_id: parentId
+      });
+      if (cErr) throw cErr;
+      await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+      toast.success("Perspective Synced");
+      _sTxt("");
+      _sReplyTo(null);
+    } catch (e: any) {
+      if (e.message === "AUTH_SESSION_MISSING" || e.status === 401) {
+        toast.error("Session stale. Re-authorizing...");
+        _nav('/signin');
+      } else {
+        toast.error("Sync Failed");
+      }
+    } finally {
+      _sSub(false);
+    }
+  };
+
+  const _getRenderAvatar = (url: string | null | undefined, uid: string): string | null => {
+    const result = uid === _u?.id ? (_blobCache["me"] || url) : (_blobCache[uid] || url);
+    return result || null;
+  };
+
+  return (
+    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
+      <div className="flex items-center gap-4 mb-12">
+        <div className="p-3 bg-red-600 text-white rounded-full"><_Ms size={20} /></div>
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Discussion ({_localComments.length})</h3>
+      </div>
+      {_u ? (
+        <form id="comment-form" onSubmit={(e) => { e.preventDefault(); _onAddComment(_txt, _replyTo); }} className="mb-16">
+          <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-2xl">
+            {_replyTo && (
+              <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
+                  <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
+                </span>
+                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
+              </div>
+            )}
+            <label htmlFor="comment-textarea" className="sr-only">Write your perspective</label>
+            <textarea
+              id="comment-textarea"
+              name="comment_content"
+              value={_txt}
+              onChange={(e) => _sTxt(e.target.value)}
+              placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
+              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white placeholder:opacity-20"
+            />
+            <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
+              <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">ID_NODE: {_u.user_metadata?.full_name || "Member"}</span>
+              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
+                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl text-center mb-16">
+          <p className="mb-6 font-serif italic text-neutral-500 text-lg">Sign up to comment and reply as a Brawnly viewer.</p>
+          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg">Sign Up Now</button>
+        </div>
+      )}
+      <div className="space-y-12">
+        <_AP mode="popLayout">
+          {_rootComments.map((_c) => (
+            <_m.div key={_c.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group">
+              <CommentItem comment={_c} avatar={_getRenderAvatar(_c.user_avatar_url, _c.user_id)} onReply={() => { _sReplyTo(_c.id); }} />
+              <div className="space-y-6">
+                {_replies.filter(r => r.parent_id === _c.id).map(r => (
+                  <CommentItem key={r.id} comment={r} isReply avatar={_getRenderAvatar(r.user_avatar_url, r.user_id)} />
+                ))}
+              </div>
+            </_m.div>
+          ))}
+        </_AP>
+      </div>
+    </section>
+  );
+}
 
 /* ============================================================
     📄 ARTICLE DETAIL MAIN
@@ -48,16 +228,57 @@ export default function ArticleDetail() {
 
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
-  const _allImages = _uM(() => {
-    if (!_art?.featured_image) return [];
-    return _art.featured_image.split(/[\r\n]+/).filter(Boolean);
-  }, [_art?.featured_image]);
+  // --- LOGIC PEMISAHAN & KLASIFIKASI MEDIA ---
+  const _allMedia = _uM(() => {
+    const sourceStr = _art?.featured_image_url || _art?.featured_image;
+    if (!sourceStr) return [];
+    return sourceStr.split(/[\r\n]+/).filter(Boolean);
+  }, [_art?.featured_image_url, _art?.featured_image]);
 
-  const _rawImgSource = _uM(() => _allImages[0] ? _fC(_allImages[0]) : null, [_allImages]);
-  const _extraImages = _uM(() => _allImages.slice(1), [_allImages]);
+  // Image Utama (Cover) adalah index ke-0
+  const _rawImgSource = _uM(() => _allMedia[0] ? _fC(_allMedia[0]) : null, [_allMedia]);
+  
+  // Sisa media (index 1 ke atas)
+  const _extraMedia = _uM(() => _allMedia.slice(1), [_allMedia]);
+
+  const _youtubeShorts = _uM(() => 
+    _extraMedia.filter((url: string) => url.includes("youtube.com") || url.includes("youtu.be")), 
+  [_extraMedia]);
+
+  const _animatedImages = _uM(() => 
+    _extraMedia.filter((url: string) => url.match(/\.(gif|gifv|webp)$/i)), 
+  [_extraMedia]);
+
+  const _galleryImages = _uM(() => 
+    _extraMedia.filter((url: string) => 
+        !url.includes("youtube.com") && 
+        !url.includes("youtu.be") &&
+        !url.match(/\.(gif|gifv|webp)$/i)
+    ), 
+  [_extraMedia]);
+
+  const _getEmbedUrl = (url: string) => {
+    try {
+      const match = url.match(/(?:shorts\/|v=|youtu\.be\/)([\w-]{11})/);
+      const videoId = match ? match[1] : null;
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  // -------------------------------------------------
 
   _e(() => {
     if (!_rawImgSource || !navigator.onLine) return;
+    
+    // 🔥 FIX: BYPASS TRANSCODING UNTUK GIF 🔥
+    // Jika format adalah GIF, langsung gunakan URL asli agar animasi berjalan.
+    // Transcoder (WASM) biasanya akan mengubahnya menjadi static webp/jpeg (mati).
+    if (_rawImgSource.match(/\.(gif|gifv|webp)$/i)) {
+      _setBlobUrl(_rawImgSource);
+      return;
+    }
+
     let _active = true;
     (async () => {
       try {
@@ -65,16 +286,22 @@ export default function ArticleDetail() {
         const b = await res.blob();
         const placeholder = await _wCP(b);
         if (_active) _setBlurUrl(placeholder);
+        
         const _fmt = await _dBF();
         let final;
+        
+        // Cek video formats
         if (_rawImgSource.match(/\.(mp4|webm|ogg|mov)$/i)) {
           final = URL.createObjectURL(await _wVT(b, 0.25));
         } else {
+          // Optimasi Image Statis (JPG/PNG)
           const opt = await _wTI(b, _fmt, 0.75);
           final = URL.createObjectURL(opt);
         }
+        
         if (_active) _setBlobUrl(final);
       } catch (e) {
+        // Fallback jika fetch error
         if (_active) _setBlobUrl(_rawImgSource);
       }
     })();
@@ -120,7 +347,7 @@ export default function ArticleDetail() {
         <meta property="og:image" content={_gOI(_rawImgSource || "", 1200)} />
       </_Hm>
 
-      {/* DESKTOP SIDEBAR ACTIONS (Hidden on Mobile) */}
+      {/* DESKTOP SIDEBAR ACTIONS */}
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button onClick={_hSv} className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${_iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl'}`}>
           {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
@@ -184,15 +411,76 @@ export default function ArticleDetail() {
               ))}
             </div>
 
-            {/* PHOTOS SECTION */}
-            {_extraImages.length > 0 && (
+            {/* --- YOUTUBE SHORTS EMBED SECTION --- */}
+            {_youtubeShorts.length > 0 && (
+              <div className="my-16 max-w-[840px] mx-auto">
+                 {_youtubeShorts.map((videoUrl: string, idx: number) => {
+                    const embedUrl = _getEmbedUrl(videoUrl);
+                    if (!embedUrl) return null;
+                    
+                    return (
+                      <div key={`yt-${idx}`} className="flex flex-col items-center justify-center mb-16">
+                         <div className="relative w-full flex justify-center">
+                            {/* Decorative Glow */}
+                            <div className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none" />
+                            
+                            <iframe 
+                                width="459" 
+                                height="816" 
+                                src={embedUrl} 
+                                title={`Shorts video ${idx + 1}`}
+                                frameBorder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                referrerPolicy="strict-origin-when-cross-origin" 
+                                allowFullScreen
+                                className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
+                            ></iframe>
+                         </div>
+                         <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
+                            <_Pc size={16} /> Watch Short
+                         </div>
+                      </div>
+                    )
+                 })}
+              </div>
+            )}
+
+            {/* --- GIF / TUMBLR-STYLE ANIMATION SECTION --- */}
+            {_animatedImages.length > 0 && (
+                <section className="my-20 max-w-[600px] mx-auto">
+                    <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
+                        <_Ap size={18} className="animate-spin-slow" />
+                        <span className="text-[10px] uppercase font-black tracking-[0.3em]">Motion_Capture</span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-10 items-center">
+                        {_animatedImages.map((img: string, idx: number) => (
+                            <div key={`gif-${idx}`} className="w-auto max-w-[80%] md:max-w-full relative group">
+                                <img 
+                                    src={_fC(img)} 
+                                    alt={`Motion ${idx}`}
+                                    className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
+                                    style={{ objectFit: 'contain' }}
+                                    loading="lazy"
+                                />
+                                <div className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white">
+                                    GIF
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* --- STATIC PHOTOS SECTION --- */}
+            {_galleryImages.length > 0 && (
                 <section className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
                     <div className="flex items-center gap-4 mb-10">
                         <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"><_Ca size={18} /></div>
                         <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Gallery</h3>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {_extraImages.map((img: string, idx: number) => (
+                        {_galleryImages.map((img: string, idx: number) => (
                             <div key={idx} className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative">
                                 <img 
                                     src={_fC(img)} 
@@ -207,9 +495,8 @@ export default function ArticleDetail() {
                 </section>
             )}
 
-            {/* 📱 MOBILE ACTION BUTTONS (Save & Share) - VISIBLE ONLY ON MOBILE/TABLET */}
+            {/* 📱 MOBILE ACTION BUTTONS */}
             <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8">
-              {/* Save Button Mobile */}
               <button
                 onClick={_hSv}
                 className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
@@ -222,7 +509,6 @@ export default function ArticleDetail() {
                 {_iS ? 'Saved' : 'Save'}
               </button>
 
-              {/* Permalink Button Mobile */}
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);

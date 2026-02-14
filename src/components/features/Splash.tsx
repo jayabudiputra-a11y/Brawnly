@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import ScrollToTopButton from "./ScrollToTopButton";
 import { getOptimizedImage } from "@/lib/utils";
+import { setCookieHash, mirrorQuery } from "@/lib/enterpriseStorage";
+import { detectBestFormat } from "@/lib/imageFormat";
+import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
+import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -21,6 +25,7 @@ const videoSrc = `${SUPABASE_URL}/storage/v1/object/public/Shawty/Bbu8h19BiuJJnG
 
 export default function Splash() {
   const [textIndex, setTextIndex] = useState(0);
+  const [blobs, setBlobs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,11 +38,46 @@ export default function Splash() {
     script.setAttribute("data-cfasync", "false");
     document.body.appendChild(script);
 
+    setCookieHash("splash_session");
+    mirrorQuery({ event: "splash_view", ts: Date.now() });
+
+    const processImages = async () => {
+      const fmt = await detectBestFormat();
+      const newBlobs: Record<string, string> = {};
+
+      for (let i = 0; i < photos.length; i++) {
+        const id = `splash_img_${i}`;
+        const cached = await getAssetFromShared(id);
+        
+        if (cached) {
+          newBlobs[i] = URL.createObjectURL(cached);
+        } else if (navigator.onLine) {
+          try {
+            const res = await fetch(getOptimizedImage(photos[i], 250));
+            const blob = await res.blob();
+            const optimized = await wasmTranscodeImage(blob, fmt, 0.7);
+            await saveAssetToShared(id, optimized);
+            newBlobs[i] = URL.createObjectURL(optimized);
+          } catch {
+            newBlobs[i] = getOptimizedImage(photos[i], 250);
+          }
+        } else {
+          newBlobs[i] = getOptimizedImage(photos[i], 250);
+        }
+      }
+      setBlobs(newBlobs);
+    };
+
+    processImages();
+
     return () => {
       clearInterval(timer);
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
+      Object.values(blobs).forEach(url => {
+        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      });
     };
   }, []);
 
@@ -77,19 +117,19 @@ export default function Splash() {
       <div className="grid grid-cols-2 gap-6 mb-40 min-h-[300px]">
         <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top bg-neutral-100">
           <img 
-            src={getOptimizedImage(photos[0], 250)} 
+            src={blobs[0] || getOptimizedImage(photos[0], 250)} 
             alt="Avatar" 
             width="128"
             height="128"
             className="w-full h-full object-cover rounded-full" 
-            {...{ fetchpriority: "high" }} 
+            {...({ fetchpriority: "high" } as any)} 
           />
         </div>
 
         <div className="w-32 h-32 relative overflow-hidden animate-from-right bg-neutral-100">
           <div className="absolute inset-0 clip-hexagon shadow-lg">
             <img 
-              src={getOptimizedImage(photos[1], 250)} 
+              src={blobs[1] || getOptimizedImage(photos[1], 250)} 
               alt="Hex" 
               width="128"
               height="128"
@@ -101,7 +141,7 @@ export default function Splash() {
 
         <div className="w-32 h-32 rounded-[30%] overflow-hidden shadow-lg animate-from-bottom bg-neutral-100">
           <img 
-            src={getOptimizedImage(photos[2], 250)} 
+            src={blobs[2] || getOptimizedImage(photos[2], 250)} 
             alt="Squircle" 
             width="128"
             height="128"
@@ -112,7 +152,7 @@ export default function Splash() {
 
         <div className="w-32 h-32 overflow-hidden transform rotate-3 shadow-xl rounded-lg animate-from-left bg-neutral-100">
           <img 
-            src={getOptimizedImage(photos[3], 250)} 
+            src={blobs[3] || getOptimizedImage(photos[3], 250)} 
             alt="Tilted" 
             width="128"
             height="128"

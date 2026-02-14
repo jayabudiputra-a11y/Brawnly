@@ -4,6 +4,7 @@ import masculineLogo from "@/assets/masculineLogo.svg"
 interface ArticleStructuredData {
   title: string
   excerpt?: string
+  featured_image_url?: string | null
   featured_image?: string | string[] | null
   published_at: string
   author?: string | null
@@ -17,12 +18,16 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
   if (!article) return null
 
   const getFirstImage = () => {
-    if (!article.featured_image) return undefined
-    if (Array.isArray(article.featured_image)) return article.featured_image[0]
-    const urls = article.featured_image
-      .split(/\n|,|\s+/)
+    const rawImageSource = article.featured_image_url || article.featured_image
+    if (!rawImageSource) return undefined
+    
+    if (Array.isArray(rawImageSource)) return rawImageSource[0]
+    
+    const urls = rawImageSource
+      .split(/[\n\r|,|\s+]+/)
       .map(s => s.trim())
       .filter(Boolean)
+      
     return urls.find(u => u.startsWith("http")) || undefined
   }
 
@@ -34,6 +39,7 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: article.title,
+    description: article.excerpt,
     image: getFirstImage(),
     datePublished: article.published_at,
     author: {

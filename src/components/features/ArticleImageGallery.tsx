@@ -3,6 +3,10 @@ import { generateFullImageUrl as _gFI } from '@/utils/helpers';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
 import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
+import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
+import { detectBestFormat } from '@/lib/imageFormat';
+import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
+import { wasmTranscodeImage } from '@/lib/wasmImagePipeline';
 
 interface ArticleImageGalleryProps {
   images: string;
@@ -25,10 +29,11 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
 
   const _fC = (_u: string) => {
     if (!_u) return "";
-    if (_u.startsWith("http")) return _u;
-    const _f = _gFI(_u);
+    const trimmed = _u.trim();
+    if (trimmed.startsWith("http")) return trimmed;
+    const _f = _gFI(trimmed);
     if (_f.startsWith("http")) return _f;
-    return `${_CC.baseUrl}/${_u}`;
+    return `${_CC.baseUrl}/${trimmed}`;
   };
 
   const _mQ = (() => {
@@ -36,15 +41,15 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
     catch { return Promise.resolve(null); }
   })();
 
-  const _hS = async (_v: string) => {
-    try {
-      const _b = new TextEncoder().encode(_v);
-      const _d = await crypto.subtle.digest("SHA-256", _b);
-      return Array.from(new Uint8Array(_d)).slice(0, 8).map(_x => _x.toString(16).padStart(2, '0')).join('');
-    } catch { return btoa(_v).slice(0, 16); }
-  };
-
-  const _iP: string[] = _rI ? _rI.split(/[\r\n]+/).map(_p => _p.trim()).filter(_p => _p.length > 0) : [];
+  const _iP: string[] = _rI 
+    ? _rI.split(/[\r\n]+/)
+        .map(_p => _p.trim())
+        .filter(_p => 
+            _p.length > 0 && 
+            !_p.includes("youtube.com") && 
+            !_p.includes("youtu.be")
+        ) 
+    : [];
 
   _e(() => {
     if (!_iP.length) return;
@@ -63,8 +68,9 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           Object.keys(localStorage).filter(_x => _x.startsWith("brawnly_gallery_")).slice(0, 5).forEach(_x => localStorage.removeItem(_x));
         }
         if (localStorage.getItem(_k) !== _pL) { localStorage.setItem(_k, _pL); }
-        const _hash = await _hS(_pL);
-        document.cookie = `b_g_${_sl}=${_hash}; path=/; max-age=604800; SameSite=Lax`;
+        
+        await setCookieHash(`gal_${_sl}_${_dP}`);
+        mirrorQuery({ type: 'GALLERY_LOAD', slug: _sl, prefix: _dP, count: _iP.length });
       } catch {}
     })();
   }, [_iP, _sl, _dP, _tS]);
@@ -82,19 +88,45 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
     <div className={`${_cC} leading-[0] block overflow-hidden`}>
       <script type="application/ld+json">{JSON.stringify(_ld)}</script>
       {_tS && <h2 className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white">{_tS}</h2>}
+      
       <div className="grid grid-cols-2 gap-2 md:gap-3 w-full">
         {_iP.map((_rP, _ix) => {
           const _hQ = _fC(_rP);
           if (!_hQ || _hQ.includes("supabase.co")) return null;
 
+          const _isGif = _hQ.toLowerCase().match(/\.(gif|gifv|webp)$/i) || _hQ.includes('tumblr.com');
           const _lQ = _iE && _sD.quality === 'low';
           const _w = _lQ ? 200 : 400;
-          const _u = _gOI(_hQ, _w);
+          
+          const [optimizedUrl, setOptimizedUrl] = React.useState<string>(_isGif ? _hQ : _gOI(_hQ, _w));
+
+          _e(() => {
+            if (_isGif || _lQ) return;
+            
+            (async () => {
+              const assetId = `gal_${_sl}_${_ix}`;
+              const cached = await getAssetFromShared(assetId);
+              
+              if (cached) {
+                setOptimizedUrl(URL.createObjectURL(cached));
+              } else if (navigator.onLine) {
+                try {
+                  const fmt = await detectBestFormat();
+                  const res = await fetch(_hQ, { mode: 'cors' });
+                  const blob = await res.blob();
+                  const transcoded = await wasmTranscodeImage(blob, fmt, 0.7);
+                  await saveAssetToShared(assetId, transcoded);
+                  setOptimizedUrl(URL.createObjectURL(transcoded));
+                } catch (e) {}
+              }
+            })();
+          }, [_hQ, _isGif, _lQ]);
+
           return (
-            <div key={_ix} className="w-full aspect-[3/4] overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900">
-              <a href={_hQ} download={`brawnly_${_sl}_${_dP}_${_sI + _ix}.jpg`} target="_blank" rel="noopener noreferrer">
+            <div key={_ix} className="w-full aspect-[3/4] overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 group relative">
+              <a href={_hQ} download={`brawnly_${_sl}_${_dP}_${_sI + _ix}.jpg`} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                 <img
-                  src={_u}
+                  src={optimizedUrl}
                   loading="lazy"
                   crossOrigin="anonymous"
                   alt={`Gallery item ${_sI + _ix}`}
@@ -102,8 +134,13 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                   onLoad={_ev => { (_ev.currentTarget as HTMLImageElement).style.opacity = "1"; }}
                   onError={_ev => { (_ev.currentTarget as HTMLImageElement).style.display = "none"; }}
                   {...({ fetchpriority: _ix < 2 ? "high" : "auto" } as any)}
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full ${_isGif ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
                 />
+                {_isGif && (
+                  <div className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[8px] px-1.5 py-0.5 rounded font-black border border-white/20 pointer-events-none">
+                    GIF
+                  </div>
+                )}
               </a>
             </div>
           );

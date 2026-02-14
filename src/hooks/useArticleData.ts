@@ -12,8 +12,9 @@ export interface Article {
   slug: string;
   author?: string;
   published_at: string;
-  featured_image_path_clean?: string;
-  featured_image_url_clean?: string;
+  // Updated: Prioritaskan kolom baru, fallback ke kolom lama jika migrasi belum selesai
+  featured_image_url?: string;
+  featured_image?: string;
   views?: number;
   tags?: string[];
   [key: string]: any; 
@@ -43,13 +44,15 @@ export const useArticleData = () => {
     const excerpt = article.excerpt || "";
     const content = article.content || "";
 
-    const rawPaths = (article.featured_image_path_clean || article.featured_image_url_clean || "");
+    // UPDATED LOGIC: Mengambil data dari featured_image_url (sesuai DB baru)
+    // Fallback ke featured_image jika kosong
+    const rawPaths = (article.featured_image_url || article.featured_image || "");
     
+    // Split berdasarkan baris baru (\r\n) atau spasi URL
     const allLines = rawPaths
-      .split(/(?=https?:\/\/)/) 
-      .flatMap(l => l.split(/[\r\n]+/)) 
+      .split(/[\r\n]+/) 
       .map(l => l.trim())
-      .filter(l => l.length > 10); 
+      .filter(l => l.length > 10 && l.startsWith('http')); 
 
     let coverImage = "";
     if (allLines.length > 0) {
@@ -75,6 +78,8 @@ export const useArticleData = () => {
       coverImage, 
       midGallery, 
       bottomGallery,
+      // Helper tambahan jika komponen butuh array raw
+      allImages: allLines
     };
   }, [article]);
 

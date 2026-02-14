@@ -1,8 +1,10 @@
 import React, { useState as _s, useMemo as _m, useEffect as _e } from 'react';
-import Card from '@/components/ui/Card';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
+import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
+import { detectBestFormat } from '@/lib/imageFormat';
+import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
 
 interface ArticleCoverImageProps {
   imageUrl?: string | null;
@@ -25,14 +27,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     try { return await navigator.storage?.estimate?.(); } catch { return null; }
   };
 
-  const _h = async (_v: string) => {
-    try {
-      const b = new TextEncoder().encode(_v);
-      const d = await crypto.subtle.digest("SHA-256", b);
-      return Array.from(new Uint8Array(d)).slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('');
-    } catch { return btoa(_v).slice(0, 16); }
-  };
-
   const _sU = _m(() => {
     if (!_u || typeof _u !== 'string') return null;
     return _u.split(/[\r\n]+/)[0].trim();
@@ -49,15 +43,23 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       const _isTrusted = _src.includes('cloudinary.com') || _src.includes('localhost') || _src.includes('supabase.co');
       if (!_isTrusted || _isGif) return _src;
 
+      const cached = await getAssetFromShared(`cover_${_sl}`);
+      if (cached) return URL.createObjectURL(cached);
+
       const r = await fetch(_src, { mode: "cors" });
       const b = await r.blob();
       
       let finalBlob = b;
       if (b.type !== "image/gif") {
         try {
-          const optimized = await _wTI(b, "webp", 0.75);
-          if (optimized) finalBlob = optimized;
-        } catch { /* fallback */ }
+          const _fmt = await detectBestFormat();
+          const _quality = _iE ? 0.4 : 0.75; 
+          const optimized = await _wTI(b, _fmt, _quality);
+          if (optimized) {
+            finalBlob = optimized;
+            await saveAssetToShared(`cover_${_sl}`, finalBlob);
+          }
+        } catch { }
       }
 
       return URL.createObjectURL(finalBlob);
@@ -74,13 +76,11 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       try {
         const est = await _mQ();
         if (est?.quota && est?.usage && est.usage > est.quota * 0.25) {
-          Object.keys(localStorage).filter(k => k.startsWith("brawnly_cover_")).slice(0, 3).forEach(k => localStorage.removeItem(k));
+          Object.keys(localStorage).filter(key => key.startsWith("brawnly_cover_")).slice(0, 3).forEach(key => localStorage.removeItem(key));
         }
-        const _ex = localStorage.getItem(k);
-        if (_ex && _ex.includes("supabase.co")) localStorage.removeItem(k);
         localStorage.setItem(k, payload);
-        const hash = await _h(payload);
-        document.cookie = `b_cov_${_sl}=${hash}; path=/; max-age=604800; SameSite=Lax`;
+        await setCookieHash(`cover_${_sl}`);
+        mirrorQuery({ type: 'COVER_VIEW', slug: _sl, ts: Date.now() });
       } catch {}
     })();
   }, [_sU, _sl, _t]);
@@ -97,7 +97,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     return () => {
       if (_activeBlob && _activeBlob.startsWith("blob:")) URL.revokeObjectURL(_activeBlob);
     };
-  }, [_sU, _isGif]);
+  }, [_sU, _isGif, _iE]);
 
   if (!_sU) return null;
 
@@ -109,19 +109,14 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
   return (
     <div className={`w-full mb-6 ${_cN}`}>
-      {/* MYSPACE / 2000s AESTHETIC FRAME 
-          - Gradient Border (Pink -> Cyan -> Lime)
-          - Hard Shadow (No Blur) in Purple/Cyan Neon
-          - No Black Borders
-      */}
       <div className="p-[4px] bg-gradient-to-r from-[#ff0099] via-[#00ffff] to-[#ccff00] rounded-sm shadow-[6px_6px_0px_0px_#aa00ff] dark:shadow-[6px_6px_0px_0px_#00ffff] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_#aa00ff] transition-all duration-200">
-        <div className="bg-white dark:bg-[#1a0b2e] p-[2px]"> {/* Inner frame to separate image from gradient */}
+        <div className="bg-white dark:bg-[#1a0b2e] p-[2px]">
             <a href={_sU} className="block w-full h-full cursor-zoom-in" target="_blank" rel="noopener noreferrer">
-              <div className={`${_isGif ? 'aspect-auto' : 'aspect-[16/9]'} bg-[#f0f0f0] dark:bg-[#2a1b3d] overflow-hidden ${_iL ? '' : 'animate-pulse'}`}>
+              <div className={`${_isGif ? 'aspect-auto min-h-[200px]' : 'aspect-[16/9]'} bg-[#f0f0f0] dark:bg-[#2a1b3d] overflow-hidden relative ${_iL ? '' : 'animate-pulse'}`}>
                 <img
                   src={_fU}
                   alt={_t}
-                  className={`w-full h-full transition-opacity duration-700 ${_isGif ? 'object-contain scale-100' : 'object-cover'} ${_iL ? 'opacity-100' : 'opacity-0'}`}
+                  className={`w-full h-full transition-opacity duration-700 ${_isGif ? 'object-contain' : 'object-cover'} ${_iL ? 'opacity-100' : 'opacity-0'}`}
                   loading="eager"
                   crossOrigin="anonymous"
                   onLoad={() => _siL(true)}
@@ -136,8 +131,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         </div>
       </div>
 
-      {/* Retro Colored Caption */}
-      <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#ff0099] dark:text-[#00ffff] font-black text-center drop-shadow-sm">
+      <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#ff0099] dark:text-[#00ffff] font-black text-center drop-shadow-sm italic">
         Brawnly Visual Asset — {_sl.replace(/-/g, ' ')}
       </p>
     </div>

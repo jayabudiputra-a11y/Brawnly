@@ -5,6 +5,14 @@ import Header from "./Header";
 import Footer from "./Footer";
 import Splash from "../features/Splash";
 
+import { 
+  warmupEnterpriseStorage, 
+  setCookieHash, 
+  mirrorQuery 
+} from "@/lib/enterpriseStorage";
+import { openDB } from "@/lib/idbQueue";
+import { detectBestFormat } from "@/lib/imageFormat";
+
 const Layout = () => {
   const _l = _uL();
   const _iH = _l.pathname === "/";
@@ -16,6 +24,23 @@ const Layout = () => {
   
   const [_isOnline, _setIsOnline] = _s(navigator.onLine);
   const _aR = _r<HTMLIFrameElement>(null);
+
+  _e(() => {
+    warmupEnterpriseStorage();
+    openDB().catch(() => {});
+    detectBestFormat();
+  }, []);
+
+  _e(() => {
+    if (_l.pathname) {
+      setCookieHash(`nav_${_l.pathname}`);
+      mirrorQuery({ 
+        type: "NAVIGATION", 
+        path: _l.pathname, 
+        ts: Date.now() 
+      });
+    }
+  }, [_l.pathname]);
 
   _e(() => {
     if (_iH) {
@@ -55,8 +80,8 @@ const Layout = () => {
         const _d = await _sa.getAll();
         if (_d && _d.length > 0) {
           if (isMounted) {
-             _smL(_d);
-             localStorage.setItem("brawnly_music_cache", JSON.stringify(_d));
+              _smL(_d);
+              localStorage.setItem("brawnly_music_cache", JSON.stringify(_d));
           }
         }
       } catch (e) {}
@@ -77,6 +102,7 @@ const Layout = () => {
         if (_idx !== -1) {
           _scL(_idx);
           _spR(true);
+          mirrorQuery({ type: "MUSIC_PLAY", songId: e.detail.id, ts: Date.now() });
         }
       }
     };

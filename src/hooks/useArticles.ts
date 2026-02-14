@@ -77,12 +77,16 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
 
         const processedData = (rawArticles ?? []).map((article: any) => {
           const liveViews = viewsMap[article.id];
-          let rawPath = article.featured_image || article.featured_image_url_clean || article.featured_image_path_clean;
+          
+          // CLEANUP: Hanya ambil dari featured_image_url atau fallback ke featured_image lama
+          // Menghapus featured_image_url_clean / path_clean karena sudah tidak dipakai
+          let rawPath = article.featured_image_url || article.featured_image;
+          
           const processedCover = rawPath ? generateFullImageUrl(rawPath.split(/[\r\n]+/)[0]) : null;
 
           return {
-            ...article,
-            featured_image: processedCover, 
+            ...article, // Penting: Ini meneruskan 'featured_image_url' asli ke ArticlePage/Detail
+            featured_image: processedCover, // Ini untuk cover card (single image)
             thumbnail_url: processedCover,
             views: liveViews !== undefined ? liveViews : (article.views || 0),
             author: article.author || { 

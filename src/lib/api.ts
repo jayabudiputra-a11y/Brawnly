@@ -179,7 +179,6 @@ export const commentsApi = {
     const { data: _uD } = await _sb.auth.getUser();
     if (!_uD?.user) throw new Error("AUTH_REQUIRED");
     
-    // REVISI: Gunakan UPSERT sederhana untuk profil agar tidak bentrok dengan Profile.tsx
     await _sb.from(_v(2)).upsert({ 
       id: _uD.user.id, 
       username: _uD.user.user_metadata?.full_name || "Member", 

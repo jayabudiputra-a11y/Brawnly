@@ -121,7 +121,6 @@ export const useAuth = () => {
       setUser(null);
       window.location.replace('/');
     } finally {
-        // FIXED: mounted dihapus dari sini karena tidak berada dalam scope useEffect
         setLoading(false);
     }
   };

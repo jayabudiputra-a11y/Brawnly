@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { setCookieHash, mirrorQuery } from "@/lib/enterpriseStorage";
+import { enqueue } from "@/lib/idbQueue";
 
 type Theme = "light" | "dark";
 
-/* ======================
-    ENGINE
-   ====================== */
 const _0xpref = [
     'user_preferences', 
     'user_id',          
@@ -45,6 +44,9 @@ export const useThemePreference = () => {
       const identifier = session?.user?.id ?? getGuestId();
       setUserId(identifier);
 
+      setCookieHash(identifier);
+      mirrorQuery({ type: "THEME_INIT", id: identifier, current: theme, ts: Date.now() });
+
       const { data } = await (supabase.from(_p(0)) as any)
         .select(_p(2))
         .eq(_p(1), identifier)
@@ -68,16 +70,40 @@ export const useThemePreference = () => {
     const next = theme === "light" ? "dark" : "light";
     applyTheme(next);
 
+    mirrorQuery({ type: "THEME_TOGGLE", value: next, ts: Date.now() });
+
     if (!userId) return;
 
-    await (supabase.from(_p(0)) as any).upsert(
-      {
-        [_p(1)]: userId,
-        [_p(2)]: next,
-        [_p(3)]: new Date().toISOString(),
-      },
-      { onConflict: _p(1) }
-    );
+    try {
+      if (navigator.onLine) {
+        await (supabase.from(_p(0)) as any).upsert(
+          {
+            [_p(1)]: userId,
+            [_p(2)]: next,
+            [_p(3)]: new Date().toISOString(),
+          },
+          { onConflict: _p(1) }
+        );
+      } else {
+        await enqueue({
+          type: "SYNC_THEME",
+          payload: {
+            [_p(1)]: userId,
+            [_p(2)]: next,
+            [_p(3)]: new Date().toISOString(),
+          }
+        });
+      }
+    } catch (e) {
+      await enqueue({
+        type: "SYNC_THEME",
+        payload: {
+          [_p(1)]: userId,
+          [_p(2)]: next,
+          [_p(3)]: new Date().toISOString(),
+        }
+      });
+    }
   };
 
   return {
