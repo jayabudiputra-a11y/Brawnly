@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ArticleList from "@/components/features/ArticleList";
 import { supabase } from "@/lib/supabase";
+import { useLocation } from "react-router-dom"; // Import useLocation untuk deteksi hash
 
 import centralGif from "@/assets/Brawnly-17aDfvayqUvay.gif";
 import leftGif from "@/assets/Brawnly-17VaIyauwVGvanab8Vf.gif";
@@ -22,11 +23,24 @@ import { openDB } from "@/lib/idbQueue";
 import { detectBestFormat } from "@/lib/imageFormat";
 
 const Home = () => {
+  const location = useLocation(); // Hook lokasi
   const [articles, setArticles] = useState<any[]>(() => {
     const localData = getArticlesSnap();
     return localData.length > 0 ? localData : loadSnap();
   });
   const [isSyncing, setSyncing] = useState(false);
+
+  // Logic Scroll Otomatis ke Feed Section
+  useEffect(() => {
+    if (location.hash === "#feed-section") {
+      const element = document.getElementById("feed-section");
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth" });
+        }, 100); // Delay sedikit agar render selesai
+      }
+    }
+  }, [location]);
 
   useEffect(() => {
     let _mounted = true;
@@ -167,7 +181,8 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-12">
+      {/* FIX: ID ditambahkan di sini */}
+      <section id="feed-section" className="py-12">
         <div className={_s.inner}>
           <div className="flex items-baseline justify-between border-b-8 border-black dark:border-white mb-10 pb-2">
             <h2 className="text-4xl font-black uppercase tracking-tighter italic">

@@ -109,26 +109,35 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
   return (
     <div className={`w-full mb-6 ${_cN}`}>
-      <Card variant="shadow" className="p-0 overflow-hidden border-none shadow-xl dark:shadow-neutral-900/50">
-        <a href={_sU} className="block w-full h-full cursor-zoom-in" target="_blank" rel="noopener noreferrer">
-          <div className={`${_isGif ? 'aspect-auto' : 'aspect-[16/9]'} bg-neutral-100 dark:bg-neutral-900 overflow-hidden ${_iL ? '' : 'animate-pulse'}`}>
-            <img
-              src={_fU}
-              alt={_t}
-              className={`w-full h-full transition-opacity duration-700 ${_isGif ? 'object-contain scale-100' : 'object-cover'} ${_iL ? 'opacity-100' : 'opacity-0'}`}
-              loading="eager"
-              crossOrigin="anonymous"
-              onLoad={() => _siL(true)}
-              onError={(e) => {
-                _siL(true);
-                if (_fU.startsWith("blob:")) e.currentTarget.src = _dU;
-              }}
-              {...({ fetchpriority: "high" } as any)}
-            />
-          </div>
-        </a>
-      </Card>
-      <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-neutral-400 dark:text-neutral-600 font-bold text-center">
+      {/* MYSPACE / 2000s AESTHETIC FRAME 
+          - Gradient Border (Pink -> Cyan -> Lime)
+          - Hard Shadow (No Blur) in Purple/Cyan Neon
+          - No Black Borders
+      */}
+      <div className="p-[4px] bg-gradient-to-r from-[#ff0099] via-[#00ffff] to-[#ccff00] rounded-sm shadow-[6px_6px_0px_0px_#aa00ff] dark:shadow-[6px_6px_0px_0px_#00ffff] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_#aa00ff] transition-all duration-200">
+        <div className="bg-white dark:bg-[#1a0b2e] p-[2px]"> {/* Inner frame to separate image from gradient */}
+            <a href={_sU} className="block w-full h-full cursor-zoom-in" target="_blank" rel="noopener noreferrer">
+              <div className={`${_isGif ? 'aspect-auto' : 'aspect-[16/9]'} bg-[#f0f0f0] dark:bg-[#2a1b3d] overflow-hidden ${_iL ? '' : 'animate-pulse'}`}>
+                <img
+                  src={_fU}
+                  alt={_t}
+                  className={`w-full h-full transition-opacity duration-700 ${_isGif ? 'object-contain scale-100' : 'object-cover'} ${_iL ? 'opacity-100' : 'opacity-0'}`}
+                  loading="eager"
+                  crossOrigin="anonymous"
+                  onLoad={() => _siL(true)}
+                  onError={(e) => {
+                    _siL(true);
+                    if (_fU.startsWith("blob:")) e.currentTarget.src = _dU;
+                  }}
+                  {...({ fetchpriority: "high" } as any)}
+                />
+              </div>
+            </a>
+        </div>
+      </div>
+
+      {/* Retro Colored Caption */}
+      <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#ff0099] dark:text-[#00ffff] font-black text-center drop-shadow-sm">
         Brawnly Visual Asset — {_sl.replace(/-/g, ' ')}
       </p>
     </div>

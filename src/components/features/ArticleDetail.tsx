@@ -120,6 +120,7 @@ export default function ArticleDetail() {
         <meta property="og:image" content={_gOI(_rawImgSource || "", 1200)} />
       </_Hm>
 
+      {/* DESKTOP SIDEBAR ACTIONS (Hidden on Mobile) */}
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button onClick={_hSv} className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${_iS ? 'bg-emerald-500 border-black text-black scale-110' : 'bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl'}`}>
           {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
@@ -183,9 +184,9 @@ export default function ArticleDetail() {
               ))}
             </div>
 
-            {/* PHOTOS SECTION - Tampilan Diperkecil (Grid 3 Kolom) */}
+            {/* PHOTOS SECTION */}
             {_extraImages.length > 0 && (
-                <section className="mt-20 mb-20 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
+                <section className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
                     <div className="flex items-center gap-4 mb-10">
                         <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"><_Ca size={18} /></div>
                         <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Gallery</h3>
@@ -205,6 +206,34 @@ export default function ArticleDetail() {
                     </div>
                 </section>
             )}
+
+            {/* 📱 MOBILE ACTION BUTTONS (Save & Share) - VISIBLE ONLY ON MOBILE/TABLET */}
+            <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8">
+              {/* Save Button Mobile */}
+              <button
+                onClick={_hSv}
+                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
+                  _iS
+                    ? 'bg-emerald-500 border-black text-black'
+                    : 'bg-white dark:bg-black border-black dark:border-white text-black dark:text-white'
+                }`}
+              >
+                {_iS ? <_Ck size={16} /> : <_Bm size={16} />}
+                {_iS ? 'Saved' : 'Save'}
+              </button>
+
+              {/* Permalink Button Mobile */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  toast.success("Node Link Copied");
+                }}
+                className="flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-black uppercase text-[12px] tracking-widest shadow-md hover:invert active:scale-95 transition-all"
+              >
+                <_Sh size={16} />
+                Permalink
+              </button>
+            </div>
 
             <CommentSection articleId={_art.id} />
           </article>
