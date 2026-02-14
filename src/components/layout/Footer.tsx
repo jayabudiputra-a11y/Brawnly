@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Dumbbell, Heart, Mail, ShieldCheck, Scale, FileText, ExternalLink } from 'lucide-react';
+import { Heart, Mail, ShieldCheck, Scale, FileText, ExternalLink } from 'lucide-react';
 import React, { useEffect } from 'react';
 import NewsletterForm from '@/components/common/NewsletterForm'; 
 import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
@@ -39,9 +39,8 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
                     
                     <div className="space-y-4">
-                        <div className="flex items-center space-x-2">
-                            <Dumbbell className="w-8 h-8 text-emerald-500" />
-                            <span className="text-3xl font-black uppercase tracking-tighter italic bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent py-2 leading-relaxed block">
+                        <div className="flex items-center">
+                            <span className="text-3xl font-black uppercase tracking-tighter italic bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent py-4 leading-loose block overflow-visible">
                                 Brawnly
                             </span>
                         </div>
