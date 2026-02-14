@@ -67,7 +67,7 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
 }
 
 /* ============================================================
-    🗨️ COMMENT SECTION (Auth Guard Refactored)
+    🗨️ COMMENT SECTION
    ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
@@ -117,49 +117,51 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      // NUCLEAR AUTH FIX: Paksa ambil token JWT paling fresh dari Supabase Auth
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // 1. RE-SYNC AUTH: Paksa ambil token terbaru dari cookie/localStorage
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionError || !session?.access_token) {
-        toast.error("Security Session Invalid. Please Re-login.");
+      if (!session) {
+        toast.error("Auth expired. Please login again.");
+        _nav("/signin");
         return;
       }
 
-      // INJEKSI HEADER MANUAL: Memastikan request berikutnya membawa token terbaru
-      // Ini akan memperbaiki error 401 Unauthorized
-      const _uId = session.user.id;
-      const _meta = session.user.user_metadata;
-
-      // 1. Sinkronkan Profile menggunakan instance dengan token yang sudah divalidasi
+      // 2. BYPASS CACHE: Gunakan instance supabase langsung untuk bypass state memori
       const { error: upsertError } = await supabase
         .from('user_profiles')
         .upsert({
-          id: _uId,
-          username: _meta?.full_name || "Member",
-          avatar_url: _meta?.avatar_url || null
-        });
+          id: session.user.id,
+          username: session.user.user_metadata?.full_name || "Member",
+          avatar_url: session.user.user_metadata?.avatar_url || null
+        }, { onConflict: 'id' });
 
-      if (upsertError) throw upsertError;
+      if (upsertError) {
+          console.error("Upsert 401 Bypass Error:", upsertError);
+          // Jika upsert gagal, kita tetap coba posting komentar (mungkin profile sudah ada)
+      }
 
-      // 2. Kirim Komentar
-      const { error: commentError } = await supabase
+      // 3. POSTING: Gunakan insert langsung di sini untuk memastikan token terpakai
+      const { error: postError } = await supabase
         .from('comments')
         .insert({
-          article_id: articleId,
-          user_id: _uId,
           content: content.trim(),
+          article_id: articleId,
+          user_id: session.user.id,
           parent_id: parentId
         });
 
-      if (commentError) throw commentError;
+      if (postError) throw postError;
 
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
       toast.success("Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      console.error("Auth_Node_Error:", e);
-      toast.error(e.status === 401 ? "Unauthorized. Refreshing..." : "Sync Failed");
+      console.error("Critical Comment Failure:", e);
+      toast.error(e.message?.includes("401") || e.status === 401 
+        ? "Security session expired. Refreshing..." 
+        : "Sync Failed. Check Connection.");
+      
       if (e.status === 401) window.location.reload();
     } finally {
       _sSub(false);
@@ -334,7 +336,7 @@ export default function ArticleDetail() {
       </aside>
 
       <div className="max-w-[1320px] mx-auto px-4 md:px-10">
-        <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white">
+        <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:md-10 relative text-black dark:text-white">
           <div className="flex justify-between items-start mb-6">
             <_L to="/articles" className="text-red-700 font-black uppercase text-[11px] md:text-[13px] tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all italic">
               <_Al size={14} /> Node_Explore
