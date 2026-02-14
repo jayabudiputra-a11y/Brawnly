@@ -67,7 +67,7 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
 }
 
 /* ============================================================
-    🗨️ COMMENT SECTION
+    🗨️ COMMENT SECTION (Identity & Auth Fix)
    ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
@@ -117,51 +117,38 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      // 1. RE-SYNC AUTH: Paksa ambil token terbaru dari cookie/localStorage
+      // 1. Ambil Sesi Terbaru (Kill 401)
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
-        toast.error("Auth expired. Please login again.");
-        _nav("/signin");
-        return;
+          toast.error("Session expired, please sign in.");
+          _nav("/signin");
+          return;
       }
 
-      // 2. BYPASS CACHE: Gunakan instance supabase langsung untuk bypass state memori
-      const { error: upsertError } = await supabase
-        .from('user_profiles')
-        .upsert({
-          id: session.user.id,
-          username: session.user.user_metadata?.full_name || "Member",
-          avatar_url: session.user.user_metadata?.avatar_url || null
-        }, { onConflict: 'id' });
+      // 2. Sync Profile (Identity Sync)
+      await supabase.from('user_profiles').upsert({
+        id: session.user.id,
+        username: session.user.user_metadata?.full_name || "Member",
+        avatar_url: session.user.user_metadata?.avatar_url || null
+      }, { onConflict: 'id' });
 
-      if (upsertError) {
-          console.error("Upsert 401 Bypass Error:", upsertError);
-          // Jika upsert gagal, kita tetap coba posting komentar (mungkin profile sudah ada)
-      }
+      // 3. Post Komentar
+      const { error: commentError } = await supabase.from('comments').insert({
+        article_id: articleId,
+        user_id: session.user.id,
+        content: content.trim(),
+        parent_id: parentId
+      });
 
-      // 3. POSTING: Gunakan insert langsung di sini untuk memastikan token terpakai
-      const { error: postError } = await supabase
-        .from('comments')
-        .insert({
-          content: content.trim(),
-          article_id: articleId,
-          user_id: session.user.id,
-          parent_id: parentId
-        });
-
-      if (postError) throw postError;
+      if (commentError) throw commentError;
 
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
       toast.success("Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      console.error("Critical Comment Failure:", e);
-      toast.error(e.message?.includes("401") || e.status === 401 
-        ? "Security session expired. Refreshing..." 
-        : "Sync Failed. Check Connection.");
-      
+      console.error(e);
+      toast.error(e.status === 401 ? "Unauthorized. Refreshing..." : "Sync Failed");
       if (e.status === 401) window.location.reload();
     } finally {
       _sSub(false);
@@ -188,7 +175,7 @@ function CommentSection({ articleId }: { articleId: string }) {
                 <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
                   <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
                 </span>
-                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
+                <button type="button" onClick={() => _sReplyTo(null)}><_X size={14} /></button>
               </div>
             )}
             <textarea
@@ -201,7 +188,7 @@ function CommentSection({ articleId }: { articleId: string }) {
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
                 ID: {_u.user_metadata?.full_name || "Member"}
               </span>
-              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
+              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30 shadow-lg">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
               </button>
             </div>
@@ -336,7 +323,7 @@ export default function ArticleDetail() {
       </aside>
 
       <div className="max-w-[1320px] mx-auto px-4 md:px-10">
-        <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:md-10 relative text-black dark:text-white">
+        <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white">
           <div className="flex justify-between items-start mb-6">
             <_L to="/articles" className="text-red-700 font-black uppercase text-[11px] md:text-[13px] tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all italic">
               <_Al size={14} /> Node_Explore
