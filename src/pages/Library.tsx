@@ -222,7 +222,6 @@ export default function Library() {
             <div className={_x.e}>
               <_Hx size={120} className="mb-8 opacity-10" strokeWidth={1} />
               <h2 className="text-xl font-black uppercase tracking-tighter mb-4">VAULT_EMPTY</h2>
-              {/* FIX: Link direct ke #feed-section */}
               <_L to="/#feed-section" className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest">MAP_NEW_ENTRIES</_L>
             </div>
           ) : (

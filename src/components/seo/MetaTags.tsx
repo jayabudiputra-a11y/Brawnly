@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect as _e } from 'react';
 import { Helmet as _H } from 'react-helmet-async';
 import _pG from '@/assets/myPride.gif';
 import _mL from '@/assets/masculineLogo.svg';
 import _bG from '@/assets/Brawnly.gif';
 import _fS from '@/assets/Brawnly-favicon.svg';
+import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from '@/lib/enterpriseStorage';
+import { registerSW } from '@/pwa/swRegister';
+import { detectBestFormat } from '@/lib/imageFormat';
 
 interface MetaTagsProps {
   title: string;
@@ -18,6 +21,22 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
   const _fD = _d || "Brawnly 2026: Smart Fitness and Wellness Tracker Intelligence.";
   const _fU = _u || _bU;
   const _fI = _i || `${_bU}${_bG}`;
+
+  _e(() => {
+    warmupEnterpriseStorage();
+    registerSW();
+    detectBestFormat();
+    
+    if (_t) {
+      setCookieHash(_t);
+      mirrorQuery({
+        type: "META_LOAD",
+        title: _t,
+        url: _fU,
+        ts: Date.now()
+      });
+    }
+  }, [_t, _fU]);
 
   const _jLd = {
     "@context": "https://schema.org",

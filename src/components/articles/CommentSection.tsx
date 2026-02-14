@@ -4,13 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 
-// Hooks & Libs
 import { commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import FormattedDate from "@/components/features/FormattedDate";
 
-// Types
+import { setCookieHash, mirrorQuery } from "@/lib/enterpriseStorage";
+import { enqueue } from "@/lib/idbQueue";
+import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
+import { detectBestFormat } from "@/lib/imageFormat";
+
 import type { CommentWithUser as _Cu } from "@/types";
 
 interface CommentSectionProps {
@@ -32,11 +35,20 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
+      const _fmt = await detectBestFormat();
       const response = await fetch(url);
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const optimized = await wasmTranscodeImage(blob, _fmt, 0.4);
+      const blobUrl = URL.createObjectURL(optimized);
       _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
-    } catch (e) {}
+    } catch (e) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
+      } catch (err) {}
+    }
   };
 
   const { data: _serverComments } = useQuery({
@@ -62,20 +74,32 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   const _onAddComment = async (content: string, parent_id: string | null = null) => {
     if (!content.trim() || !_u) return;
     _sSub(true);
-    try {
-      const { error } = await supabase.from('comments').insert({
-        content: content.trim(),
-        article_id: articleId,
-        user_id: _u.id,
-        parent_id: parent_id
-      });
+    
+    const payload = {
+      content: content.trim(),
+      article_id: articleId,
+      user_id: _u.id,
+      parent_id: parent_id
+    };
 
+    try {
+      await setCookieHash(_u.id);
+      mirrorQuery({ type: "COMMENT_POST", articleId, ts: Date.now() });
+
+      if (!navigator.onLine) {
+        await enqueue({ type: "ADD_COMMENT", payload });
+        _sTxt("");
+        _sReplyTo(null);
+        return;
+      }
+
+      const { error } = await supabase.from('comments').insert(payload);
       if (error) throw error;
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
       _sTxt("");
       _sReplyTo(null);
     } catch (e) {
-      console.error(e);
+      await enqueue({ type: "ADD_COMMENT", payload });
     } finally {
       _sSub(false);
     }
@@ -83,7 +107,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
 
   const _handleReplyInitiation = (commentId: string) => {
     if (!_u) {
-      _nav('/signin'); // Redirect ke sign up jika viewer baru ingin reply
+      _nav('/signin');
       return;
     }
     _sReplyTo(commentId);
@@ -95,7 +119,6 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     return _blobCache[uid] || url;
   };
 
-  // Logic Sorting: Terbaru ke Lama (Descending)
   const _sortedComments = _uM(() => {
     return [..._localComments].sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -133,10 +156,10 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
               className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white"
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
-               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                 ID: {_u.user_metadata?.full_name || "Member"}
-               </span>
-               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30 shadow-lg">
+                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
+                  ID: {_u.user_metadata?.full_name || "Member"}
+                </span>
+                <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30 shadow-lg">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
               </button>
             </div>
@@ -158,7 +181,6 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
                 avatar={_getRenderAvatar(_c.user_avatar_url, _c.user_id)} 
                 onReply={() => _handleReplyInitiation(_c.id)} 
               />
-              {/* FIX: Garis lurus border-l-2 dihapus agar bersih */}
               <div className="ml-10 md:ml-16 mt-6 space-y-6 pl-6">
                 {_replies.filter(r => r.parent_id === _c.id).map(r => (
                   <CommentItem 

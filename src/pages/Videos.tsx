@@ -1,19 +1,23 @@
 import React, { useState as _s, useEffect as _e } from "react";
-import { Play as _Pl, Video as _Vd, WifiOff as _Wo, AlertTriangle as _At, Zap as _Zp } from "lucide-react";
+import { Play as _Pl, Video as _Vd, WifiOff as _Wo, Zap as _Zp } from "lucide-react";
 import { motion as _m } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
+import { wasmVideoToThumbnail } from "@/lib/wasmVideoPipeline";
+import { registerSW } from "@/pwa/swRegister";
+import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
+import { detectBestFormat } from "@/lib/imageFormat";
+import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
 
-// Tipe data Universal
 type MinifiedVideo = {
-  i: string;  // id
-  t: string;  // title
-  u: string;  // Slashed YouTube ID ATAU Full URL
-  ty: 'yt' | 'sp' | 'other'; // Tipe player
-  th: string; // slashed thumbnail (WebP Base64)
-  v: boolean; // isVertical (9:16 Aspect Ratio)
+  i: string;  
+  t: string;  
+  u: string;  
+  ty: 'yt' | 'sp' | 'other'; 
+  th: string; 
+  v: boolean; 
 };
 
 export default function Videos() {
@@ -23,14 +27,11 @@ export default function Videos() {
   const [_isOff, _sOff] = _s(!navigator.onLine);
   const [_activeV, _sActiveV] = _s<string | null>(null);
 
-  // Helper Universal
   const _parseVid = (url: string) => {
     if (!url) return { u: "", ty: 'other' as const, isShort: false };
     
-    // Deteksi awal
     let isShort = url.toLowerCase().includes('/shorts/');
 
-    // Deteksi cerdas parameter URL
     try {
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
       const w = parseInt(urlObj.searchParams.get('width') || '0');
@@ -38,14 +39,12 @@ export default function Videos() {
       if (h > 0 && w > 0 && h > w) {
         isShort = true;
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
 
-    // 1. Cek YouTube
     const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]*).*/;
     const _m = url.match(_reg);
     if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const, isShort };
 
-    // 2. Cek ScreenPal
     if (url.includes('screenpal.com/watch/') || url.includes('screenpal.com/player/')) {
       const _spId = url.split('/').pop()?.split('?')[0]; 
       const _urlObj = new URL(url);
@@ -55,11 +54,14 @@ export default function Videos() {
       return { u: _spUrl, ty: 'sp' as const, isShort };
     }
 
-    // 3. Sumber lain
     return { u: url, ty: 'other' as const, isShort };
   };
 
   _e(() => {
+    registerSW();
+    warmupEnterpriseStorage();
+    detectBestFormat();
+
     const _hO = () => _sOff(false);
     const _hF = () => _sOff(true);
     window.addEventListener('online', _hO);
@@ -86,19 +88,12 @@ export default function Videos() {
 
       if (error) {
         console.error("Supabase Error:", error.message);
-        if (error.code === 'PGRST301' || error.message.includes("JWT")) {
-             console.warn("Auth Token Invalid - Try clearing Local Storage");
-        }
       }
 
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
           let { u: _parsedU, ty: _vType, isShort } = _parseVid(v.url);
           
-          // --- LOGIC FILTER DIHAPUS ---
-          // URL sekarang murni dari database (Random/Dynamic)
-          // ----------------------------
-
           let _isVertical = isShort; 
           let _thumbUrl = v.thumbnail_url;
           
@@ -107,7 +102,10 @@ export default function Videos() {
           }
 
           try {
-            if (_thumbUrl) {
+            const _cachedAsset = await getAssetFromShared(`vid_thumb_${v.id}`);
+            if (_cachedAsset) {
+              _thumbUrl = URL.createObjectURL(_cachedAsset);
+            } else if (_thumbUrl && navigator.onLine) {
               const _res = await fetch(_thumbUrl);
               const _blob = await _res.blob();
               
@@ -115,10 +113,11 @@ export default function Videos() {
                 try {
                   const bmp = await createImageBitmap(_blob);
                   if (bmp.height > bmp.width) _isVertical = true; 
-                } catch (dimErr) { /* Abaikan */ }
+                } catch (dimErr) { }
               }
 
               const _optimizedBlob = await _wTI(_blob, "webp", 0.25); 
+              await saveAssetToShared(`vid_thumb_${v.id}`, _optimizedBlob);
               
               const _reader = new FileReader();
               _thumbUrl = await new Promise((res) => {
@@ -156,6 +155,12 @@ export default function Videos() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const _handleVideoPlay = (vId: string, vTitle: string) => {
+    setCookieHash(vId);
+    mirrorQuery({ type: "VIDEO_PLAY", id: vId, title: vTitle, ts: Date.now() });
+    _sActiveV(vId);
+  };
+
   const _x = {
     r: "min-h-screen bg-white dark:bg-[#050505] pt-24 md:pt-32 pb-20 text-black dark:text-white transition-all duration-500",
     c: "max-w-[1440px] mx-auto px-4 sm:px-6 md:px-10",
@@ -186,23 +191,18 @@ export default function Videos() {
             >
               <div className={`relative bg-neutral-900 w-full transition-all duration-500 ${v.v ? 'aspect-[9/16]' : 'aspect-video'}`}>
                 {_activeV === v.i && !_isOff ? (
-                  // LOGIC IFRAME: URL Dinamis + Settingan Frame YouTube Lengkap
                   <iframe 
                     className="absolute inset-0 w-full h-full border-0" 
                     src={v.ty === 'yt' ? `https://www.youtube.com/embed/${v.u}?autoplay=1&modestbranding=1` : v.u} 
                     title={v.t || "Video player"}
-                    
-                    // --- SETINGAN FRAME DIPERTAHANKAN ---
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
-                    // ------------------------------------
-
                     scrolling={v.ty === 'sp' ? "no" : "auto"} 
                   />
                 ) : (
-                  <div className="absolute inset-0 cursor-pointer overflow-hidden" onClick={() => _isOff ? null : _sActiveV(v.i)}>
+                  <div className="absolute inset-0 cursor-pointer overflow-hidden" onClick={() => _isOff ? null : _handleVideoPlay(v.i, v.t)}>
                     {v.th ? (
                       <img 
                         src={v.th} 
