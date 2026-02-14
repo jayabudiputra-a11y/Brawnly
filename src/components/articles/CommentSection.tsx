@@ -1,26 +1,17 @@
-import React, { useState as _s, useEffect as _e, useMemo as _uM } from "react";
+import React, { useState as _s, useEffect as _e, useMemo as _uM, useRef as _uR } from "react";
 import { useNavigate as _uN } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 
 // Hooks & Libs
-import { commentsApi, subscribersApi } from "@/lib/api";
+import { commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import FormattedDate from "@/components/features/FormattedDate";
 
 // Types
 import type { CommentWithUser as _Cu } from "@/types";
-
-const _QK = "brawnly_sync_queue";
-function _pushQ(job: any) {
-  try {
-    const q = JSON.parse(localStorage.getItem(_QK) || "[]");
-    q.push(job);
-    localStorage.setItem(_QK, JSON.stringify(q));
-  } catch {}
-}
 
 interface CommentSectionProps {
   articleId: string;
@@ -30,6 +21,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   const { user: _u } = useAuth();
   const _nav = _uN();
   const _qC = useQueryClient();
+  const _formRef = _uR<HTMLFormElement>(null); 
   
   const [_txt, _sTxt] = _s<string>("");
   const [_sub, _sSub] = _s<boolean>(false);
@@ -37,9 +29,6 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
   const [_blobCache, _sBlobCache] = _s<Record<string, string>>({});
 
-  /* ============================================================
-      🛠️ HYDRATION ENGINE
-     ============================================================ */
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
@@ -50,10 +39,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     } catch (e) {}
   };
 
-  /* ============================================================
-      📡 DATA SYNC & REALTIME
-     ============================================================ */
-  const { data: _serverComments, isLoading: _iL } = useQuery({
+  const { data: _serverComments } = useQuery({
     queryKey: ["comments", articleId],
     queryFn: () => commentsApi.getCommentsByArticle(articleId),
     enabled: !!articleId,
@@ -73,52 +59,35 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     if (_u?.user_metadata?.avatar_url) _hydrateAvatar(_u.user_metadata.avatar_url, "me");
   }, [_u]);
 
-  /* ============================================================
-      ⚡ OPTIMISTIC & REPLY LOGIC
-     ============================================================ */
-  const _onAddComment = async (content: string, parentId: string | null = null) => {
+  const _onAddComment = async (content: string, parent_id: string | null = null) => {
     if (!content.trim() || !_u) return;
-
-    const _cleanContent = content.trim();
-    const _optimisticAvatar = _blobCache["me"] || _u.user_metadata?.avatar_url || null;
-
-    const _newComment: _Cu = {
-      id: `temp-${Date.now()}`,
-      article_id: articleId,
-      content: _cleanContent,
-      created_at: new Date().toISOString(),
-      user_id: _u.id,
-      user_name: _u.user_metadata?.full_name || "Member",
-      user_avatar_url: _optimisticAvatar,
-      parent_id: parentId
-    };
-
-    _setLocalComments(prev => [ ...prev, _newComment]); // Add to bottom or top based on UI preference
-    _sTxt("");
-    _sReplyTo(null);
-
+    _sSub(true);
     try {
-      // Logic Post ke API menggunakan parent_id jika ada
-      const { data, error } = await supabase.from('comments').insert({
-        content: _cleanContent,
+      const { error } = await supabase.from('comments').insert({
+        content: content.trim(),
         article_id: articleId,
         user_id: _u.id,
-        parent_id: parentId
-      }).select('*, profiles(username, avatar_url)').single();
+        parent_id: parent_id
+      });
 
       if (error) throw error;
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+      _sTxt("");
+      _sReplyTo(null);
     } catch (e) {
-      _setLocalComments(prev => prev.filter(c => c.id !== _newComment.id));
+      console.error(e);
+    } finally {
+      _sSub(false);
     }
   };
 
-  const _hS = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (_sub || !_txt.trim()) return;
-    _sSub(true);
-    await _onAddComment(_txt, _replyTo);
-    _sSub(false);
+  const _handleReplyInitiation = (commentId: string) => {
+    if (!_u) {
+      _nav('/signin'); // Redirect ke sign up jika viewer baru ingin reply
+      return;
+    }
+    _sReplyTo(commentId);
+    _formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const _getRenderAvatar = (url: string | null | undefined, uid: string) => {
@@ -126,47 +95,57 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     return _blobCache[uid] || url;
   };
 
-  // Grouping Comments: Root vs Replies
-  const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
-  const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
+  // Logic Sorting: Terbaru ke Lama (Descending)
+  const _sortedComments = _uM(() => {
+    return [..._localComments].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [_localComments]);
+
+  const _rootComments = _uM(() => _sortedComments.filter(c => !c.parent_id), [_sortedComments]);
+  const _replies = _uM(() => _sortedComments.filter(c => c.parent_id), [_sortedComments]);
 
   return (
-    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900">
+    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
       <div className="flex items-center gap-4 mb-12">
         <div className="p-3 bg-red-600 text-white rounded-full"><_Ms size={20} /></div>
-        <h3 className="text-2xl font-black uppercase italic tracking-tighter">Discussion ({_localComments.length})</h3>
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Discussion ({_localComments.length})</h3>
       </div>
 
       {_u ? (
-        <form onSubmit={_hS} className="mb-16">
-          <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl">
+        <form ref={_formRef} onSubmit={(e) => { e.preventDefault(); _onAddComment(_txt, _replyTo); }} className="mb-16">
+          <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-xl">
             {_replyTo && (
               <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                  <_Rp size={12} /> Replying to node_id: {_replyTo.slice(0,8)}
+                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
+                  <_Rp size={12} /> Replying to viewer_node: {_replyTo.slice(0,8)}
                 </span>
-                <button type="button" onClick={() => _sReplyTo(null)}><_X size={14} /></button>
+                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
               </div>
             )}
+            <label htmlFor="comment-input" className="sr-only">Write your comment</label>
             <textarea
+              id="comment-input"
+              name="comment_content"
               value={_txt}
               onChange={(e) => _sTxt(e.target.value)}
               placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
-              className="w-full bg-neutral-50 dark:bg-neutral-900 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none"
+              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white"
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
-               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">
-                  Posting as {_u.user_metadata?.full_name || "Member"}
+               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
+                 ID: {_u.user_metadata?.full_name || "Member"}
                </span>
-               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert transition-all disabled:opacity-30">
-                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Post
+               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30 shadow-lg">
+                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
               </button>
             </div>
           </div>
         </form>
       ) : (
-        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl text-center mb-16">
-          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all">Sign In to Comment & reply to my viewers</button>
+        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl text-center mb-16">
+          <p className="mb-6 font-serif italic text-neutral-500 text-lg">Sign up to comment and reply as a Brawnly viewer.</p>
+          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg">Sign Up Now</button>
         </div>
       )}
 
@@ -177,11 +156,10 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
               <CommentItem 
                 comment={_c} 
                 avatar={_getRenderAvatar(_c.user_avatar_url, _c.user_id)} 
-                onReply={() => { _sReplyTo(_c.id); window.scrollTo({top: 0, behavior: 'smooth'}); }}
+                onReply={() => _handleReplyInitiation(_c.id)} 
               />
-              
-              {/* Replies Thread */}
-              <div className="ml-10 md:ml-16 mt-6 space-y-6 border-l-2 border-neutral-100 dark:border-neutral-900 pl-6">
+              {/* FIX: Garis lurus border-l-2 dihapus agar bersih */}
+              <div className="ml-10 md:ml-16 mt-6 space-y-6 pl-6">
                 {_replies.filter(r => r.parent_id === _c.id).map(r => (
                   <CommentItem 
                     key={r.id} 
@@ -199,27 +177,26 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   );
 }
 
-/* --------------------------------
-    Sub-Component: CommentItem
--------------------------------- */
 function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _Cu, avatar: string | null, onReply?: () => void, isReply?: boolean }) {
   return (
-    <div className="flex gap-4 md:gap-6 relative">
+    <div className="flex gap-4 md:gap-6 relative group">
       {isReply && <_Cr className="absolute -left-10 top-2 text-neutral-300 dark:text-neutral-800" size={20} />}
       <div className="flex-shrink-0">
-        <div className={`${isReply ? 'w-10 h-10' : 'w-14 h-14'} border-2 border-black dark:border-white overflow-hidden bg-neutral-100`}>
+        <div className={`${isReply ? 'w-10 h-10' : 'w-14 h-14'} border-2 border-black dark:border-white overflow-hidden bg-neutral-100 dark:bg-neutral-900 shadow-sm`}>
           {avatar ? (
-            <img src={avatar} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" alt="" />
+            <img src={avatar} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt="" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-neutral-400"><_Us size={isReply ? 16 : 24} /></div>
+            <div className="w-full h-full flex items-center justify-center text-neutral-400 font-black tracking-tighter italic">
+              <_Us size={isReply ? 16 : 24} />
+            </div>
           )}
         </div>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-2">
-          <h4 className={`font-black uppercase italic ${isReply ? 'text-[11px]' : 'text-[13px]'} flex items-center gap-2`}>
+          <h4 className={`font-black uppercase italic ${isReply ? 'text-[11px]' : 'text-[13px]'} text-black dark:text-white`}>
             {comment.user_name}
-            {comment.id.toString().startsWith('temp-') && <span className="text-[9px] not-italic text-red-600 animate-pulse">SYNCING...</span>}
+            {comment.id.toString().startsWith('temp-') && <span className="ml-2 text-[9px] not-italic text-emerald-600 animate-pulse tracking-widest">SYNCING...</span>}
           </h4>
           <span className="text-[10px] font-bold opacity-40 uppercase"><FormattedDate dateString={comment.created_at} /></span>
         </div>

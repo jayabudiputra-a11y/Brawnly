@@ -1,7 +1,7 @@
 import React, { useState as _s, useEffect as _e, useMemo as _uM } from "react";
 import { Link as _L, useParams as _uP, useNavigate as _uN } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
-import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X } from "lucide-react";
+import { Eye as _Ey, Bookmark as _Bm, Hexagon as _Hx, Check as _Ck, WifiOff as _Wo, Share2 as _Sh, ArrowLeft as _Al, Send as _Sd, MessageSquare as _Ms, Loader2 as _L2, User as _Us, Reply as _Rp, CornerDownRight as _Cr, X as _X, Camera as _Ca } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,230 +9,28 @@ import { toast } from "sonner";
 import FormattedDate from "@/components/features/FormattedDate";
 import _mA from "@/assets/myAvatar.jpg";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
-import ArticleImageGallery from "@/components/features/ArticleImageGallery";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
+import CommentSection from "@/components/articles/CommentSection";
+
+// ASSETS DECORATION
+import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
+import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
 
 import { useArticleData as _uAD } from "@/hooks/useArticleData";
 import { useArticleViews as _uAV } from "@/hooks/useArticleViews";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useArticles as _uAs } from "@/hooks/useArticles";
-import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
 import { useAuth } from "@/hooks/useAuth";
 import { supabase, CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
-import { commentsApi } from "@/lib/api";
 
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
 import { detectBestFormat as _dBF } from "@/lib/imageFormat";
-import { mirrorQuery as _mQ, setCookieHash as _sCH } from "@/lib/enterpriseStorage";
 import { trackPageView as _tPV } from "@/lib/trackViews";
 
-import type { CommentWithUser as _Cu } from "@/types";
-
 /* ============================================================
-    💬 COMMENT ITEM COMPONENT
+    📄 ARTICLE DETAIL MAIN
    ============================================================ */
-function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _Cu, avatar: string | null, onReply?: () => void, isReply?: boolean }) {
-  return (
-    <div className={`flex gap-4 md:gap-6 relative ${isReply ? 'ml-10 md:ml-16 mt-6' : ''}`}>
-      {isReply && <_Cr className="absolute -left-10 top-2 text-neutral-300 dark:text-neutral-800" size={20} />}
-      <div className="flex-shrink-0">
-        <div className={`${isReply ? 'w-10 h-10' : 'w-14 h-14'} border-2 border-black dark:border-white overflow-hidden bg-neutral-100 dark:bg-neutral-900 shadow-sm`}>
-          {avatar ? (
-            <img src={avatar} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt="" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-neutral-400"><_Us size={isReply ? 16 : 24} /></div>
-          )}
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-2">
-          <h4 className={`font-black uppercase italic ${isReply ? 'text-[11px]' : 'text-[13px]'} flex items-center gap-2 text-black dark:text-white`}>
-            {comment.user_name}
-            {comment.id.toString().startsWith('temp-') && <span className="text-[9px] not-italic text-emerald-500 animate-pulse tracking-widest">SYNCING...</span>}
-          </h4>
-          <span className="text-[10px] font-bold opacity-40 uppercase"><FormattedDate dateString={comment.created_at} /></span>
-        </div>
-        <div className={`${isReply ? 'text-[15px]' : 'text-[18px]'} leading-relaxed font-serif text-neutral-800 dark:text-neutral-200 break-words mb-3`}>
-          {comment.content}
-        </div>
-        {!isReply && onReply && (
-          <button onClick={onReply} className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 text-emerald-600 hover:text-emerald-400 transition-colors">
-            <_Rp size={12} /> Reply
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-    🗨️ COMMENT SECTION (The 401 Killer)
-   ============================================================ */
-function CommentSection({ articleId }: { articleId: string }) {
-  const { user: _u } = useAuth();
-  const _nav = _uN();
-  const _qC = useQueryClient();
-  const [_txt, _sTxt] = _s<string>("");
-  const [_sub, _sSub] = _s<boolean>(false);
-  const [_replyTo, _sReplyTo] = _s<string | null>(null);
-  const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
-  const [_blobCache, _sBlobCache] = _s<Record<string, string>>({});
-
-  const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
-    if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
-    try {
-      // Fix double path avatars/avatars
-      let _finalUrl = url;
-      if (_finalUrl.includes('brawnly-assets')) {
-         _finalUrl = _finalUrl.replace('brawnly-assets/avatars', 'avatars/avatars');
-      }
-      const response = await fetch(_finalUrl);
-      if (!response.ok) throw new Error();
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
-    } catch (e) {}
-  };
-
-  const { data: _serverComments } = useQuery({
-    queryKey: ["comments", articleId],
-    queryFn: () => commentsApi.getCommentsByArticle(articleId),
-    enabled: !!articleId,
-  });
-
-  _e(() => {
-    if (_serverComments) {
-      _setLocalComments(_serverComments);
-      _serverComments.forEach(c => {
-        if (c.user_avatar_url) _hydrateAvatar(c.user_avatar_url, c.user_id);
-      });
-    }
-  }, [_serverComments]);
-
-  const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
-  const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
-
-  const _onAddComment = async (content: string, parentId: string | null = null) => {
-    if (!content.trim() || !_u) return;
-    _sSub(true);
-
-    try {
-      // ⚡ FORCE RE-AUTHENTICATION OF THE CLIENT
-      // Ini mengambil token baru dan menyuntikkannya ke headers internal supabase
-      const { data: { session }, error: sErr } = await supabase.auth.getSession();
-      if (sErr || !session) throw new Error("AUTH_SESSION_MISSING");
-
-      const _uid = session.user.id;
-
-      // 1. SYNC PROFILE (Memastikan RLS Terlewati)
-      const { error: pErr } = await supabase.from('user_profiles').upsert({
-        id: _uid,
-        username: session.user.user_metadata?.full_name || "Member",
-        avatar_url: session.user.user_metadata?.avatar_url || null
-      }, { onConflict: 'id' });
-
-      if (pErr) console.warn("Profile sync warning:", pErr.message);
-
-      // 2. INSERT COMMENT
-      const { error: cErr } = await supabase.from('comments').insert({
-        article_id: articleId,
-        user_id: _uid,
-        content: content.trim(),
-        parent_id: parentId
-      });
-
-      if (cErr) throw cErr;
-
-      await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
-      toast.success("Identity Perspective Synced");
-      _sTxt("");
-      _sReplyTo(null);
-    } catch (e: any) {
-      console.error("401 Trace:", e);
-      if (e.message === "AUTH_SESSION_MISSING" || e.status === 401) {
-        toast.error("Session stale. Re-authorizing...");
-        _nav('/signin');
-      } else {
-        toast.error("Sync Failed: Check Database Policies");
-      }
-    } finally {
-      _sSub(false);
-    }
-  };
-
-  const _getRenderAvatar = (url: string | null | undefined, uid: string): string | null => {
-    const result = uid === _u?.id ? (_blobCache["me"] || url) : (_blobCache[uid] || url);
-    return result || null;
-  };
-
-  return (
-    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
-      <div className="flex items-center gap-4 mb-12">
-        <div className="p-3 bg-red-600 text-white rounded-full"><_Ms size={20} /></div>
-        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Discussion ({_localComments.length})</h3>
-      </div>
-
-      {_u ? (
-        <form onSubmit={(e) => { e.preventDefault(); _onAddComment(_txt, _replyTo); }} className="mb-16">
-          <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-2xl">
-            {_replyTo && (
-              <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                  <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
-                </span>
-                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
-              </div>
-            )}
-            <textarea
-              value={_txt}
-              onChange={(e) => _sTxt(e.target.value)}
-              placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
-              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white placeholder:opacity-20"
-            />
-            <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
-              <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                ID_NODE: {_u.user_metadata?.full_name || "Member"}
-              </span>
-              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
-                {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
-              </button>
-            </div>
-          </div>
-        </form>
-      ) : (
-        <div className="p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl text-center mb-16">
-          <button onClick={() => _nav('/signin')} className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg">Authorize Node to Comment</button>
-        </div>
-      )}
-
-      <div className="space-y-12">
-        <_AP mode="popLayout">
-          {_rootComments.map((_c) => (
-            <_m.div key={_c.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group">
-              <CommentItem
-                comment={_c}
-                avatar={_getRenderAvatar(_c.user_avatar_url, _c.user_id)}
-                onReply={() => { _sReplyTo(_c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              />
-              <div className="space-y-6">
-                {_replies.filter(r => r.parent_id === _c.id).map(r => (
-                  <CommentItem
-                    key={r.id}
-                    comment={r}
-                    isReply
-                    avatar={_getRenderAvatar(r.user_avatar_url, r.user_id)}
-                  />
-                ))}
-              </div>
-            </_m.div>
-          ))}
-        </_AP>
-      </div>
-    </section>
-  );
-}
-
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
@@ -250,10 +48,13 @@ export default function ArticleDetail() {
 
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
-  const _rawImgSource = _uM(() => {
-    const _img = _art?.featured_image?.split(/[\r\n]+/)[0];
-    return _img ? _fC(_img) : null;
+  const _allImages = _uM(() => {
+    if (!_art?.featured_image) return [];
+    return _art.featured_image.split(/[\r\n]+/).filter(Boolean);
   }, [_art?.featured_image]);
+
+  const _rawImgSource = _uM(() => _allImages[0] ? _fC(_allImages[0]) : null, [_allImages]);
+  const _extraImages = _uM(() => _allImages.slice(1), [_allImages]);
 
   _e(() => {
     if (!_rawImgSource || !navigator.onLine) return;
@@ -313,7 +114,7 @@ export default function ArticleDetail() {
   if (!_pD || !_art) return null;
 
   return (
-    <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative">
+    <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative overflow-x-hidden">
       <_Hm>
         <title>{_pD.title} | Brawnly</title>
         <meta property="og:image" content={_gOI(_rawImgSource || "", 1200)} />
@@ -341,7 +142,7 @@ export default function ArticleDetail() {
           </h1>
           <div className="flex flex-col md:flex-row md:items-end justify-between py-6 md:py-8 border-t-2 border-black dark:border-white gap-6">
             <div className="flex items-center gap-4 md:gap-5">
-              <div className="w-12 h-12 md:w-14 md:h-14 overflow-hidden border-2 border-black grayscale shadow-lg">
+              <div className="w-12 h-12 md:w-14 md:h-14 overflow-hidden border-2 border-black grayscale shadow-lg bg-neutral-100">
                 <img src={_gOI(_mA, 120)} className="w-full h-full object-cover" alt="B" />
               </div>
               <div>
@@ -360,15 +161,51 @@ export default function ArticleDetail() {
             <p className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic">
               {_pD.excerpt}
             </p>
-            <div className="mb-12 md:mb-16 relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl">
-              <ArticleCoverImage imageUrl={_blobUrl || _rawImgSource || ""} title={_pD.title} slug={_slV} className="w-full aspect-video md:aspect-[21/9] object-cover" />
+
+            <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
+                <div className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none">
+                    <img src={_muscleLeft} alt="Decorative Arm Left" className="w-full drop-shadow-2xl" />
+                </div>
+                
+                <div className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black">
+                   <ArticleCoverImage imageUrl={_blobUrl || _rawImgSource || ""} title={_pD.title} slug={_slV} className="w-full aspect-video md:aspect-[21/9] object-cover" />
+                </div>
+
+                <div className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none">
+                    <img src={_muscleRight} alt="Decorative Arm Right" className="w-full drop-shadow-2xl" />
+                </div>
             </div>
+
             <div className="max-w-[840px] mx-auto">
               {_pD.paragraphs.map((l: string, i: number) => (
                 <p key={i} className="text-[18px] md:text-[22px] leading-[1.8] md:leading-[1.85] mb-8 md:mb-10 font-serif text-neutral-800 dark:text-neutral-300"
                   dangerouslySetInnerHTML={{ __html: l.trim().replace(/\*\*(.*?)\*\*/g, `<strong class="font-black text-black dark:text-white">$1</strong>`).replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`) }} />
               ))}
             </div>
+
+            {/* PHOTOS SECTION - Tampilan Diperkecil (Grid 3 Kolom) */}
+            {_extraImages.length > 0 && (
+                <section className="mt-20 mb-20 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
+                    <div className="flex items-center gap-4 mb-10">
+                        <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"><_Ca size={18} /></div>
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">Gallery</h3>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {_extraImages.map((img: string, idx: number) => (
+                            <div key={idx} className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative">
+                                <img 
+                                    src={_fC(img)} 
+                                    alt={`Gallery node ${idx}`}
+                                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
+                                    loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
             <CommentSection articleId={_art.id} />
           </article>
 
@@ -376,7 +213,7 @@ export default function ArticleDetail() {
             <div className="sticky top-32 space-y-12">
               <div className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl">
                 <h3 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" /> Trending_Nodes
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" /> Trending
                 </h3>
                 <div className="flex flex-col gap-10">
                   {_hC.map((it: any, i: number) => (
