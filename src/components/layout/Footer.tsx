@@ -41,7 +41,7 @@ const Footer = () => {
                     <div className="space-y-4">
                         <div className="flex items-center space-x-2">
                             <Dumbbell className="w-8 h-8 text-emerald-500" />
-                            <span className="text-3xl font-black uppercase tracking-tighter italic bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                            <span className="text-3xl font-black uppercase tracking-tighter italic bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 bg-clip-text text-transparent py-2 leading-relaxed block">
                                 Brawnly
                             </span>
                         </div>
