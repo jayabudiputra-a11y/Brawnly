@@ -67,7 +67,7 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
 }
 
 /* ============================================================
-    🗨️ COMMENT SECTION (Identity & Auth Fix)
+    🗨️ COMMENT SECTION (The 401 Killer)
    ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
@@ -82,7 +82,12 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      const response = await fetch(url);
+      // Fix double path avatars/avatars
+      let _finalUrl = url;
+      if (_finalUrl.includes('brawnly-assets')) {
+         _finalUrl = _finalUrl.replace('brawnly-assets/avatars', 'avatars/avatars');
+      }
+      const response = await fetch(_finalUrl);
       if (!response.ok) throw new Error();
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -105,10 +110,6 @@ function CommentSection({ articleId }: { articleId: string }) {
     }
   }, [_serverComments]);
 
-  _e(() => {
-    if (_u?.user_metadata?.avatar_url) _hydrateAvatar(_u.user_metadata.avatar_url, "me");
-  }, [_u]);
-
   const _rootComments = _uM(() => _localComments.filter(c => !c.parent_id), [_localComments]);
   const _replies = _uM(() => _localComments.filter(c => c.parent_id), [_localComments]);
 
@@ -117,39 +118,44 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      // 1. Ambil Sesi Terbaru (Kill 401)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-          toast.error("Session expired, please sign in.");
-          _nav("/signin");
-          return;
-      }
+      // ⚡ FORCE RE-AUTHENTICATION OF THE CLIENT
+      // Ini mengambil token baru dan menyuntikkannya ke headers internal supabase
+      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      if (sErr || !session) throw new Error("AUTH_SESSION_MISSING");
 
-      // 2. Sync Profile (Identity Sync)
-      await supabase.from('user_profiles').upsert({
-        id: session.user.id,
+      const _uid = session.user.id;
+
+      // 1. SYNC PROFILE (Memastikan RLS Terlewati)
+      const { error: pErr } = await supabase.from('user_profiles').upsert({
+        id: _uid,
         username: session.user.user_metadata?.full_name || "Member",
         avatar_url: session.user.user_metadata?.avatar_url || null
       }, { onConflict: 'id' });
 
-      // 3. Post Komentar
-      const { error: commentError } = await supabase.from('comments').insert({
+      if (pErr) console.warn("Profile sync warning:", pErr.message);
+
+      // 2. INSERT COMMENT
+      const { error: cErr } = await supabase.from('comments').insert({
         article_id: articleId,
-        user_id: session.user.id,
+        user_id: _uid,
         content: content.trim(),
         parent_id: parentId
       });
 
-      if (commentError) throw commentError;
+      if (cErr) throw cErr;
 
       await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
-      toast.success("Perspective Synced");
+      toast.success("Identity Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      console.error(e);
-      toast.error(e.status === 401 ? "Unauthorized. Refreshing..." : "Sync Failed");
-      if (e.status === 401) window.location.reload();
+      console.error("401 Trace:", e);
+      if (e.message === "AUTH_SESSION_MISSING" || e.status === 401) {
+        toast.error("Session stale. Re-authorizing...");
+        _nav('/signin');
+      } else {
+        toast.error("Sync Failed: Check Database Policies");
+      }
     } finally {
       _sSub(false);
     }
@@ -175,20 +181,20 @@ function CommentSection({ articleId }: { articleId: string }) {
                 <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
                   <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
                 </span>
-                <button type="button" onClick={() => _sReplyTo(null)}><_X size={14} /></button>
+                <button type="button" onClick={() => _sReplyTo(null)} className="hover:scale-110 transition-transform"><_X size={14} /></button>
               </div>
             )}
             <textarea
               value={_txt}
               onChange={(e) => _sTxt(e.target.value)}
               placeholder={_replyTo ? "Transmitting reply..." : "Write your perspective..."}
-              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white"
+              className="w-full bg-neutral-50 dark:bg-neutral-950 p-6 font-serif text-lg min-h-[140px] focus:outline-none resize-none text-black dark:text-white placeholder:opacity-20"
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                ID: {_u.user_metadata?.full_name || "Member"}
+                ID_NODE: {_u.user_metadata?.full_name || "Member"}
               </span>
-              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30 shadow-lg">
+              <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
               </button>
             </div>
