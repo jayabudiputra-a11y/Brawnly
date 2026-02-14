@@ -5,11 +5,12 @@ const _KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 const _CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const _PRESET = import.meta.env.VITE_CLOUDINARY_PRESET;
 
+// Biarkan log ini untuk memastikan ENV terbaca di Vercel
 console.log("Supabase URL Check:", _URL); 
 console.log("Supabase Key Check:", _KEY ? "EXISTS" : "MISSING");
 
 if (!_URL || !_KEY) {
-  console.error("🚨 [SUPABASE] FATAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Check your .env file.");
+  console.error("🚨 [SUPABASE] FATAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.");
 }
 
 export const supabase = createClient(_URL || "", _KEY || "", {
@@ -18,12 +19,7 @@ export const supabase = createClient(_URL || "", _KEY || "", {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
-  global: {
-    headers: {
-      apikey: _KEY || "",
-      Authorization: `Bearer ${_KEY || ""}`
-    },
-  },
+  // BAGIAN HEADERS DIHAPUS karena merusak auth flow SDK
   realtime: {
     params: {
       eventsPerSecond: 10,
@@ -41,7 +37,6 @@ export const CLOUDINARY_CONFIG = {
 
 export const uploadToCloudinary = async (_f: File) => {
   if (!_CLOUD_NAME || !_PRESET) {
-    console.error("🚨 [CLOUDINARY] Missing Cloud Name or Preset");
     throw new Error("ERR_ENV_CLOUDINARY");
   }
 
@@ -55,13 +50,7 @@ export const uploadToCloudinary = async (_f: File) => {
       method: "POST", 
       body: _fD 
     });
-
-    if (!_r.ok) {
-      const errDetail = await _r.json();
-      console.error("[CLOUDINARY] Upload Failed:", errDetail);
-      throw new Error("ERR_UP_FAILED");
-    }
-
+    if (!_r.ok) throw new Error("ERR_UP_FAILED");
     return await _r.json();
   } catch (err) {
     console.error("[CLOUDINARY] Network Error:", err);
