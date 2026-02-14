@@ -3,9 +3,7 @@ import { Play as _Pl, Video as _Vd, WifiOff as _Wo, Zap as _Zp } from "lucide-re
 import { motion as _m } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { useThemePreference as _uTP } from '@/hooks/useThemePreference';
-
 import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
-import { wasmVideoToThumbnail } from "@/lib/wasmVideoPipeline";
 import { registerSW } from "@/pwa/swRegister";
 import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
 import { detectBestFormat } from "@/lib/imageFormat";
@@ -15,9 +13,10 @@ type MinifiedVideo = {
   i: string;  
   t: string;  
   u: string;  
-  ty: 'yt' | 'sp' | 'other'; 
+  ty: 'yt' | 'other'; 
   th: string; 
   v: boolean; 
+  r: string;
 };
 
 export default function Videos() {
@@ -28,40 +27,49 @@ export default function Videos() {
   const [_activeV, _sActiveV] = _s<string | null>(null);
 
   const _parseVid = (url: string) => {
-    if (!url) return { u: "", ty: 'other' as const, isShort: false };
+    if (!url) return { u: "", ty: 'other' as const, isShort: true, ratio: "aspect-[9/16]" };
     
-    let isShort = url.toLowerCase().includes('/shorts/');
+    let ratio = "aspect-[9/16]";
+    let isShort = true;
 
     try {
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
       const w = parseInt(urlObj.searchParams.get('width') || '0');
       const h = parseInt(urlObj.searchParams.get('height') || '0');
-      if (h > 0 && w > 0 && h > w) {
-        isShort = true;
+      
+      if (w > 0 && h > 0) {
+        if (w === h) {
+          ratio = "aspect-square";
+        } else if (w > h) {
+          ratio = "aspect-video";
+          isShort = false;
+        } else {
+          ratio = `aspect-[${w}/${h}]`;
+        }
       }
     } catch (e) { }
 
     const _reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]*).*/;
     const _m = url.match(_reg);
-    if (_m && _m[2].length === 11) return { u: _m[2], ty: 'yt' as const, isShort };
-
-    if (url.includes('screenpal.com/watch/') || url.includes('screenpal.com/player/')) {
-      const _spId = url.split('/').pop()?.split('?')[0]; 
-      const _urlObj = new URL(url);
-      const _wParam = _urlObj.searchParams.get('width') ? `&width=${_urlObj.searchParams.get('width')}` : '';
-      const _hParam = _urlObj.searchParams.get('height') ? `&height=${_urlObj.searchParams.get('height')}` : '';
-      const _spUrl = `https://go.screenpal.com/player/${_spId}?ff=1&ahc=1&dcc=1&a=1&tl=1&bg=transparent&share=1&download=1&embed=1&cl=1${_wParam}${_hParam}`;
-      return { u: _spUrl, ty: 'sp' as const, isShort };
+    
+    if (_m && _m[2].length === 11) {
+      const videoId = _m[2];
+      const isYtShort = url.toLowerCase().includes('/shorts/');
+      return { 
+        u: `https://www.youtube.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0`, 
+        ty: 'yt' as const, 
+        isShort: isYtShort || isShort,
+        ratio: isYtShort ? "aspect-[9/16]" : ratio
+      };
     }
 
-    return { u: url, ty: 'other' as const, isShort };
+    return { u: url, ty: 'other' as const, isShort, ratio };
   };
 
   _e(() => {
     registerSW();
     warmupEnterpriseStorage();
     detectBestFormat();
-
     const _hO = () => _sOff(false);
     const _hF = () => _sOff(true);
     window.addEventListener('online', _hO);
@@ -80,27 +88,18 @@ export default function Videos() {
         _sIsL(false);
         return;
       }
-
       const { data, error } = await supabase
         .from('videos')
         .select('*')
         .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Supabase Error:", error.message);
-      }
-
       if (data) {
         const _compact = await Promise.all(data.slice(0, 15).map(async (v) => {
-          let { u: _parsedU, ty: _vType, isShort } = _parseVid(v.url);
-          
-          let _isVertical = isShort; 
+          let { u: _parsedU, ty: _vType, isShort, ratio: _vRatio } = _parseVid(v.url);
           let _thumbUrl = v.thumbnail_url;
-          
           if (!_thumbUrl && _vType === 'yt') {
-            _thumbUrl = `https://img.youtube.com/vi/${_parsedU}/mqdefault.jpg`;
+            const ytId = _parsedU.split('/').pop()?.split('?')[0];
+            _thumbUrl = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
           }
-
           try {
             const _cachedAsset = await getAssetFromShared(`vid_thumb_${v.id}`);
             if (_cachedAsset) {
@@ -108,43 +107,29 @@ export default function Videos() {
             } else if (_thumbUrl && navigator.onLine) {
               const _res = await fetch(_thumbUrl);
               const _blob = await _res.blob();
-              
-              if (!_isVertical) {
-                try {
-                  const bmp = await createImageBitmap(_blob);
-                  if (bmp.height > bmp.width) _isVertical = true; 
-                } catch (dimErr) { }
-              }
-
               const _optimizedBlob = await _wTI(_blob, "webp", 0.25); 
               await saveAssetToShared(`vid_thumb_${v.id}`, _optimizedBlob);
-              
               const _reader = new FileReader();
               _thumbUrl = await new Promise((res) => {
                 _reader.onloadend = () => res(_reader.result as string);
                 _reader.readAsDataURL(_optimizedBlob);
               });
             }
-          } catch (e) {
-            console.warn("WASM Skip: Using Direct URL");
-          }
-
+          } catch (e) { }
           return {
             i: v.id,
             t: v.title,
             u: _parsedU,
             ty: _vType,
             th: _thumbUrl || "",
-            v: _isVertical
+            v: isShort,
+            r: _vRatio
           };
         }));
-
         _sVids(_compact);
         localStorage.setItem("brawnly_vids_mini", JSON.stringify(_compact));
       }
-    } catch (err) {
-      console.error("Transmission Interrupted:", err);
-    } finally {
+    } catch (err) { } finally {
       _sIsL(false);
     }
   };
@@ -169,7 +154,6 @@ export default function Videos() {
   return (
     <main className={_x.r}>
       <div className={_x.c}>
-        
         <div className="mb-12 space-y-4">
           <h1 className="text-[44px] sm:text-7xl md:text-9xl font-black italic tracking-tighter uppercase leading-[0.85] break-words">
             Transmission
@@ -181,7 +165,6 @@ export default function Videos() {
             </span>
           </div>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12 items-start">
           {_vids.map((v) => (
             <_m.div
@@ -189,17 +172,17 @@ export default function Videos() {
               whileHover={{ scale: 1.02 }}
               className="group relative flex flex-col bg-neutral-100 dark:bg-neutral-900/30 border border-neutral-200 dark:border-white/5 rounded-3xl overflow-hidden"
             >
-              <div className={`relative bg-neutral-900 w-full transition-all duration-500 ${v.v ? 'aspect-[9/16]' : 'aspect-video'}`}>
+              <div className={`relative bg-neutral-900 w-full transition-all duration-500 ${v.r}`}>
                 {_activeV === v.i && !_isOff ? (
                   <iframe 
                     className="absolute inset-0 w-full h-full border-0" 
-                    src={v.ty === 'yt' ? `https://www.youtube.com/embed/${v.u}?autoplay=1&modestbranding=1` : v.u} 
+                    src={v.u} 
                     title={v.t || "Video player"}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
-                    scrolling={v.ty === 'sp' ? "no" : "auto"} 
+                    scrolling="no" 
                   />
                 ) : (
                   <div className="absolute inset-0 cursor-pointer overflow-hidden" onClick={() => _isOff ? null : _handleVideoPlay(v.i, v.t)}>
@@ -222,28 +205,25 @@ export default function Videos() {
                   </div>
                 )}
               </div>
-
               <div className="p-6 md:p-8 flex-1 flex flex-col justify-between bg-neutral-100 dark:bg-neutral-900/30">
                 <h3 className="text-lg md:text-xl font-black uppercase tracking-tight leading-tight italic line-clamp-2 mb-8">
                   {v.t}
                 </h3>
-                
                 <div className="flex items-center justify-between border-t border-black/5 dark:border-white/5 pt-6">
                   <div className="flex items-center gap-2">
                     <_Zp size={12} className="text-emerald-500" />
                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">
-                      {v.ty === 'yt' ? "YouTube Slashed" : (v.ty === 'sp' ? "ScreenPal Matrix" : "External Source")}
+                      {v.ty === 'yt' ? "YouTube Protocol" : "Universal Feed"}
                     </span>
                   </div>
                   <span className="text-[10px] font-mono opacity-40 italic">
-                    {v.v ? "9:16 Vertical" : "1/4 MB Plan"}
+                    {v.r.replace('aspect-', '').replace('[', '').replace(']', '')}
                   </span>
                 </div>
               </div>
             </_m.div>
           ))}
         </div>
-
         {_isOff && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] md:w-auto bg-neutral-900 text-white px-8 py-4 rounded-2xl border border-white/10 shadow-2xl z-50 flex items-center gap-4 justify-center">
             <_Wo size={18} className="text-red-500 animate-pulse" />
