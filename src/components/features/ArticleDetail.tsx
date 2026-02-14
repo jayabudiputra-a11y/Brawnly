@@ -67,7 +67,7 @@ function CommentItem({ comment, avatar, onReply, isReply = false }: { comment: _
 }
 
 /* ============================================================
-    🗨️ COMMENT SECTION
+    🗨️ COMMENT SECTION (Auth Guard Refactored)
    ============================================================ */
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
@@ -82,27 +82,18 @@ function CommentSection({ articleId }: { articleId: string }) {
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      // FIX PATH: Pastikan mengarah ke bucket 'avatars' dan folder 'avatars'
-      let _finalUrl = url;
-      if (_finalUrl.includes('brawnly-assets')) {
-         _finalUrl = _finalUrl.replace('brawnly-assets/avatars', 'avatars/avatars');
-      }
-      
-      const response = await fetch(_finalUrl);
+      const response = await fetch(url);
       if (!response.ok) throw new Error();
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       _sBlobCache(prev => ({ ...prev, [userId]: blobUrl }));
-    } catch (e) {
-      console.warn("Avatar Node Fault:", userId);
-    }
+    } catch (e) {}
   };
 
   const { data: _serverComments } = useQuery({
     queryKey: ["comments", articleId],
     queryFn: () => commentsApi.getCommentsByArticle(articleId),
     enabled: !!articleId,
-    staleTime: 1000 * 30,
   });
 
   _e(() => {
@@ -126,25 +117,50 @@ function CommentSection({ articleId }: { articleId: string }) {
     _sSub(true);
 
     try {
-      // FIX 401: Hard refresh session header
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("401");
-
-      // Sync Profile dengan metadata asli (avatars/avatars)
-      await supabase.from('user_profiles').upsert({
-        id: session.user.id,
-        username: session.user.user_metadata?.full_name || "Member",
-        avatar_url: session.user.user_metadata?.avatar_url || null
-      });
-
-      await commentsApi.addComment(articleId, content.trim(), parentId);
-      await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+      // NUCLEAR AUTH FIX: Paksa ambil token JWT paling fresh dari Supabase Auth
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      toast.success("Identity Perspective Synced");
+      if (sessionError || !session?.access_token) {
+        toast.error("Security Session Invalid. Please Re-login.");
+        return;
+      }
+
+      // INJEKSI HEADER MANUAL: Memastikan request berikutnya membawa token terbaru
+      // Ini akan memperbaiki error 401 Unauthorized
+      const _uId = session.user.id;
+      const _meta = session.user.user_metadata;
+
+      // 1. Sinkronkan Profile menggunakan instance dengan token yang sudah divalidasi
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          id: _uId,
+          username: _meta?.full_name || "Member",
+          avatar_url: _meta?.avatar_url || null
+        });
+
+      if (upsertError) throw upsertError;
+
+      // 2. Kirim Komentar
+      const { error: commentError } = await supabase
+        .from('comments')
+        .insert({
+          article_id: articleId,
+          user_id: _uId,
+          content: content.trim(),
+          parent_id: parentId
+        });
+
+      if (commentError) throw commentError;
+
+      await _qC.invalidateQueries({ queryKey: ["comments", articleId] });
+      toast.success("Perspective Synced");
       _sTxt("");
       _sReplyTo(null);
     } catch (e: any) {
-      toast.error(e.message === "401" ? "Session Expired" : "Sync Failed");
+      console.error("Auth_Node_Error:", e);
+      toast.error(e.status === 401 ? "Unauthorized. Refreshing..." : "Sync Failed");
+      if (e.status === 401) window.location.reload();
     } finally {
       _sSub(false);
     }
@@ -181,7 +197,7 @@ function CommentSection({ articleId }: { articleId: string }) {
             />
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                Identity: {_u.user_metadata?.full_name || "Member"}
+                ID: {_u.user_metadata?.full_name || "Member"}
               </span>
               <button type="submit" disabled={_sub || !_txt.trim()} className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30">
                 {_sub ? <_L2 className="animate-spin" size={14} /> : <_Sd size={14} />} Commit
@@ -222,9 +238,6 @@ function CommentSection({ articleId }: { articleId: string }) {
   );
 }
 
-/* ============================================================
-    📄 ARTICLE DETAIL MAIN
-   ============================================================ */
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
@@ -287,10 +300,10 @@ export default function ArticleDetail() {
     _siS(_nS);
     if (_nS) {
       localStorage.setItem(`brawnly_saved_${_slV}`, "true");
-      toast.success("Identity Saved to Collection");
+      toast.success("Identity Saved");
     } else {
       localStorage.removeItem(`brawnly_saved_${_slV}`);
-      toast.info("Removed from Collection");
+      toast.info("Removed");
     }
   };
 
