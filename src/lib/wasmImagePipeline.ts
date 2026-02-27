@@ -12,15 +12,14 @@ async function blobToImageData(blob: Blob): Promise<ImageData> {
 
 export async function wasmCreatePlaceholder(blob: Blob): Promise<string> {
   const img = await blobToImageData(blob);
-  const scale = Math.min(100 / img.width, 100 / img.height);
-  const canvas = new OffscreenCanvas(img.width * scale, img.height * scale);
+  const canvas = new OffscreenCanvas(img.width, img.height);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(await createImageBitmap(blob), 0, 0, canvas.width, canvas.height);
 
-  const blurredBuf = await _webp.encode(ctx.getImageData(0, 0, canvas.width, canvas.height), {
-    quality: 10
+  const buf = await _webp.encode(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+    quality: 90
   });
-  return URL.createObjectURL(new Blob([blurredBuf], { type: "image/webp" }));
+  return URL.createObjectURL(new Blob([buf], { type: "image/webp" }));
 }
 
 export async function wasmTranscodeImage(
@@ -32,16 +31,16 @@ export async function wasmTranscodeImage(
     const img = await blobToImageData(file);
 
     if (format === "avif") {
-      const _q = quality ? quality * 100 : 45;
+      const _q = quality ? Math.max(quality * 100, 80) : 85;
       const buf = await encodeAvif(img, {
         quality: _q,
-        speed: 6
+        speed: 5
       });
       return new Blob([buf], { type: "image/avif" });
     }
 
     if (format === "webp") {
-      const _q = quality ? quality * 100 : 82;
+      const _q = quality ? Math.max(quality * 100, 85) : 90;
       const buf = await _webp.encode(img, {
         quality: _q
       });
@@ -51,7 +50,7 @@ export async function wasmTranscodeImage(
 
     return file;
   } catch (e) {
-    console.error("WASM Pipeline Failure, falling back to original:", e);
+    console.error(e);
     return file;
   }
 }

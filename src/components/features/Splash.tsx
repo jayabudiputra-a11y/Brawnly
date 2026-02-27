@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import ScrollToTopButton from "./ScrollToTopButton";
-import { getOptimizedImage } from "@/lib/utils";
 import { setCookieHash, mirrorQuery } from "@/lib/enterpriseStorage";
 import { detectBestFormat } from "@/lib/imageFormat";
 import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
 import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
+import "@/styles/splash.css";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -16,24 +16,35 @@ const texts = [
 
 const photos = [
   `https://res.cloudinary.com/dtkiwn8i4/image/upload/v1772196867/qeb5419ze2ok240tufnz.jpg`,
-  `https://res.cloudinary.com/dtkiwn8i4/image/upload/v1770883490/c8ixfb8zot9ncrt2n63m.png`,
+  `${SUPABASE_URL}/storage/v1/object/public/self/putra-self.jpeg`,
   `${SUPABASE_URL}/storage/v1/object/public/self/putra-self%20(2).jpeg`,
-  `${SUPABASE_URL}/storage/v1/object/public/self/putra-self%20(3).jpeg`,
+  `${SUPABASE_URL}/storage/v1/object/public/self/putra-selfk.jpeg`,
 ];
 
-const videoSrc = `${SUPABASE_URL}/storage/v1/object/public/Shawty/Bbu8h19BiuJJnG.mp4`;
+const videoSrc = `${SUPABASE_URL}/storage/v1/object/public/self/putra-self.mp4`;
+
+const mediaItems = [...photos, videoSrc];
+
+const rotations = [
+  "rotate-6",
+  "-rotate-12",
+  "rotate-6",
+  "-rotate-12",
+  "rotate-3",
+];
 
 export default function Splash() {
   const [textIndex, setTextIndex] = useState(0);
   const [blobs, setBlobs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const textTimer = setInterval(() => {
       setTextIndex((prev) => (prev + 1) % texts.length);
     }, 1400);
 
     const script = document.createElement("script");
-    script.src = "https://pl28680659.effectivegatecpm.com/c57d71c78e6c823d7af356008a2e25b5/invoke.js";
+    script.src =
+      "https://pl28680659.effectivegatecpm.com/c57d71c78e6c823d7af356008a2e25b5/invoke.js";
     script.async = true;
     script.setAttribute("data-cfasync", "false");
     document.body.appendChild(script);
@@ -48,117 +59,95 @@ export default function Splash() {
       for (let i = 0; i < photos.length; i++) {
         const id = `splash_img_${i}`;
         const cached = await getAssetFromShared(id);
-        
+
         if (cached) {
           newBlobs[i] = URL.createObjectURL(cached);
         } else if (navigator.onLine) {
           try {
-            const res = await fetch(getOptimizedImage(photos[i], 250));
+            const res = await fetch(photos[i]);
             const blob = await res.blob();
-            const optimized = await wasmTranscodeImage(blob, fmt, 0.7);
+            const optimized = await wasmTranscodeImage(blob, fmt, 0.85);
             await saveAssetToShared(id, optimized);
             newBlobs[i] = URL.createObjectURL(optimized);
           } catch {
-            newBlobs[i] = getOptimizedImage(photos[i], 250);
+            newBlobs[i] = photos[i];
           }
         } else {
-          newBlobs[i] = getOptimizedImage(photos[i], 250);
+          newBlobs[i] = photos[i];
         }
       }
+
       setBlobs(newBlobs);
     };
 
     processImages();
 
     return () => {
-      clearInterval(timer);
+      clearInterval(textTimer);
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
-      Object.values(blobs).forEach(url => {
+      Object.values(blobs).forEach((url) => {
         if (url.startsWith("blob:")) URL.revokeObjectURL(url);
       });
     };
   }, []);
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex flex-col items-center z-50 overflow-y-auto py-12">
-      <div className="flex flex-col md:flex-row items-center gap-6 mb-12 px-4 min-h-[128px]">
-        <div className="relative h-20 flex items-center justify-center min-w-[300px]">
-          <h1
-            key={textIndex}
-            className="text-4xl md:text-6xl font-black tracking-tighter text-emerald-600 text-center animate-slide-in"
-          >
-            {texts[textIndex]}
-          </h1>
-        </div>
-
-        <div className="video-card shadow-xl transform rotate-3 border-4 border-white dark:border-neutral-900 rounded-2xl overflow-hidden bg-black w-48 h-32">
-          <video
-            src={videoSrc}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        </div>
+    <section className="splash-section">
+      <div className="splash-header">
+        <h1 key={textIndex} className="splash-title">
+          {texts[textIndex]}
+        </h1>
       </div>
 
-      <div className="w-full max-w-[320px] mb-10 flex flex-col items-center justify-center">
-        <div 
-          className="w-[300px] h-[300px] bg-neutral-50/50 rounded-xl border border-dashed border-neutral-200 flex items-center justify-center overflow-hidden"
-          style={{ fontSize: "17px", color: "#0c0202" }}
-        >
-          <div id="container-c57d71c78e6c823d7af356008a2e25b5" className="w-full h-full"></div>
-        </div>
+      <div className="splash-media-wrapper">
+        {mediaItems.map((item, index) => {
+          const isVideo = item === videoSrc;
+          const imgSrc =
+            index < photos.length ? blobs[index] || photos[index] : "";
+          const isMainPhoto =
+            !isVideo && photos[index]?.includes("putra-self.jpeg");
+
+          return (
+            <div
+              key={index}
+              className={`splash-card ${
+                isVideo
+                  ? "video-card"
+                  : isMainPhoto
+                  ? "main-photo"
+                  : "frame-photo"
+              } ${rotations[index]}`}
+            >
+              {isVideo ? (
+                <video
+                  src={item}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="splash-media"
+                />
+              ) : (
+                <img
+                  src={imgSrc}
+                  alt={`Media ${index}`}
+                  className="splash-media"
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-40 min-h-[300px]">
-        <div className="rounded-full border-4 border-emerald-500 p-1 w-32 h-32 overflow-hidden shadow-md animate-from-top bg-neutral-100">
-          <img 
-            src={blobs[0] || getOptimizedImage(photos[0], 250)} 
-            alt="Avatar" 
-            width="128"
-            height="128"
-            className="w-full h-full object-cover rounded-full" 
-            {...({ fetchpriority: "high" } as any)} 
-          />
-        </div>
-
-        <div className="w-32 h-32 relative overflow-hidden animate-from-right bg-neutral-100">
-          <div className="absolute inset-0 clip-hexagon shadow-lg">
-            <img 
-              src={blobs[1] || getOptimizedImage(photos[1], 250)} 
-              alt="Hex" 
-              width="128"
-              height="128"
-              className="w-full h-full object-cover" 
-              loading="lazy"
-            />
-          </div>
-        </div>
-
-        <div className="w-32 h-32 rounded-[30%] overflow-hidden shadow-lg animate-from-bottom bg-neutral-100">
-          <img 
-            src={blobs[2] || getOptimizedImage(photos[2], 250)} 
-            alt="Squircle" 
-            width="128"
-            height="128"
-            className="w-full h-full object-cover" 
-            loading="lazy"
-          />
-        </div>
-
-        <div className="w-32 h-32 overflow-hidden transform rotate-3 shadow-xl rounded-lg animate-from-left bg-neutral-100">
-          <img 
-            src={blobs[3] || getOptimizedImage(photos[3], 250)} 
-            alt="Tilted" 
-            width="128"
-            height="128"
-            className="w-full h-full object-cover" 
-            loading="lazy"
-          />
+      <div className="splash-ad-wrapper">
+        <div className="splash-ad-box">
+          <div
+            id="container-c57d71c78e6c823d7af356008a2e25b5"
+            className="splash-ad-container"
+          ></div>
         </div>
       </div>
 
