@@ -12,7 +12,6 @@
     <meta name="author" content="Budi Putra Jaya" />
     <meta name="robots" content="index, follow" />
 
-    <!-- Pinterest domain verification -->
     <meta name="p:domain_verify" content="b1ec3672b7e2152de235df12134d446c" />
 
     <meta property="og:type" content="website" />
@@ -21,25 +20,20 @@
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
     <meta property="og:image" content="/src/assets/myPride.gif" />
 
-    <!--
-      Content-Security-Policy
-      Allows all required third-party embeds without blocking:
-        Twitter/X · Instagram · YouTube · Tumblr · Substack · Pinterest · Cloudinary · Supabase
-    -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:;
       script-src 'self' 'unsafe-inline' 'unsafe-eval'
         https://platform.twitter.com https://*.twimg.com
-        https://www.instagram.com
+        https://www.instagram.com https://*.instagram.com
         https://www.youtube.com https://s.ytimg.com
-        https://assets.tumblr.com
+        https://assets.tumblr.com https://*.tumblr.com
         https://substack.com https://*.substack.com
         https://assets.pinterest.com
         https: http:;
       script-src-elem 'self' 'unsafe-inline' 'unsafe-eval'
         https://platform.twitter.com https://*.twimg.com
-        https://www.instagram.com
-        https://assets.tumblr.com
+        https://www.instagram.com https://*.instagram.com
+        https://assets.tumblr.com https://*.tumblr.com
         https://substack.com https://*.substack.com
         https://assets.pinterest.com
         https: http:;
@@ -73,6 +67,7 @@
       object-src 'none';
       base-uri 'self';
       form-action 'self';
+      worker-src 'self' blob:;
     " />
 
     <script type="application/ld+json">
@@ -99,12 +94,10 @@
       }
     </script>
 
-    <!-- Supabase preconnect (obfuscated) -->
     <script>
       (function(){try{var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];var _0x2b=function(_0x3c){return atob(_0x3c)};var _0x4d=_0x2b(_0x1a[0])+_0x2b(_0x1a[1])+_0x2b(_0x1a[2]);var _0x5e=document.createElement('link');_0x5e.rel='preconnect';_0x5e.href=_0x4d;_0x5e.crossOrigin='anonymous';document.head.appendChild(_0x5e);var _0x6f=document.createElement('link');_0x6f.rel='dns-prefetch';_0x6f.href=_0x4d;document.head.appendChild(_0x6f)}catch(e){}})();
     </script>
 
-    <!-- Preconnect to all social embed origins — reduces embed loading latency -->
     <link rel="preconnect" href="https://www.instagram.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://www.instagram.com" />
     <link rel="preconnect" href="https://cdninstagram.com" crossorigin="anonymous" />
@@ -141,21 +134,36 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 
-    <!-- Instant theme — prevents flash of wrong color scheme -->
     <script>
       (function(){try{var _0x7a=localStorage.getItem('theme')||'light';if(_0x7a==='dark'||(_0x7a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();
     </script>
 
-    <!-- Disable React DevTools in production -->
     <script>
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
+    </script>
+
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        if (message.indexOf('Hydration') !== -1) {
+          console.warn('Recovering from Hydration Error...');
+        }
+      };
     </script>
 
     <link rel="icon" type="image/svg+xml" href="/src/assets/Brawnly-favicon.svg" />
     <link rel="apple-touch-icon" href="/src/assets/Brawnly-17aDfvayqUvay.gif" />
   </head>
   <body class="antialiased bg-white dark:bg-black selection:bg-emerald-500 selection:text-white">
+    <noscript>
+      <div style="padding: 20px; text-align: center; background: #000; color: #fff;">
+        Please enable JavaScript to view Brawnly.
+      </div>
+    </noscript>
+
     <div id="root"></div>
+
     <script type="module" src="/src/main.tsx"></script>
+
+    <link rel="prefetch" href="/src/assets/myAvatar.jpg" />
   </body>
 </html>
