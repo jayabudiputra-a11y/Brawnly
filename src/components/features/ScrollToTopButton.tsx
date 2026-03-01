@@ -8,7 +8,6 @@ export default function ScrollToTopButton() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    
     document.documentElement.scrollTo(0, 0);
   }, [pathname]); 
 
@@ -27,7 +26,8 @@ export default function ScrollToTopButton() {
   return (
     <button
       onClick={scrollToTop}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 p-3 rounded-full shadow-lg transition-all duration-300 bg-gradient-to-r from-red-500 via-green-500 to-blue-500 text-white ${
+      // Perubahan ada di baris className di bawah ini
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 p-3 rounded-full transition-all duration-300 bg-transparent text-gray-800 hover:text-black hover:-translate-y-1 ${
         isVisible ? "opacity-100 scale-100" : "opacity-0 scale-0 pointer-events-none"
       }`}
     >

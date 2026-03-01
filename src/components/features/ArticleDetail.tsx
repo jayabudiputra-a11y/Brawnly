@@ -18,6 +18,8 @@ import {
   Camera as _Ca,
   PlayCircle as _Pc,
   Aperture as _Ap,
+  Instagram as _Ig,
+  ExternalLink as _El,
 } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +51,16 @@ import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
 import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
+
+// ---------------------------------------------------------------------------
+// Constants — Instagram showcase
+// ---------------------------------------------------------------------------
+
+const IG_USERNAME    = "deul.umm";
+const IG_PROFILE_URL = `https://www.instagram.com/${IG_USERNAME}/`;
+// The specific showcase post from @deul.umm (DVVb2ZbCdU7)
+const IG_POST_EMBED_URL =
+  "https://www.instagram.com/p/DVVb2ZbCdU7/?utm_source=ig_embed&utm_campaign=loading";
 
 // ---------------------------------------------------------------------------
 // Helpers — paragraph parser that lifts inline tweet URLs into embed blocks
@@ -92,7 +104,7 @@ function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
       let cursor = 0;
       for (const match of matches) {
         const start = match.index!;
-        const end = start + match[0].length;
+        const end   = start + match[0].length;
         const before = trimmed.slice(cursor, start).trim();
         if (before) result.push({ type: "text", html: fmtHtml(before) });
         result.push({ type: "tweet", url: match[0] });
@@ -114,6 +126,178 @@ function fmtHtml(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, `<strong class="font-black text-black dark:text-white">$1</strong>`)
     .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
+}
+
+// ---------------------------------------------------------------------------
+// useInstagramEmbed — injects embed.js once and re-processes on mount
+// ---------------------------------------------------------------------------
+
+function useInstagramEmbed() {
+  _e(() => {
+    const processEmbeds = () => {
+      if ((window as any).instgrm?.Embeds) {
+        (window as any).instgrm.Embeds.process();
+      }
+    };
+    // If already injected just re-process any new blockquotes
+    if (document.getElementById("ig-embed-script")) {
+      processEmbeds();
+      return;
+    }
+    const script    = document.createElement("script");
+    script.id       = "ig-embed-script";
+    script.src      = "https://www.instagram.com/embed.js";
+    script.async    = true;
+    script.onload   = processEmbeds;
+    document.body.appendChild(script);
+  }, []);
+}
+
+// ---------------------------------------------------------------------------
+// InstagramWidget — official post embed + follow CTA, matches sidebar style
+// ---------------------------------------------------------------------------
+
+function InstagramWidget() {
+  useInstagramEmbed();
+
+  return (
+    <div className="rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl bg-white dark:bg-[#111] overflow-hidden">
+      {/* Instagram gradient accent bar — mirrors Trending card top border */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]" />
+
+      {/* ── Header row ── */}
+      <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] shadow-md flex-shrink-0">
+            <_Ig size={18} className="text-white" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
+              Instagram
+            </p>
+            <p className="text-[13px] font-black uppercase italic tracking-tight text-black dark:text-white leading-none truncate">
+              @{IG_USERNAME}
+            </p>
+          </div>
+        </div>
+        <a
+          href={IG_PROFILE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Follow @${IG_USERNAME} on Instagram`}
+          className="flex-shrink-0 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-gradient-to-r from-[#ee2a7b] to-[#6228d7] text-white shadow-sm hover:from-[#6228d7] hover:to-[#ee2a7b] transition-all duration-300"
+        >
+          <_Ig size={10} /> Follow
+        </a>
+      </div>
+
+      {/* ── Official Instagram embed blockquote ──
+           embed.js replaces this with the real post iframe once loaded.
+           The inner skeleton markup matches Instagram's own embed template
+           so it degrades gracefully if the script is blocked.               */}
+      <div className="px-4 pb-2 overflow-hidden">
+        <blockquote
+          className="instagram-media"
+          data-instgrm-captioned
+          data-instgrm-permalink={IG_POST_EMBED_URL}
+          data-instgrm-version="14"
+          style={{
+            background: "#FFF",
+            border: 0,
+            borderRadius: "3px",
+            boxShadow: "0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15)",
+            margin: "1px",
+            maxWidth: "540px",
+            minWidth: "0px",
+            padding: 0,
+            width: "100%",
+          }}
+        >
+          {/* Fallback skeleton rendered before embed.js replaces it */}
+          <div style={{ padding: "16px" }}>
+            <a
+              href={IG_POST_EMBED_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "#FFFFFF",
+                lineHeight: 0,
+                padding: "0 0",
+                textAlign: "center",
+                textDecoration: "none",
+                width: "100%",
+                display: "block",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                <div
+                  style={{
+                    backgroundColor: "#F4F4F4",
+                    borderRadius: "50%",
+                    flexGrow: 0,
+                    height: 40,
+                    marginRight: 14,
+                    width: 40,
+                  }}
+                />
+                <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
+                  <div style={{ backgroundColor: "#F4F4F4", borderRadius: 4, flexGrow: 0, height: 14, marginBottom: 6, width: 100 }} />
+                  <div style={{ backgroundColor: "#F4F4F4", borderRadius: 4, flexGrow: 0, height: 14, width: 60 }} />
+                </div>
+              </div>
+              <div style={{ padding: "19% 0" }} />
+              <div style={{ display: "block", height: 50, margin: "0 auto 12px", width: 50 }}>
+                {/* Official Instagram logo SVG from their embed template */}
+                <svg width="50px" height="50px" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                  <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                    <g transform="translate(-511.000000, -20.000000)" fill="#000000">
+                      <g>
+                        <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631" />
+                      </g>
+                    </g>
+                  </g>
+                </svg>
+              </div>
+              <div style={{ paddingTop: 8 }}>
+                <div style={{ color: "#3897f0", fontFamily: "Arial,sans-serif", fontSize: 14, fontStyle: "normal", fontWeight: 550, lineHeight: "18px" }}>
+                  View this post on Instagram
+                </div>
+              </div>
+            </a>
+            <p style={{ color: "#c9c8cd", fontFamily: "Arial,sans-serif", fontSize: 14, lineHeight: "17px", marginBottom: 0, marginTop: 8, overflow: "hidden", padding: "8px 0 7px", textAlign: "center", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <a
+                href={IG_POST_EMBED_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#c9c8cd", fontFamily: "Arial,sans-serif", fontSize: 14, fontStyle: "normal", fontWeight: "normal", lineHeight: "17px", textDecoration: "none" }}
+              >
+                A post shared by &quot;Putra&quot; (@{IG_USERNAME})
+              </a>
+            </p>
+          </div>
+        </blockquote>
+      </div>
+
+      {/* ── Footer CTA bar ── */}
+      <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-3">
+        <p className="text-[11px] font-serif italic text-neutral-500 dark:text-neutral-400 leading-snug">
+          Follow for more behind-the-scenes from{" "}
+          <span className="font-black not-italic text-black dark:text-white">Brawnly</span>
+        </p>
+        <a
+          href={IG_PROFILE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View Instagram profile"
+          className="flex-shrink-0 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#ee2a7b] hover:text-[#6228d7] transition-colors duration-300"
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+          View Profile
+          <_El size={10} />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -194,26 +378,26 @@ function CommentItem({
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
   const _nav = _uN();
-  const _qC = useQueryClient();
-  const [_txt, _sTxt] = _s<string>("");
-  const [_sub, _sSub] = _s<boolean>(false);
-  const [_replyTo, _sReplyTo] = _s<string | null>(null);
+  const _qC  = useQueryClient();
+  const [_txt, _sTxt]                   = _s<string>("");
+  const [_sub, _sSub]                   = _s<boolean>(false);
+  const [_replyTo, _sReplyTo]           = _s<string | null>(null);
   const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
-  const [_blobCache, _sBlobCache] = _s<Record<string, string>>({});
+  const [_blobCache, _sBlobCache]       = _s<Record<string, string>>({});
 
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
-      const _fmt = await _dBF();
+      const _fmt    = await _dBF();
       const response = await fetch(url);
-      const blob = await response.blob();
+      const blob    = await response.blob();
       const optimized = await _wTI(blob, _fmt, 0.4);
       const blobUrl = URL.createObjectURL(optimized);
       _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
     } catch (e) {
       try {
         const response = await fetch(url);
-        const blob = await response.blob();
+        const blob    = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
       } catch (err) {}
@@ -222,8 +406,8 @@ function CommentSection({ articleId }: { articleId: string }) {
 
   const { data: _serverComments } = useQuery({
     queryKey: ["comments", articleId],
-    queryFn: () => commentsApi.getCommentsByArticle(articleId),
-    enabled: !!articleId,
+    queryFn:  () => commentsApi.getCommentsByArticle(articleId),
+    enabled:  !!articleId,
   });
 
   _e(() => {
@@ -250,9 +434,9 @@ function CommentSection({ articleId }: { articleId: string }) {
 
     const payload = {
       article_id: articleId,
-      user_id: _u.id,
-      content: content.trim(),
-      parent_id: parentId,
+      user_id:    _u.id,
+      content:    content.trim(),
+      parent_id:  parentId,
     };
 
     try {
@@ -403,12 +587,12 @@ function CommentSection({ articleId }: { articleId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function ArticleDetail() {
-  const { slug: _sl } = _uP<{ slug: string }>();
-  const _slV = _sl ?? "unknown";
-  const [_blobUrl, _setBlobUrl] = _s<string | null>(null);
-  const [_blurUrl, _setBlurUrl] = _s<string | null>(null);
-  const [_isOff, _sOff] = _s(!navigator.onLine);
-  const [_iS, _siS] = _s(
+  const { slug: _sl }         = _uP<{ slug: string }>();
+  const _slV                  = _sl ?? "unknown";
+  const [_blobUrl, _setBlobUrl]   = _s<string | null>(null);
+  const [_blurUrl, _setBlurUrl]   = _s<string | null>(null);
+  const [_isOff, _sOff]           = _s(!navigator.onLine);
+  const [_iS, _siS]               = _s(
     () => localStorage.getItem(`brawnly_saved_${_slV}`) === "true"
   );
   const [_hasTracked, _sHasTracked] = _s(false);
@@ -494,11 +678,13 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
+  // Build YouTube embed URL — appends autoplay=1&mute=1 for watch-on-page UX
   const _getEmbedUrl = (url: string) => {
     try {
-      const match = url.match(/(?:shorts\/|v=|youtu\.be\/)([\w-]{11})/);
+      const match   = url.match(/(?:shorts\/|v=|youtu\.be\/)([\w-]{11})/);
       const videoId = match ? match[1] : null;
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      if (!videoId) return null;
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0`;
     } catch (e) {
       return null;
     }
@@ -517,10 +703,10 @@ export default function ArticleDetail() {
     detectBestFormat();
     const oN = () => _sOff(false);
     const oF = () => _sOff(true);
-    window.addEventListener("online", oN);
+    window.addEventListener("online",  oN);
     window.addEventListener("offline", oF);
     return () => {
-      window.removeEventListener("online", oN);
+      window.removeEventListener("online",  oN);
       window.removeEventListener("offline", oF);
     };
   }, []);
@@ -542,8 +728,8 @@ export default function ArticleDetail() {
           return;
         }
 
-        const res = await fetch(_rawImgSource);
-        const b = await res.blob();
+        const res         = await fetch(_rawImgSource);
+        const b           = await res.blob();
         const placeholder = await _wCP(b);
         if (_active) _setBlurUrl(placeholder);
 
@@ -565,9 +751,7 @@ export default function ArticleDetail() {
         if (_active) _setBlobUrl(_rawImgSource);
       }
     })();
-    return () => {
-      _active = false;
-    };
+    return () => { _active = false; };
   }, [_rawImgSource, _slV]);
 
   _e(() => {
@@ -600,8 +784,8 @@ export default function ArticleDetail() {
   };
 
   const { viewCount: _realtimeViews } = _uAV({
-    id: _art?.id ?? "",
-    slug: _slV,
+    id:           _art?.id ?? "",
+    slug:         _slV,
     initialViews: _art?.views ?? 0,
   });
 
@@ -647,6 +831,7 @@ export default function ArticleDetail() {
       </aside>
 
       <div className="max-w-[1320px] mx-auto px-4 md:px-10">
+
         {/* ---- Article header ---- */}
         <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white">
           <div className="flex justify-between items-start mb-6">
@@ -688,6 +873,12 @@ export default function ArticleDetail() {
         {/* ---- Two-column layout ---- */}
         <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
           <article className="flex-1 relative min-w-0">
+
+            {/* ── Mobile-only: Instagram widget pinned above excerpt ──
+                 Hidden on lg+ because desktop sidebar handles it.           */}
+            <div className="block lg:hidden mb-10">
+              <InstagramWidget />
+            </div>
 
             {/* Excerpt */}
             <p className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic">
@@ -767,7 +958,7 @@ export default function ArticleDetail() {
               </section>
             )}
 
-            {/* YouTube Shorts */}
+            {/* YouTube Shorts — autoplay + mute on page load for watch-on-page UX */}
             {_youtubeShorts.length > 0 && (
               <div className="my-16 max-w-[840px] mx-auto">
                 {_youtubeShorts.map((videoUrl: string, idx: number) => {
@@ -789,6 +980,7 @@ export default function ArticleDetail() {
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           referrerPolicy="strict-origin-when-cross-origin"
                           allowFullScreen
+                          loading="lazy"
                           className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
                         />
                       </div>
@@ -890,9 +1082,11 @@ export default function ArticleDetail() {
             <CommentSection articleId={_art.id} />
           </article>
 
-          {/* ---- Sidebar — trending articles ---- */}
+          {/* ---- Sidebar — trending articles + Instagram widget (desktop) ---- */}
           <aside className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0">
-            <div className="sticky top-32 space-y-12">
+            <div className="sticky top-32 space-y-8">
+
+              {/* Trending */}
               <div className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl">
                 <h3 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
                   <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" /> Trending
@@ -917,6 +1111,10 @@ export default function ArticleDetail() {
                   ))}
                 </div>
               </div>
+
+              {/* ── Instagram widget — desktop: directly below Trending card ── */}
+              <InstagramWidget />
+
             </div>
           </aside>
         </div>
