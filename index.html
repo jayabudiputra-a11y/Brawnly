@@ -20,14 +20,14 @@
 
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:; 
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; 
-      script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: http:; 
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: https://platform.twitter.com https://*.twimg.com; 
+      script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: http: https://platform.twitter.com; 
       style-src 'self' 'unsafe-inline' https: http:; 
-      img-src 'self' data: blob: https: http:; 
-      media-src 'self' https: http:; 
-      connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com; 
+      img-src 'self' data: blob: https: http: https://*.twimg.com; 
+      media-src 'self' https: http: blob: data:; 
+      connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com; 
       font-src 'self' data: https: http:; 
-      frame-src 'self' https: http:; 
+      frame-src 'self' https: http: https://www.youtube.com https://platform.twitter.com https://syndication.twitter.com; 
       object-src 'none'; 
       base-uri 'self'; 
       form-action 'self';

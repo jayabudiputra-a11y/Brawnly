@@ -47,3 +47,8 @@ export function getOptimizedImage(_u: string | null | undefined, _w: number = 12
 
   return _u;
 }
+
+/** Utility: returns true when a string is a valid Twitter/X status URL */
+export function isTweetUrl(url: string): boolean {
+  return /(?:twitter\.com|x\.com)\/[^/]+\/statuse?s?\/\d+/i.test(url);
+}
