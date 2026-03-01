@@ -1,192 +1,193 @@
 import React, { useEffect, useRef, useState } from "react";
 
-declare global {
-  interface Window {
-    twttr?: {
-      widgets: {
-        load: (element?: HTMLElement) => Promise<void>;
-        createTweet: (
-          tweetId: string,
-          container: HTMLElement,
-          options?: Record<string, string>
-        ) => Promise<HTMLElement | undefined>;
-      };
-    };
-  }
-}
-
 interface TwitterEmbedProps {
-  /** Full tweet URL — accepts both twitter.com and x.com formats */
   url: string;
-  /** Override theme. Defaults to auto-detect from <html class="dark"> */
-  theme?: "light" | "dark";
-  /** Card alignment. Default: center */
   align?: "left" | "center" | "right";
-  /** Extra className for the outer wrapper div */
-  className?: string;
 }
 
 function extractTweetId(url: string): string | null {
-  try {
-    const match = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/statuse?s?\/(\d+)/i);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
+  const match = url.match(
+    /(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status(?:es)?\/(\d+)/i
+  );
+  return match ? match[1] : null;
 }
 
-function loadTwitterScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.twttr?.widgets) { resolve(); return; }
-    
-    // Jika script sedang di-load oleh komponen lain, tunggu sampai selesai
-    if (document.getElementById("twitter-wjs")) {
-      let retries = 0;
-      const check = setInterval(() => {
-        retries++;
-        if (window.twttr?.widgets) { clearInterval(check); resolve(); }
-        // Timeout setelah 5 detik menunggu script
-        if (retries > 50) { clearInterval(check); reject(new Error("Script Load Timeout")); }
-      }, 100);
+const WIDGET_TIMEOUT_MS = 8000;
+
+export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<"loading" | "loaded" | "failed">("loading");
+
+  const tweetId = extractTweetId(url);
+  const tweetUrl = url.trim().startsWith("http") ? url.trim() : `https://twitter.com/i/web/status/${tweetId}`;
+
+  useEffect(() => {
+    if (!tweetId || !containerRef.current) {
+      setStatus("failed");
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = "twitter-wjs";
-    script.src = "https://platform.twitter.com/widgets.js";
-    script.async = true;
-    script.charset = "utf-8";
-    
-    script.onload = () => {
-      let retries = 0;
-      const check = setInterval(() => {
-        retries++;
-        if (window.twttr?.widgets) { clearInterval(check); resolve(); }
-        if (retries > 50) { clearInterval(check); reject(new Error("Widget Init Timeout")); }
-      }, 100);
-    };
-    
-    // Tangkap error jika diblokir AdBlocker/Brave Shields
-    script.onerror = () => reject(new Error("Script diblokir (CSP/AdBlock)"));
-    document.head.appendChild(script);
-  });
-}
+    let active = true;
 
-export default function TwitterEmbed({
-  url,
-  theme,
-  align = "center",
-  className = "",
-}: TwitterEmbedProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [renderedTheme, setRenderedTheme] = useState<"light" | "dark">("light");
-
-  // Sync theme with document dark mode class, or use the explicit prop
-  useEffect(() => {
-    if (theme) { setRenderedTheme(theme); return; }
-    const detect = () =>
-      document.documentElement.classList.contains("dark") ||
-      document.body.classList.contains("dark");
-    setRenderedTheme(detect() ? "dark" : "light");
-    
-    const observer = new MutationObserver(() =>
-      setRenderedTheme(detect() ? "dark" : "light")
-    );
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, [theme]);
-
-  // Render tweet whenever url or resolved theme changes
-  useEffect(() => {
-    const tweetId = extractTweetId(url);
-    if (!tweetId || !containerRef.current) return;
-
-    let cancelled = false;
-    setStatus("loading");
-    containerRef.current.innerHTML = "";
-
-    (async () => {
-      try {
-        await loadTwitterScript();
-        if (cancelled || !containerRef.current) return;
-
-        // BIKIN TIMEOUT 8 DETIK UNTUK PROSES RENDER
-        // Kalau internet jelek atau Tweet dihapus, gak akan muter terus
-        const renderPromise = window.twttr!.widgets.createTweet(tweetId, containerRef.current, {
-          theme: renderedTheme,
-          align,
-          dnt: "true",
-          conversation: "none",
-          lang: "id",
-        });
-
-        const timeoutPromise = new Promise<undefined>((_, reject) => {
-          setTimeout(() => reject(new Error("Render Timeout (8s)")), 8000);
-        });
-
-        // Balapan antara render Twitter vs Timeout 8 detik
-        const el = await Promise.race([renderPromise, timeoutPromise]);
-
-        if (cancelled) return;
-
-        // Twitter API mengembalikan elemen HTML jika sukses, atau undefined jika tweet tidak ada/dihapus
-        if (el) {
-          setStatus("success");
-        } else {
-          setStatus("error"); // Tangkap kasus "Tweet Dihapus/Not Found"
-        }
-      } catch (err) {
-        if (!cancelled) setStatus("error");
+    // Timeout fallback — if Twitter widget doesn't render within threshold
+    timerRef.current = setTimeout(() => {
+      if (active && status === "loading") {
+        setStatus("failed");
       }
-    })();
+    }, WIDGET_TIMEOUT_MS);
 
-    return () => { cancelled = true; };
-  }, [url, renderedTheme, align]);
+    const renderTweet = () => {
+      if (!active || !containerRef.current) return;
+      const tw = (window as any).twttr;
+      if (!tw?.widgets?.createTweet) return;
 
-  if (!extractTweetId(url)) {
+      containerRef.current.innerHTML = "";
+
+      tw.widgets
+        .createTweet(tweetId, containerRef.current, {
+          theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+          align,
+          dnt: true,
+          lang: "id",
+        })
+        .then((el: HTMLElement | undefined) => {
+          if (!active) return;
+          if (el) {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            setStatus("loaded");
+          } else {
+            setStatus("failed");
+          }
+        })
+        .catch(() => {
+          if (active) setStatus("failed");
+        });
+    };
+
+    const loadWidgetScript = () => {
+      // Script already loaded
+      if ((window as any).twttr?.widgets) {
+        renderTweet();
+        return;
+      }
+
+      // Script tag already in DOM, wait for it
+      if (document.getElementById("twitter-widget-script")) {
+        const poll = setInterval(() => {
+          if ((window as any).twttr?.widgets) {
+            clearInterval(poll);
+            renderTweet();
+          }
+        }, 200);
+        return;
+      }
+
+      // Inject script fresh
+      const script = document.createElement("script");
+      script.id = "twitter-widget-script";
+      script.src = "https://platform.twitter.com/widgets.js";
+      script.async = true;
+      script.charset = "utf-8";
+      script.onload = renderTweet;
+      script.onerror = () => {
+        if (active) setStatus("failed");
+      };
+      document.body.appendChild(script);
+    };
+
+    loadWidgetScript();
+
+    return () => {
+      active = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tweetId, align]);
+
+  const alignClass =
+    align === "center"
+      ? "mx-auto"
+      : align === "right"
+      ? "ml-auto"
+      : "mr-auto";
+
+  // Fallback card shown when widget fails / times out
+  if (status === "failed" || !tweetId) {
     return (
-      <div className={`py-4 text-center text-sm text-red-500 font-mono ${className}`}>
-        Invalid Twitter/X URL: {url}
+      <div className={`w-full max-w-[550px] ${alignClass}`}>
+        <a
+          href={tweetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex flex-col gap-3 rounded-2xl border-2 border-black dark:border-white bg-white dark:bg-[#111] p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+        >
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-black dark:bg-white flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white dark:fill-black">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-black dark:text-white">
+                Post on X / Twitter
+              </p>
+              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                ID: {tweetId}
+              </p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-neutral-200 dark:bg-neutral-800" />
+
+          {/* CTA */}
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] font-serif italic text-neutral-500 dark:text-neutral-400">
+              Klik untuk lihat post ini di X ↗
+            </p>
+            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black group-hover:bg-neutral-800 transition-colors flex-shrink-0">
+              View Post
+            </span>
+          </div>
+        </a>
       </div>
     );
   }
 
   return (
-    <div
-      className={`twitter-embed-wrapper w-full flex justify-${align} relative ${className}`}
-      style={{ minHeight: status === "loading" ? 120 : undefined }}
-    >
-      {/* LOADING SPINNER */}
+    <div className={`w-full max-w-[550px] ${alignClass} relative`}>
+      {/* Skeleton shown while Twitter widget loads */}
       {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center w-full py-10 z-10">
-          <div className="w-6 h-6 rounded-full border-2 border-black dark:border-white border-t-transparent animate-spin" />
+        <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111] p-5 space-y-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-800" />
+            <div className="space-y-1.5 flex-1">
+              <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3" />
+              <div className="h-2.5 bg-neutral-100 dark:bg-neutral-900 rounded w-1/4" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-neutral-100 dark:bg-neutral-900 rounded w-full" />
+            <div className="h-3 bg-neutral-100 dark:bg-neutral-900 rounded w-4/5" />
+            <div className="h-3 bg-neutral-100 dark:bg-neutral-900 rounded w-3/5" />
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-800" />
+            <div className="h-2.5 bg-neutral-100 dark:bg-neutral-900 rounded w-20" />
+          </div>
+          <p className="text-[9px] text-center text-neutral-400 uppercase tracking-widest pt-1">
+            Memuat tweet...
+          </p>
         </div>
       )}
 
-      {/* ERROR FALLBACK */}
-      {status === "error" && (
-        <div className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl p-6 text-center text-sm text-neutral-500 dark:text-neutral-400 font-mono max-w-sm mx-auto w-full bg-neutral-50 dark:bg-neutral-900 relative z-20">
-          <span className="block mb-2 text-base font-black">𝕏</span>
-          Tweet gagal dimuat atau telah dihapus.{" "}
-          <br />
-          <a
-            href={url.replace("x.com", "twitter.com")}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-2 underline hover:text-blue-500 transition-colors"
-          >
-            Buka di X (Twitter)
-          </a>
-        </div>
-      )}
-
-      {/* TWEET CONTAINER */}
+      {/* Twitter widget mounts here */}
       <div
         ref={containerRef}
-        className={`w-full transition-opacity duration-300 ${status === "success" ? "opacity-100 relative z-20" : "opacity-0 absolute -z-10"}`}
-        style={{ maxWidth: "550px", margin: align === "center" ? "0 auto" : undefined }}
+        className={status === "loading" ? "opacity-0 h-0 overflow-hidden" : ""}
+        suppressHydrationWarning
       />
     </div>
   );
