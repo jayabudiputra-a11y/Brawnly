@@ -35,7 +35,6 @@ import { isTweetUrl } from "@/lib/utils";
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
 import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
 
-// SINKRONISASI HOOK BARU YANG SUDAH DIOPTIMASI
 import { useArticleData as _uAD } from "@/hooks/useArticleData";
 import { useArticleViews as _uAV } from "@/hooks/useArticleViews";
 import { getOptimizedImage as _gOI } from "@/lib/utils";

@@ -14,23 +14,25 @@ const _0xview = [
     'public'                    
 ] as const;
 
-// OPTIMASI: Pastikan parameter 'i' secara spesifik mengarah ke index dari array _0xview
-// Ini akan menenangkan TypeScript yang rewel soal "implicitly has an 'any' type"
 type ViewKeyIndex = 0 | 1 | 2 | 3 | 4 | 5;
-const _v = (i: ViewKeyIndex) => _0xview[i];
+const _v = (i: ViewKeyIndex) => _0xview[i] as string;
 
 /**
  * Fungsi untuk mencatat view baru
  */
-async function trackPageView(articleId: string) { 
+async function trackPageView(articleId: string, queryClient: any) { 
     if (!articleId) return;
     
-    // Hanya panggil RPC untuk update angka di database.
-    // Kita TIDAK meng-invalidate seluruh cache 'articles' di sini 
-    // agar halaman Home tidak berat saat user sedang membaca.
-    await supabase.rpc(_v(3), {
+    // Panggil RPC untuk update angka di database.
+    const { error } = await supabase.rpc(_v(3), {
         [_v(4)]: articleId
     });
+
+    if (!error) {
+        // PERBAIKAN: Secara spesifik hanya me-refresh cache angka view untuk artikel INI SAJA.
+        // Angka akan langsung bertambah di layar tanpa perlu reload halaman!
+        queryClient.invalidateQueries({ queryKey: ["viewCount", articleId] });
+    }
 }
 
 interface ArticleIdentifiers {
@@ -43,10 +45,6 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
     const { id: articleId, initialViews = 0 } = articleIds; 
     const queryClient = useQueryClient();
 
-    /**
-     * OPTIMASI: Jadikan useQuery sebagai satu-satunya sumber data (Single Source of Truth).
-     * Tidak perlu lagi menggunakan useState (liveViewCount).
-     */
     const { data: viewCount } = useQuery<number>({
         queryKey: ["viewCount", articleId],
         queryFn: async () => {
@@ -58,7 +56,7 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
                 .eq(_v(2), articleId)
                 .maybeSingle();
 
-            // Pengecekan aman untuk TypeScript saat menggunakan dynamic key
+            // Pengecekan aman untuk TypeScript
             if (countsRow && typeof countsRow === 'object' && _v(1) in countsRow) {
                 return (countsRow as Record<string, any>)[_v(1)] as number;
             }
@@ -66,9 +64,11 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
             return initialViews; 
         },
         enabled: !!articleId,
-        initialData: initialViews, 
-        // Matikan auto-refetch karena kita sudah pakai WebSocket!
-        staleTime: Infinity, 
+        // JURUS RAHASIA: Selalu pakai initialViews dari halaman sebelumnya jika ada!
+        initialData: initialViews > 0 ? initialViews : undefined,
+        placeholderData: initialViews,
+        // Ubah dari Infinity menjadi 1 menit, agar query bisa di-invalidate oleh trackPageView
+        staleTime: 1000 * 60, 
     });
 
     /**
@@ -96,6 +96,7 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
                     
                     if (rec?.[totalViewsKey] && rec[articleIdKey] === articleId) { 
                         const newViews = rec[totalViewsKey];
+                        // Update cache jika ada orang lain di ujung dunia yang membaca artikel yang sama
                         queryClient.setQueryData(["viewCount", articleId], newViews);
                     }
                 }
@@ -114,9 +115,10 @@ export const useArticleViews = (articleIds: ArticleIdentifiers) => {
     useEffect(() => {
         if (!articleId || hasTrackedRef.current === String(articleId)) return;
         
-        trackPageView(String(articleId)).catch(() => {}); 
+        trackPageView(String(articleId), queryClient).catch(() => {}); 
         hasTrackedRef.current = String(articleId);
-    }, [articleId]); 
+    }, [articleId, queryClient]); 
 
+    // Pastikan fallback ke initialViews jika query masih loading atau gagal
     return { viewCount: viewCount ?? initialViews };
 };
