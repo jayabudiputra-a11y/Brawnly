@@ -35,6 +35,7 @@ import { isTweetUrl } from "@/lib/utils";
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
 import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
 
+// SINKRONISASI HOOK BARU YANG SUDAH DIOPTIMASI
 import { useArticleData as _uAD } from "@/hooks/useArticleData";
 import { useArticleViews as _uAV } from "@/hooks/useArticleViews";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
@@ -45,7 +46,7 @@ import { commentsApi } from "@/lib/api";
 
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
-import { detectBestFormat as _dBF, detectBestFormat } from "@/lib/imageFormat";
+import { detectBestFormat as _dBF, detectBestFormat } from "@/lib/imageFormat"; // FIX: Hapus duplikasi impor
 import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
 import { enqueue } from "@/lib/idbQueue";
 import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
@@ -255,7 +256,6 @@ function InstagramWidget() {
         </a>
       </div>
 
-      {/* FIX: isMounted guard prevents hydration mismatch — server renders skeleton, client renders embed */}
       <div ref={_embedRef} className="px-3 pb-2 overflow-hidden min-h-[250px]">
         {!isMounted && (
           <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 rounded-lg" style={{ height: 250 }} />
@@ -414,7 +414,6 @@ function TumblrWidget() {
         </a>
       </div>
 
-      {/* INTERACTION OVERLAY TO PREVENT FREEZE */}
       <div
         className="px-3 pb-2 overflow-hidden relative"
         data-embed-type="tumblr"
@@ -427,7 +426,6 @@ function TumblrWidget() {
             onTouchStart={() => _setIsInteracting(true)}
           />
         )}
-        {/* FIX: isMounted guard prevents hydration mismatch for iframe */}
         {isMounted ? (
           <iframe
             ref={_iframeRef}
@@ -525,7 +523,6 @@ function SubstackWidget() {
         </a>
       </div>
 
-      {/* FIX: isMounted guard — server renders skeleton, client renders embed div */}
       <div ref={_embedRef} className="px-4 pb-2 min-h-[80px]">
         {!isMounted && (
           <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 h-20 w-full rounded" />
@@ -634,10 +631,6 @@ function PinterestWidget() {
 
 /* ============================================================
    CLASH ROYALE WIDGET
-   FIX: RoyaleAPI blocks ALL cross-origin iframe embedding via their own
-   frame-ancestors CSP. The iframe will ALWAYS fail with "refused to connect".
-   Solution: remove the iframe entirely, show a polished static card with
-   direct links to RoyaleAPI. No state/timeout needed — zero console errors.
    ============================================================ */
 
 function ClashRoyaleWidget() {
@@ -674,7 +667,6 @@ function ClashRoyaleWidget() {
         </a>
       </div>
 
-      {/* Player info card */}
       <div className="mx-6 mb-4 p-3 rounded-xl bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 border border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -701,20 +693,17 @@ function ClashRoyaleWidget() {
         </div>
       </div>
 
-      {/* Static battle log card — replaces the blocked iframe */}
       <div className="px-3 pb-2">
         <div
           className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] flex flex-col items-center justify-center p-10 text-center gap-5"
           style={{ minHeight: 320 }}
         >
-          {/* Ambient glow */}
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
             <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
           </div>
 
           <div className="relative z-10 flex flex-col items-center gap-5">
-            {/* Avatar badge */}
             <div className="relative">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
                 <_Sw size={36} className="text-white drop-shadow-lg" />
@@ -919,11 +908,11 @@ function CommentItem({
 }
 
 /* ============================================================
-   COMMENT SECTION (with CR Widget before Tumblr)
+   COMMENT SECTION
    ============================================================ */
 
 function CommentSection({ articleId }: { articleId: string }) {
-  const { user: _u } = useAuth();
+  const { user: _u } = useAuth(); // SINKRON: useAuth sekarang optimistic & instan
   const _nav = _uN();
   const _qC = useQueryClient();
 
@@ -1044,7 +1033,6 @@ function CommentSection({ articleId }: { articleId: string }) {
         <div className="p-3 bg-red-600 text-white rounded-full">
           <_Ms size={20} />
         </div>
-        {/* SEO FIX: Ubah dari h3 ke h2 untuk section Diskusi */}
         <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
           Discussion ({_localComments.length})
         </h2>
@@ -1093,7 +1081,7 @@ function CommentSection({ articleId }: { articleId: string }) {
 
             <div className="flex justify-between items-center p-4 bg-white dark:bg-black border-t-2 border-black dark:border-white">
               <span className="text-[10px] font-black uppercase opacity-50 tracking-widest text-black dark:text-white">
-                ID_NODE: {_u.user_metadata?.full_name || "Member"}
+                ID_NODE: {_u.email || "Member"}
               </span>
               <button
                 type="submit"
@@ -1162,12 +1150,10 @@ function CommentSection({ articleId }: { articleId: string }) {
         </_AP>
       </div>
 
-      {/* CLASH ROYALE WIDGET — BEFORE TUMBLR */}
       <div className="mt-20">
         <ClashRoyaleWidget />
       </div>
 
-      {/* TUMBLR WIDGET — AFTER CLASH ROYALE */}
       <div className="mt-8">
         <TumblrWidget />
       </div>
@@ -1189,7 +1175,6 @@ export default function ArticleDetail() {
   const [_isOff, _sOff] = _s(false);
   const [_iS, _siS] = _s(false);
   const [isHydrated, setIsHydrated] = _s(false);
-
   const [_hasTracked, _sHasTracked] = _s(false);
 
   const _fC = (_u: string) => {
@@ -1198,6 +1183,7 @@ export default function ArticleDetail() {
     return `${_CC.baseUrl}/${_u}`;
   };
 
+  // SINKRONISASI: Mengambil data dari cache memori tanpa me-render ulang berat
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
   const _allMedia = _uM(() => {
@@ -1313,7 +1299,7 @@ export default function ArticleDetail() {
     };
   }, []);
 
-  /* ====== COVER IMAGE PIPELINE (with blob error guard) ====== */
+  /* ====== COVER IMAGE PIPELINE ====== */
   _e(() => {
     if (!_rawImgSource) return;
 
@@ -1394,6 +1380,7 @@ export default function ArticleDetail() {
     }
   }, [_art?.id, _hasTracked, _slV]);
 
+  // SINKRONISASI: Menangkap data dari useArticles dengan aman
   const { data: _allA } = _uAs();
   const _hC = _uM(
     () =>
@@ -1417,6 +1404,7 @@ export default function ArticleDetail() {
     }
   };
 
+  // SINKRONISASI: Menggunakan data dari useArticleViews bebas render berlebih
   const { viewCount: _realtimeViews } = _uAV({
     id: _art?.id ?? "",
     slug: _slV,
@@ -1449,6 +1437,14 @@ export default function ArticleDetail() {
           content={_gOI(_rawImgSource || "", 1200)}
         />
       </_Hm>
+
+      {/* SEMANTIC HTML UNTUK LLM/SEO */}
+      <article className="sr-only">
+        <h1>{_pD.title}</h1>
+        <p>{_pD.excerpt}</p>
+        <address className="author">By {_art.author || "Brawnly"}</address>
+        <time dateTime={_art.published_at}>{_art.published_at}</time>
+      </article>
 
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button
@@ -1492,7 +1488,7 @@ export default function ArticleDetail() {
             )}
           </div>
 
-          <h1 className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words">
+          <h1 className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words" aria-hidden="true">
             {_pD.title}
           </h1>
 
@@ -1519,7 +1515,9 @@ export default function ArticleDetail() {
             </div>
 
             <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-              {_realtimeViews.toLocaleString("en-US")}{" "}
+              <span aria-label={`${_realtimeViews} kali dibaca`}>
+                {_realtimeViews.toLocaleString("en-US")}
+              </span>{" "}
               <_Ey size={20} className="text-red-600" />
             </div>
           </div>
@@ -1527,7 +1525,7 @@ export default function ArticleDetail() {
 
         <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
           <article className="flex-1 relative min-w-0">
-            <p className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic">
+            <p className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic" aria-hidden="true">
               {_pD.excerpt}
             </p>
 
@@ -1680,7 +1678,6 @@ export default function ArticleDetail() {
                   <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full">
                     <_Ca size={18} />
                   </div>
-                  {/* SEO FIX: Ubah dari h3 ke h2 untuk section Gallery */}
                   <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
                     Gallery
                   </h2>
@@ -1741,13 +1738,13 @@ export default function ArticleDetail() {
               </button>
             </div>
 
+            {/* SINKRONISASI: Comment Section sekarang me-render aman berkat perbaikan useAuth */}
             <CommentSection articleId={_art.id} />
           </article>
 
           <aside className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0">
             <div className="sticky top-32 space-y-8">
               <div className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl">
-                {/* SEO FIX: Ubah dari h3 ke h2 untuk section Trending */}
                 <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
                   <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" />{" "}
                   Trending

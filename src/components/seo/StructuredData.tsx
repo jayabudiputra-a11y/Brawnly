@@ -1,3 +1,4 @@
+import React from "react"
 import { Helmet } from "react-helmet-async"
 import masculineLogo from "@/assets/masculineLogo.svg"
 
@@ -8,6 +9,7 @@ interface ArticleStructuredData {
   featured_image?: string | string[] | null
   published_at: string
   author?: string | null
+  url?: string // Tambahan opsional untuk URL spesifik artikel
 }
 
 interface StructuredDataProps {
@@ -16,6 +18,8 @@ interface StructuredDataProps {
 
 const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
   if (!article) return null
+
+  const baseUrl = "https://brawnly.online"
 
   const getFirstImage = () => {
     const rawImageSource = article.featured_image_url || article.featured_image
@@ -28,40 +32,77 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
       .map(s => s.trim())
       .filter(Boolean)
       
-    return urls.find(u => u.startsWith("http")) || undefined
+    const firstUrl = urls.find(u => u.startsWith("http"))
+    return firstUrl || undefined
   }
 
   const authorName = article.author?.trim()
     ? article.author.trim()
     : "Budi Putra Jaya"
 
+  const articleUrl = article.url || baseUrl
+  const imageUrl = getFirstImage()
+
+  // JSON-LD untuk Google Search & Rich Snippets
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": articleUrl
+    },
     headline: article.title,
     description: article.excerpt,
-    image: getFirstImage(),
+    image: imageUrl,
     datePublished: article.published_at,
+    dateModified: article.published_at, // SEO best practice: selalu sertakan modified date
     author: {
       "@type": "Person",
       name: authorName,
+      url: baseUrl // Membantu E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
     },
     publisher: {
       "@type": "Organization",
       name: "Brawnly",
       logo: {
         "@type": "ImageObject",
-        url: masculineLogo,
+        url: `${baseUrl}${masculineLogo}`, // Skema mewajibkan URL absolut
       },
     },
   }
 
   return (
-    <Helmet>
-      <script type="application/ld+json">
-        {JSON.stringify(structuredData, null, 2)}
-      </script>
-    </Helmet>
+    <>
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
+
+      {/* Trik SEO & LLM SPA:
+        Microdata HTML mentah yang disembunyikan secara visual. 
+        Bot AI dan Crawler sederhana yang mengabaikan <script> JSON-LD 
+        PASTI akan membaca data ini karena menyatu dengan struktur DOM HTML.
+      */}
+      <div className="sr-only" itemScope itemType="https://schema.org/Article">
+        <h2 itemProp="headline">{article.title}</h2>
+        {article.excerpt && <p itemProp="description">{article.excerpt}</p>}
+        
+        <span itemProp="author" itemScope itemType="https://schema.org/Person">
+          Ditulis oleh <span itemProp="name">{authorName}</span>
+        </span>
+        
+        <time itemProp="datePublished" dateTime={article.published_at}>
+          {new Date(article.published_at).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </time>
+        
+        {imageUrl && <link itemProp="image" href={imageUrl} />}
+      </div>
+    </>
   )
 }
 

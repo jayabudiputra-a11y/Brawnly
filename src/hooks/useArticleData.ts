@@ -5,14 +5,16 @@ import { supabase } from "@/lib/supabase";
 import { generateFullImageUrl } from "@/utils/helpers"; 
 
 const _0xquery = ["articles_denormalized", "slug", "reverse", "split", "join"] as const;
-const _q = (i: number) => _0xquery[i] as any;
+const _q = (i: number) => _0xquery[i] as string;
 
 export interface Article {
   id: string;
   slug: string;
+  title?: string;
+  excerpt?: string;
+  content?: string;
   author?: string;
   published_at: string;
-  // Updated: Prioritaskan kolom baru, fallback ke kolom lama jika migrasi belum selesai
   featured_image_url?: string;
   featured_image?: string;
   views?: number;
@@ -23,32 +25,39 @@ export interface Article {
 export const useArticleData = () => {
   const { slug } = useParams<{ slug: string }>();
   
-  const { data: article, isLoading } = useQuery<Article | null>({ 
+  const { data: article, isLoading, error } = useQuery<Article | null>({ 
     queryKey: ["article", slug],
     queryFn: async () => {
-      const { data } = await (supabase.from(_q(0) as string) as any)
+      if (!slug) return null;
+      const { data, error } = await supabase
+        .from(_q(0))
         .select("*")
-        .eq(_q(1) as string, slug!)
+        .eq(_q(1), slug)
         .maybeSingle();
+        
+      if (error) {
+        console.error("Supabase Error:", error);
+        throw error;
+      }
       return data as Article | null;
     },
     enabled: !!slug,
-    retry: false,
+    retry: 1, // Hanya coba 1x jika gagal agar tidak loading terus menerus
+    staleTime: 5 * 60 * 1000, // OPTIMASI SPEED: Cache data selama 5 menit
+    gcTime: 10 * 60 * 1000, // Simpan di memori sampah selama 10 menit
   });
   
   const processedData = useMemo(() => {
     if (!article) return null;
 
-    // Direct field access (No translation logic)
     const title = article.title || "Untitled Article";
     const excerpt = article.excerpt || "";
     const content = article.content || "";
 
-    // UPDATED LOGIC: Mengambil data dari featured_image_url (sesuai DB baru)
-    // Fallback ke featured_image jika kosong
+    // Prioritaskan kolom baru, fallback ke kolom lama
     const rawPaths = (article.featured_image_url || article.featured_image || "");
     
-    // Split berdasarkan baris baru (\r\n) atau spasi URL
+    // Split berdasarkan baris baru (\r\n) dan bersihkan URL
     const allLines = rawPaths
       .split(/[\r\n]+/) 
       .map(l => l.trim())
@@ -63,11 +72,13 @@ export const useArticleData = () => {
     const midGallery = galleryPaths.slice(0, 5).join('\r\n'); 
     const bottomGallery = galleryPaths.slice(5).join('\r\n'); 
 
+    // Perbaikan pemotongan paragraf yang lebih bersih
     const paragraphs = content
       .replace(/\r\n/g, "\n")
       .replace(/\\n/g, "\n")
       .split("\n")
-      .filter(Boolean);
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
 
     return {
       article, 
@@ -78,12 +89,11 @@ export const useArticleData = () => {
       coverImage, 
       midGallery, 
       bottomGallery,
-      // Helper tambahan jika komponen butuh array raw
       allImages: allLines
     };
   }, [article]);
 
-  return { processedData, isLoading, article };
+  return { processedData, isLoading, error, article };
 };
 
 export const LANGS = ["en"] as const;

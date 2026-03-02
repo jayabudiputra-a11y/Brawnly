@@ -54,25 +54,34 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
   };
 
   return (
-    <_H>
-      <title>{_fT}</title>
-      <link rel="icon" type="image/svg+xml" href={_fS} />
-      <meta name="description" content={_fD} />
-      <meta name="author" content="Budi Putra Jaya" />
-      
-      <meta property="og:type" content="website" />
-      <meta property="og:title" content={_fT} />
-      <meta property="og:description" content={_fD} />
-      <meta property="og:image" content={_fI} />
-      <meta property="og:url" content={_fU} />
-      <meta property="og:site_name" content="Brawnly" />
+    <>
+      <_H>
+        <title>{_fT}</title>
+        <link rel="icon" type="image/svg+xml" href={_fS} />
+        <meta name="description" content={_fD} />
+        <meta name="author" content="Budi Putra Jaya" />
+        
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={_fT} />
+        <meta property="og:description" content={_fD} />
+        <meta property="og:image" content={_fI} />
+        <meta property="og:url" content={_fU} />
+        <meta property="og:site_name" content="Brawnly" />
 
-      <link rel="canonical" href={_fU} />
-      
-      <script type="application/ld+json">
-        {JSON.stringify(_jLd)}
-      </script>
-    </_H>
+        <link rel="canonical" href={_fU} />
+        
+        <script type="application/ld+json">
+          {JSON.stringify(_jLd)}
+        </script>
+      </_H>
+
+      {/* Trik SEO SPA: 
+        sr-only menyembunyikan teks dari layar, tapi LLM & Google Bot 
+        akan membacanya sebagai hierarki konten utama di halaman ini. 
+      */}
+      <h1 className="sr-only">{_t || "Brawnly - Smart Fitness Intelligence"}</h1>
+      <p className="sr-only">{_fD}</p>
+    </>
   );
 };
 

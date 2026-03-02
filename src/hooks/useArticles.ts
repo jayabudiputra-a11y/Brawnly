@@ -11,12 +11,14 @@ const _0xrepo = [
   'published_at'
 ] as const;
 
-const _r = (i: number) => _0xrepo[i] as any;
+// OPTIMASI: Gunakan tipe 'string' agar tidak terjadi bug saat query Supabase
+const _r = (i: number) => _0xrepo[i] as string; 
 const CACHE_KEY = "brawnly_lib_cache";
 
 const _saveToSmartCache = (key: string, data: any) => {
   try {
     const payload = JSON.stringify(data);
+    // Jika ukuran mendekati batas kuota browser, bersihkan cache lama
     if (payload.length > 625000) {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -30,7 +32,19 @@ const _saveToSmartCache = (key: string, data: any) => {
     localStorage.clear(); 
     try {
       localStorage.setItem(key, JSON.stringify(data));
-    } catch (err) { }
+    } catch (err) { 
+      console.warn("Brawnly Cache is completely full.");
+    }
+  }
+};
+
+// OPTIMASI: Helper aman untuk parsing JSON
+const _getSmartCache = (key: string) => {
+  try {
+    const cached = localStorage.getItem(key);
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    return null;
   }
 };
 
@@ -38,10 +52,10 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
   return useQuery({
     queryKey: ['articles', tag],
     queryFn: async () => {
-      const _cached = localStorage.getItem(CACHE_KEY);
+      const cachedData = _getSmartCache(CACHE_KEY);
       
-      if (!navigator.onLine && _cached) {
-        return JSON.parse(_cached);
+      if (!navigator.onLine && cachedData) {
+        return cachedData;
       }
 
       try {
@@ -70,23 +84,28 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
           .from(_r(1))
           .select(`${_r(3)}, ${_r(4)}`);
 
-        const viewsMap = (rawViews ?? []).reduce((acc: any, viewRow: any) => {
+        const viewsMap = (rawViews ?? []).reduce((acc: Record<string, number>, viewRow: any) => {
           acc[viewRow[_r(3)]] = viewRow[_r(4)];
           return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         const processedData = (rawArticles ?? []).map((article: any) => {
           const liveViews = viewsMap[article.id];
           
-          // CLEANUP: Hanya ambil dari featured_image_url atau fallback ke featured_image lama
-          // Menghapus featured_image_url_clean / path_clean karena sudah tidak dipakai
-          let rawPath = article.featured_image_url || article.featured_image;
+          // CLEANUP & OPTIMASI KEAMANAN STRING
+          const rawPath = article.featured_image_url || article.featured_image || "";
           
-          const processedCover = rawPath ? generateFullImageUrl(rawPath.split(/[\r\n]+/)[0]) : null;
+          // Memastikan hanya mengambil URL yang valid (dimulai dengan http)
+          const validUrls = rawPath
+            .split(/[\r\n]+/)
+            .map((url: string) => url.trim())
+            .filter((url: string) => url.startsWith('http'));
+
+          const processedCover = validUrls.length > 0 ? generateFullImageUrl(validUrls[0]) : null;
 
           return {
-            ...article, // Penting: Ini meneruskan 'featured_image_url' asli ke ArticlePage/Detail
-            featured_image: processedCover, // Ini untuk cover card (single image)
+            ...article, 
+            featured_image: processedCover, 
             thumbnail_url: processedCover,
             views: liveViews !== undefined ? liveViews : (article.views || 0),
             author: article.author || { 
@@ -100,15 +119,17 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
         return processedData;
 
       } catch (error) {
-        if (_cached) {
-          return JSON.parse(_cached);
+        if (cachedData) {
+          console.warn("Jaringan tidak stabil, menggunakan data cache...");
+          return cachedData;
         }
         throw error;
       }
     },
     initialData: initialData,
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: true, 
+    staleTime: 1000 * 60 * 5, // 5 Menit
+    gcTime: 1000 * 60 * 10, // OPTIMASI: 10 menit Garbage Collection agar memori browser tidak bocor
+    refetchOnWindowFocus: false, // SANGAT PENTING: Matikan ini agar tidak re-render berat saat user pindah tab
     retry: 1
   });
 };

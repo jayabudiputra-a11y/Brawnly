@@ -28,7 +28,7 @@ export const useAuth = () => {
     keysToRemove.forEach(k => localStorage.removeItem(k));
     
     if (user?.id) {
-        _chQ("user_" + user.id).then(key => localStorage.removeItem(key)).catch(()=>{});
+        _chQ("user_" + user.id).then((key: string) => localStorage.removeItem(key)).catch(()=>{});
     }
   };
 
@@ -59,13 +59,29 @@ export const useAuth = () => {
           return;
         }
 
+        // OPTIMASI SPEED INDEX & LLM:
+        // 1. Langsung injeksi user dasar dari session agar UI BISA LANGSUNG RENDER!
+        // Jangan biarkan layar loading menahan konten.
+        if (mounted) {
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email, 
+            ...session.user.user_metadata 
+          } as AuthUser);
+          
+          if (!isProcessing) setLoading(false); // MATIKAN LOADING SEKARANG!
+        }
+
+        // 2. Fetch profil detail secara "siluman" di background
         const currentUser = await authApi.getCurrentUser();
         
         if (mounted) {
             if (currentUser) {
+              // Update diam-diam (Silent Update) ke profil lengkap
               setUser(currentUser);
               await _sUS(currentUser.id);
             } else {
+              // Jika ternyata di server user sudah dibanned/dihapus
               await _forceLogout();
             }
         }
@@ -77,7 +93,7 @@ export const useAuth = () => {
         const isAuthFlow = window.location.pathname.includes('auth') || 
                            window.location.hash.includes('access_token');
                            
-        if (mounted && !isAuthFlow) setLoading(false);
+        if (mounted && !isAuthFlow && loading) setLoading(false);
       }
     };
 
@@ -85,13 +101,19 @@ export const useAuth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const currentUser = await authApi.getCurrentUser();
+        
+        // Optimistic UI untuk proses Login baru
         if (mounted) {
+          setUser({ id: session.user.id, ...session.user.user_metadata } as AuthUser);
+          const isCallback = window.location.pathname.includes('auth');
+          if (!isCallback) setLoading(false);
+        }
+
+        // Fetch detail di background
+        const currentUser = await authApi.getCurrentUser();
+        if (mounted && currentUser) {
             setUser(currentUser);
-            if(currentUser) await _sUS(currentUser.id);
-            
-            const isCallback = window.location.pathname.includes('auth');
-            if (!isCallback) setLoading(false);
+            await _sUS(currentUser.id);
         }
       } 
       else if (event === 'SIGNED_OUT') {
@@ -107,7 +129,7 @@ export const useAuth = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [_forceLogout]);
+  }, [_forceLogout, loading]);
 
   const signOut = async () => {
     try {

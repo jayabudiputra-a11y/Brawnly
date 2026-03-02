@@ -1,4 +1,4 @@
-import { useState as _s, useEffect as _e } from 'react';
+import { useState as _s, useEffect as _e, useCallback as _uC } from 'react';
 import type { SaveDataPreference as _SDP } from '../types';
 import { enqueue as _enq } from '@/lib/idbQueue';
 import { backoffRetry as _boR } from '@/lib/backoff';
@@ -14,53 +14,77 @@ const _0xflux = [
     'enabled'             
 ] as const;
 
-const _x = (i: number) => _0xflux[i] as any;
-const _KEY_EN = _0xflux[3]; // 'enabled'
+// OPTIMASI: Kunci indeks agar TypeScript tahu batas array-nya
+type FluxIndex = 0 | 1 | 2 | 3;
+const _x = (i: FluxIndex) => _0xflux[i];
 
 export const useSaveData = () => {
   // --- PREFERENCE LOGIC ---
   const [saveData, setSaveData] = _s<_SDP>(() => {
-    const _K = _x(0);
-    const saved = localStorage.getItem(_K);
-    return saved
-      ? JSON.parse(saved)
-      : ({ [_KEY_EN]: false, quality: _x(2) } as any as _SDP);
+    try {
+      const saved = localStorage.getItem(_x(0));
+      if (saved) return JSON.parse(saved) as _SDP;
+    } catch (e) {
+      // Abaikan jika localStorage corrupt/gagal diparse
+    }
+    // Nilai default yang aman (Type Safe)
+    return { enabled: false, quality: 'high' } as _SDP;
   });
 
+  /**
+   * OPTIMASI: Deteksi Data Saver Dinamis
+   * Sekarang hook ini juga mendengarkan perubahan jaringan secara real-time.
+   * Jika user tiba-tiba ganti ke WiFi/Paket Data hemat, aplikasi akan beradaptasi.
+   */
   _e(() => {
     const connection = (navigator as any).connection;
-    const isBrowserSaving = connection?.saveData || false;
+    if (!connection) return;
 
-    if (isBrowserSaving && !saveData[_KEY_EN]) {
-      setSaveData({ [_KEY_EN]: true, quality: _x(1) } as any as _SDP);
-    }
+    const handleConnectionChange = () => {
+      const isBrowserSaving = connection.saveData === true;
+      setSaveData((prev) => {
+        // Hanya update state jika kondisinya benar-benar berubah
+        if (isBrowserSaving && !prev.enabled) {
+          return { ...prev, enabled: true, quality: 'low' };
+        }
+        return prev;
+      });
+    };
+
+    handleConnectionChange(); // Cek saat pertama kali dimuat
+    
+    // Dengarkan perubahan jaringan
+    connection.addEventListener('change', handleConnectionChange);
+    return () => connection.removeEventListener('change', handleConnectionChange);
   }, []);
 
   _e(() => {
     localStorage.setItem(_x(0), JSON.stringify(saveData));
   }, [saveData]);
 
-  const toggleSaveData = () => {
+  // OPTIMASI: Gunakan useCallback agar komponen yang memanggil fungsi ini
+  // tidak ikut ter-render ulang setiap kali state lain berubah.
+  const toggleSaveData = _uC(() => {
     setSaveData((prev) => {
-      const nextState = !prev[_KEY_EN];
+      const nextState = !prev.enabled;
       return {
         ...prev,
-        [_KEY_EN]: nextState,
-        quality: nextState ? _x(1) : _x(2),
-      } as any as _SDP;
+        enabled: nextState,
+        quality: nextState ? 'low' : 'high',
+      };
     });
-  };
+  }, []);
 
-  const setQuality = (quality: 'low' | 'medium' | 'high') => {
+  const setQuality = _uC((quality: 'low' | 'medium' | 'high') => {
     setSaveData((prev) => ({ ...prev, quality }));
-  };
+  }, []);
 
   // --- PERSISTENCE SYNC LOGIC ---
   /**
    * Mengirim data ke server dengan strategi retry atau 
    * memasukkannya ke antrean IndexedDB jika tetap gagal/offline.
    */
-  const _syncData = async (_d: any) => {
+  const _syncData = _uC(async (_d: any) => {
     try {
       if (!navigator.onLine) throw new Error("Offline");
       
@@ -70,7 +94,6 @@ export const useSaveData = () => {
         if (error) throw error;
       });
       
-      console.log("✅ Progress synced to cloud");
     } catch (_err) {
       // Jika offline atau percobaan backoff habis, simpan ke IndexedDB
       await _enq({ 
@@ -78,15 +101,14 @@ export const useSaveData = () => {
         payload: _d, 
         timestamp: Date.now() 
       });
-      console.warn("⚠️ Data deferred to offline queue due to connection/timeout");
     }
-  };
+  }, []); // Kosongkan dependency array karena _enq, _boR, dan _sb adalah fungsi statis/eksternal
 
   return {
     saveData,
     toggleSaveData,
     setQuality,
-    isEnabled: saveData[_KEY_EN],
-    syncData: _syncData // Ekspos fungsi sync untuk digunakan di komponen
+    isEnabled: saveData.enabled,
+    syncData: _syncData
   };
-}
+};
