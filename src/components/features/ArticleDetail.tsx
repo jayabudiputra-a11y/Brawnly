@@ -161,10 +161,6 @@ function fmtHtml(text: string): string {
    SAFE BLOB URL HELPER
    ============================================================ */
 
-/**
- * Safely revoke a blob URL — guards against ERR_FILE_NOT_FOUND
- * when the blob has already been garbage-collected.
- */
 function safeBlobRevoke(url: string | null) {
   if (!url || !url.startsWith("blob:")) return;
   try {
@@ -259,8 +255,11 @@ function InstagramWidget() {
         </a>
       </div>
 
+      {/* FIX: isMounted guard prevents hydration mismatch — server renders skeleton, client renders embed */}
       <div ref={_embedRef} className="px-3 pb-2 overflow-hidden min-h-[250px]">
-        {!isMounted && <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 h-full w-full" />}
+        {!isMounted && (
+          <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 rounded-lg" style={{ height: 250 }} />
+        )}
       </div>
 
       <div className="px-6 pb-5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
@@ -416,34 +415,38 @@ function TumblrWidget() {
       </div>
 
       {/* INTERACTION OVERLAY TO PREVENT FREEZE */}
-      <div 
-        className="px-3 pb-2 overflow-hidden relative" 
+      <div
+        className="px-3 pb-2 overflow-hidden relative"
         data-embed-type="tumblr"
         onMouseLeave={() => _setIsInteracting(false)}
       >
         {!_isInteracting && (
-          <div 
+          <div
             className="absolute inset-0 z-10 cursor-pointer bg-transparent"
             onClick={() => _setIsInteracting(true)}
             onTouchStart={() => _setIsInteracting(true)}
           />
         )}
+        {/* FIX: isMounted guard prevents hydration mismatch for iframe */}
         {isMounted ? (
           <iframe
             ref={_iframeRef}
             src={TUMBLR_EMBED_HREF}
             className="w-full border-0 rounded-lg"
-            style={{ 
-              height: _iframeHeight, 
+            style={{
+              height: _iframeHeight,
               maxHeight: 600,
-              pointerEvents: _isInteracting ? 'auto' : 'none'
+              pointerEvents: _isInteracting ? "auto" : "none",
             }}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
             title="Tumblr post embed"
           />
         ) : (
-          <div style={{ height: 350 }} className="w-full bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-lg" />
+          <div
+            style={{ height: 350 }}
+            className="w-full bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-lg"
+          />
         )}
       </div>
 
@@ -522,8 +525,11 @@ function SubstackWidget() {
         </a>
       </div>
 
+      {/* FIX: isMounted guard — server renders skeleton, client renders embed div */}
       <div ref={_embedRef} className="px-4 pb-2 min-h-[80px]">
-         {!isMounted && <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 h-20 w-full" />}
+        {!isMounted && (
+          <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 h-20 w-full rounded" />
+        )}
       </div>
 
       <div className="px-6 pb-5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
@@ -628,36 +634,17 @@ function PinterestWidget() {
 
 /* ============================================================
    CLASH ROYALE WIDGET
+   FIX: RoyaleAPI blocks ALL cross-origin iframe embedding via their own
+   frame-ancestors CSP. The iframe will ALWAYS fail with "refused to connect".
+   Solution: remove the iframe entirely, show a polished static card with
+   direct links to RoyaleAPI. No state/timeout needed — zero console errors.
    ============================================================ */
 
 function ClashRoyaleWidget() {
-  const [_iframeLoaded, _setIframeLoaded] = _s(false);
-  const [_iframeFailed, _setIframeFailed] = _s(false);
-  const [_isInteracting, _setIsInteracting] = _s(false);
-  const _iframeRef = _uR<HTMLIFrameElement>(null);
-  const _timeoutRef = _uR<ReturnType<typeof setTimeout> | null>(null);
-
-  /* Detect iframe load failure via timeout — RoyaleAPI may block X-Frame-Options */
-  _e(() => {
-    _timeoutRef.current = setTimeout(() => {
-      if (!_iframeLoaded) _setIframeFailed(true);
-    }, 8000);
-    return () => {
-      if (_timeoutRef.current) clearTimeout(_timeoutRef.current);
-    };
-  }, [_iframeLoaded]);
-
-  const _onIframeLoad = _uC(() => {
-    _setIframeLoaded(true);
-    if (_timeoutRef.current) clearTimeout(_timeoutRef.current);
-  }, []);
-
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative">
-      {/* CR ACCENT BAR */}
+    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]">
       <div className="h-1.5 w-full bg-gradient-to-r from-[#0070DD] via-[#00C3FF] to-[#0070DD]" />
 
-      {/* HEADER */}
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0070DD] to-[#004A99] flex items-center justify-center shadow-md flex-shrink-0">
@@ -687,7 +674,7 @@ function ClashRoyaleWidget() {
         </a>
       </div>
 
-      {/* PLAYER INFO BAR */}
+      {/* Player info card */}
       <div className="mx-6 mb-4 p-3 rounded-xl bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 border border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -714,108 +701,64 @@ function ClashRoyaleWidget() {
         </div>
       </div>
 
-      {/* BATTLE EMBED — 9:16 Responsive Container */}
-      <div
-        className="px-3 pb-2 overflow-hidden relative"
-        onMouseLeave={() => _setIsInteracting(false)}
-      >
+      {/* Static battle log card — replaces the blocked iframe */}
+      <div className="px-3 pb-2">
         <div
-          className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-black"
-          style={{ aspectRatio: "9/16", maxHeight: 640 }}
+          className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] flex flex-col items-center justify-center p-10 text-center gap-5"
+          style={{ minHeight: 320 }}
         >
-          {!_isInteracting && !_iframeFailed && (
-            <div
-              className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-              onClick={() => _setIsInteracting(true)}
-              onTouchStart={() => _setIsInteracting(true)}
-            />
-          )}
+          {/* Ambient glow */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
+            <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
+          </div>
 
-          {!_iframeFailed ? (
-            <>
-              {/* Loading state */}
-              {!_iframeLoaded && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#001530] to-[#003366] z-5">
-                  <_Sw size={40} className="text-[#00C3FF] animate-pulse mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#00C3FF] animate-pulse">
-                    Loading Battle Log...
-                  </p>
-                </div>
-              )}
-              <iframe
-                ref={_iframeRef}
-                src={CR_ROYALEAPI_BATTLES}
-                className="w-full h-full border-0"
-                style={{
-                  pointerEvents: _isInteracting ? "auto" : "none",
-                  opacity: _iframeLoaded ? 1 : 0,
-                }}
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                title="Clash Royale Battle Log"
-                onLoad={_onIframeLoad}
-                onError={() => _setIframeFailed(true)}
-              />
-            </>
-          ) : (
-            /* FALLBACK — When iframe is blocked by RoyaleAPI X-Frame-Options */
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] p-6 text-center">
-              {/* Animated arena background effect */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
-                <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
+          <div className="relative z-10 flex flex-col items-center gap-5">
+            {/* Avatar badge */}
+            <div className="relative">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
+                <_Sw size={36} className="text-white drop-shadow-lg" />
               </div>
-
-              <div className="relative z-10 flex flex-col items-center gap-5">
-                {/* Crown + Swords Icon */}
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
-                    <_Sw size={36} className="text-white drop-shadow-lg" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
-                    <span className="text-[12px]">👑</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-[16px] font-black uppercase text-white tracking-tight mb-1">
-                    {CR_PLAYER_NAME}
-                  </h4>
-                  <p className="text-[11px] font-bold text-[#00C3FF] uppercase tracking-[0.2em]">
-                    #{CR_PLAYER_TAG}
-                  </p>
-                </div>
-
-                <p className="text-[11px] font-serif italic text-neutral-400 leading-relaxed max-w-[240px]">
-                  View recent battles, deck stats & trophies on RoyaleAPI ⚔️
-                </p>
-
-                {/* CTA Buttons */}
-                <div className="flex flex-col gap-3 w-full max-w-[220px]">
-                  <a
-                    href={CR_ROYALEAPI_BATTLES}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-                  >
-                    <_Sw size={14} /> View Battles
-                  </a>
-                  <a
-                    href={CR_ADD_FRIEND_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-                  >
-                    <_Up size={14} /> Add Friend
-                  </a>
-                </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
+                <span className="text-[12px]">👑</span>
               </div>
             </div>
-          )}
+
+            <div>
+              <h4 className="text-[16px] font-black uppercase text-white tracking-tight mb-1">
+                {CR_PLAYER_NAME}
+              </h4>
+              <p className="text-[11px] font-bold text-[#00C3FF] uppercase tracking-[0.2em]">
+                #{CR_PLAYER_TAG}
+              </p>
+            </div>
+
+            <p className="text-[11px] font-serif italic text-neutral-400 leading-relaxed max-w-[240px]">
+              View recent battles, deck stats & trophies on RoyaleAPI ⚔️
+            </p>
+
+            <div className="flex flex-col gap-3 w-full max-w-[220px]">
+              <a
+                href={CR_ROYALEAPI_BATTLES}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <_Sw size={14} /> View Battles
+              </a>
+              <a
+                href={CR_ADD_FRIEND_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <_Up size={14} /> Add Friend
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* FOOTER LINKS */}
       <div className="px-6 pb-5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
         <div className="flex flex-col gap-2">
           <a
@@ -1412,7 +1355,6 @@ export default function ArticleDetail() {
             _createdBlobUrls.push(final);
             await saveAssetToShared(`cover_${_slV}`, vThumb);
           } catch {
-            /* video thumbnail extraction failed — use raw source */
             final = _rawImgSource;
           }
         } else {
@@ -1422,7 +1364,6 @@ export default function ArticleDetail() {
             _createdBlobUrls.push(final);
             await saveAssetToShared(`cover_${_slV}`, opt);
           } catch {
-            /* WASM transcode failed — use raw source */
             final = _rawImgSource;
           }
         }
@@ -1435,7 +1376,6 @@ export default function ArticleDetail() {
 
     return () => {
       _active = false;
-      /* Revoke blobs on cleanup — guarded against already-revoked URLs */
       _createdBlobUrls.forEach(safeBlobRevoke);
     };
   }, [_rawImgSource, _slV]);
@@ -1523,9 +1463,9 @@ export default function ArticleDetail() {
 
         <button
           onClick={() => {
-            if (typeof navigator !== 'undefined' && navigator.clipboard) {
-               navigator.clipboard.writeText(window.location.href);
-               toast.success("Node Link Copied");
+            if (typeof navigator !== "undefined" && navigator.clipboard) {
+              navigator.clipboard.writeText(window.location.href);
+              toast.success("Node Link Copied");
             }
           }}
           className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500"
@@ -1576,9 +1516,9 @@ export default function ArticleDetail() {
                 </span>
               </div>
             </div>
-            
+
             <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-              {_realtimeViews.toLocaleString('en-US')}{" "}
+              {_realtimeViews.toLocaleString("en-US")}{" "}
               <_Ey size={20} className="text-red-600" />
             </div>
           </div>
@@ -1787,7 +1727,7 @@ export default function ArticleDetail() {
 
               <button
                 onClick={() => {
-                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  if (typeof navigator !== "undefined" && navigator.clipboard) {
                     navigator.clipboard.writeText(window.location.href);
                     toast.success("Node Link Copied");
                   }
@@ -1825,7 +1765,7 @@ export default function ArticleDetail() {
                             {it.title}
                           </p>
                           <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
-                            {(it.views || 0).toLocaleString('en-US')} Identity_Reads
+                            {(it.views || 0).toLocaleString("en-US")} Identity_Reads
                           </span>
                         </div>
                       </div>

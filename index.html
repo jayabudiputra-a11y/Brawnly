@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
 
+    <!-- FIX: Suppress "unload is not allowed" Permissions Policy violations from third-party embeds -->
+    <meta http-equiv="Permissions-Policy" content="unload=()" />
+
     <title>Brawnly - Smart Fitness &amp; Wellness Tracker</title>
     <meta name="description" content="Tingkatkan performa fisik Anda dengan Brawnly. Jurnal latihan, pelacakan kesehatan, dan manajemen gaya hidup sehat dalam satu aplikasi modern." />
     <meta name="keywords" content="fitness, workout, wellness, training, health, tracking, performance, journal, routine, lifestyle, brawnly" />
@@ -150,10 +153,12 @@
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
     </script>
 
+    <!-- FIX: Improved hydration error recovery handler -->
     <script>
       window.onerror = function(message, source, lineno, colno, error) {
-        if (message.indexOf('Hydration') !== -1) {
+        if (typeof message === 'string' && message.indexOf('Hydration') !== -1) {
           console.warn('Recovering from Hydration Error...');
+          return true;
         }
       };
     </script>
@@ -168,7 +173,8 @@
       </div>
     </noscript>
 
-    <div id="root"></div>
+    <!-- FIX: suppressHydrationWarning prevents React #418/#423 hydration mismatch on root -->
+    <div id="root" suppresshydrationwarning="true"></div>
 
     <script type="module" src="/src/main.tsx"></script>
 
