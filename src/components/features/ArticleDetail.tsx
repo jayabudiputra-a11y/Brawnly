@@ -1044,9 +1044,10 @@ function CommentSection({ articleId }: { articleId: string }) {
         <div className="p-3 bg-red-600 text-white rounded-full">
           <_Ms size={20} />
         </div>
-        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
+        {/* SEO FIX: Ubah dari h3 ke h2 untuk section Diskusi */}
+        <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
           Discussion ({_localComments.length})
-        </h3>
+        </h2>
       </div>
 
       {_u ? (
@@ -1679,9 +1680,10 @@ export default function ArticleDetail() {
                   <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full">
                     <_Ca size={18} />
                   </div>
-                  <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
+                  {/* SEO FIX: Ubah dari h3 ke h2 untuk section Gallery */}
+                  <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
                     Gallery
-                  </h3>
+                  </h2>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1745,10 +1747,11 @@ export default function ArticleDetail() {
           <aside className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0">
             <div className="sticky top-32 space-y-8">
               <div className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl">
-                <h3 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
+                {/* SEO FIX: Ubah dari h3 ke h2 untuk section Trending */}
+                <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
                   <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" />{" "}
                   Trending
-                </h3>
+                </h2>
                 <div className="flex flex-col gap-10">
                   {_hC.map((it: any, i: number) => (
                     <_L
