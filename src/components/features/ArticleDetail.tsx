@@ -1435,6 +1435,7 @@ export default function ArticleDetail() {
           property="og:image"
           content={_gOI(_rawImgSource || "", 1200)}
         />
+        <link rel="canonical" href={`https://www.brawnly.online/article/${_slV}`} />
       </_Hm>
 
       {/* SEMANTIC HTML UNTUK LLM/SEO */}
