@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
 
-    <!-- FIX: Suppress "unload is not allowed" Permissions Policy violations from third-party embeds -->
     <meta http-equiv="Permissions-Policy" content="unload=()" />
 
     <title>Brawnly - Smart Fitness &amp; Wellness Tracker</title>
@@ -110,35 +109,28 @@
     <link rel="dns-prefetch" href="https://www.instagram.com" />
     <link rel="preconnect" href="https://cdninstagram.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://cdninstagram.com" />
-
     <link rel="preconnect" href="https://platform.twitter.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://platform.twitter.com" />
     <link rel="preconnect" href="https://syndication.twitter.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://syndication.twitter.com" />
-
     <link rel="preconnect" href="https://www.youtube.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://www.youtube.com" />
     <link rel="preconnect" href="https://i.ytimg.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://i.ytimg.com" />
-
     <link rel="preconnect" href="https://assets.tumblr.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://assets.tumblr.com" />
     <link rel="preconnect" href="https://embed.tumblr.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://embed.tumblr.com" />
-
     <link rel="preconnect" href="https://substack.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://substack.com" />
     <link rel="preconnect" href="https://substackcdn.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://substackcdn.com" />
-
     <link rel="preconnect" href="https://assets.pinterest.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://assets.pinterest.com" />
     <link rel="preconnect" href="https://pinimg.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://pinimg.com" />
-
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-
     <link rel="preconnect" href="https://royaleapi.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://royaleapi.com" />
 
@@ -153,7 +145,6 @@
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
     </script>
 
-    <!-- FIX: Improved hydration error recovery handler -->
     <script>
       window.onerror = function(message, source, lineno, colno, error) {
         if (typeof message === 'string' && message.indexOf('Hydration') !== -1) {
@@ -173,9 +164,8 @@
       </div>
     </noscript>
 
-    <!-- FIX: suppressHydrationWarning prevents React #418/#423 hydration mismatch on root -->
-<div id="root" suppresshydrationwarning="true">
-  </div>
+    <div id="root" suppresshydrationwarning="true"></div>
+
     <script type="module" src="/src/main.tsx"></script>
 
     <link rel="prefetch" href="/src/assets/myAvatar.jpg" />

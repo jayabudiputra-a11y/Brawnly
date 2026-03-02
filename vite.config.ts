@@ -2,9 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
-import prerender from "vite-plugin-prerender";
 
 export default defineConfig({
+  // Mencegah Vite memproses library WASM agar path binary tetap konsisten
   optimizeDeps: {
     exclude: ['@jsquash/webp', '@jsquash/avif']
   },
@@ -12,14 +12,6 @@ export default defineConfig({
     react({
       babel: {
         compact: true,
-      },
-    }),
-    prerender({
-      staticDir: path.join(__dirname, 'dist'),
-      routes: ['/'], 
-      minify: {
-        collapseWhitespace: true,
-        removeComments: true,
       },
     }),
     VitePWA({

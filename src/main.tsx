@@ -1,59 +1,26 @@
 import './index.css';
 import './App.css';
 import './styles/globals.css';
-
 import React from 'react';
-import { createRoot as _c, hydrateRoot as _h } from 'react-dom/client';
-import { BrowserRouter as _R } from 'react-router-dom';
-import { QueryClient as _Q, QueryClientProvider as _QP } from '@tanstack/react-query';
-import { HelmetProvider as _Hm } from 'react-helmet-async';
-import { Toaster as _T } from 'sonner';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { HelmetProvider } from 'react-helmet-async';
 import App from '@/App';
-import { registerSW as _SW } from 'virtual:pwa-register';
 
-const _u = _SW({
-  onNeedRefresh() {
-    confirm('Brawnly Updated. Reload?') && _u(true);
-  },
-  onOfflineReady() {
-    console.log('[BRAWNLY] Offline ready');
-  }
-});
+const queryClient = new QueryClient();
+const rootElement = document.getElementById('root');
 
-const _q = new _Q({
-  defaultOptions: {
-    queries: {
-      staleTime: 3e5,
-      retry: 1,
-      refetchOnWindowFocus: false,
-    }
-  }
-});
-
-const _r = document.getElementById('root');
-
-if (_r) {
-  const _content = (
+if (rootElement) {
+  createRoot(rootElement).render(
     <React.StrictMode>
-      <_Hm>
-        <_QP client={_q}>
-          <_R>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
             <App />
-            <_T 
-              position='top-right' 
-              richColors={true} 
-              closeButton={true} 
-              theme='system' 
-            />
-          </_R>
-        </_QP>
-      </_Hm>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </HelmetProvider>
     </React.StrictMode>
   );
-
-  if (_r.hasChildNodes()) {
-    _h(_r, _content);
-  } else {
-    _c(_r).render(_content);
-  }
 }
