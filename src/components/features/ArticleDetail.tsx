@@ -1,4 +1,4 @@
-import React, { useState as _s, useEffect as _e, useMemo as _uM, useRef as _uR } from "react";
+import React, { useState as _s, useEffect as _e, useMemo as _uM, useRef as _uR, useCallback as _uC } from "react";
 import { Link as _L, useParams as _uP, useNavigate as _uN } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
 import {
@@ -18,6 +18,9 @@ import {
   Camera as _Ca,
   PlayCircle as _Pc,
   Aperture as _Ap,
+  Swords as _Sw,
+  UserPlus as _Up,
+  ExternalLink as _El,
 } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +53,10 @@ import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
 
+/* ============================================================
+   SOCIAL PLATFORM CONSTANTS
+   ============================================================ */
+
 const INSTAGRAM_USERNAME = "deul.umm";
 const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
 const INSTAGRAM_POST_PERMALINK =
@@ -77,6 +84,22 @@ const PINTEREST_PROFILE_URL =
   "https://ru.pinterest.com/mustbeloveonthebrain/";
 const PINTEREST_PIN_URL = "https://pin.it/54og3CaPN";
 const PINTEREST_PIN_URL_2 = "https://pin.it/4D4StcRSo";
+
+/* ============================================================
+   CLASH ROYALE CONSTANTS
+   ============================================================ */
+
+const CR_PLAYER_TAG = "RY9J2RC2Y";
+const CR_PLAYER_NAME = "bmjpdam9";
+const CR_PLAYER_ID = "7-54051567";
+const CR_ADD_FRIEND_URL =
+  "https://link.clashroyale.com/?supercell_id&p=34-325a499d-fa6d-436b-a6cd-1d592a8afdea";
+const CR_ROYALEAPI_BATTLES = `https://royaleapi.com/player/${CR_PLAYER_TAG}/battles`;
+const CR_ROYALEAPI_PROFILE = `https://royaleapi.com/player/${CR_PLAYER_TAG}`;
+
+/* ============================================================
+   PARAGRAPH PARSER
+   ============================================================ */
 
 type ParsedBlock =
   | { type: "text"; html: string }
@@ -133,6 +156,27 @@ function fmtHtml(text: string): string {
       `<em class="italic text-red-700">$1</em>`
     );
 }
+
+/* ============================================================
+   SAFE BLOB URL HELPER
+   ============================================================ */
+
+/**
+ * Safely revoke a blob URL — guards against ERR_FILE_NOT_FOUND
+ * when the blob has already been garbage-collected.
+ */
+function safeBlobRevoke(url: string | null) {
+  if (!url || !url.startsWith("blob:")) return;
+  try {
+    URL.revokeObjectURL(url);
+  } catch {
+    /* already revoked or invalid */
+  }
+}
+
+/* ============================================================
+   INSTAGRAM WIDGET
+   ============================================================ */
 
 function InstagramWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -234,6 +278,10 @@ function InstagramWidget() {
   );
 }
 
+/* ============================================================
+   YOUTUBE WIDGET
+   ============================================================ */
+
 function YouTubeWidget() {
   const [_subbed, _setSubbed] = _s(false);
   const [_plusCount, _setPlusCount] = _s(0);
@@ -310,6 +358,10 @@ function YouTubeWidget() {
     </a>
   );
 }
+
+/* ============================================================
+   TUMBLR WIDGET
+   ============================================================ */
 
 function TumblrWidget() {
   const _iframeRef = _uR<HTMLIFrameElement>(null);
@@ -410,6 +462,10 @@ function TumblrWidget() {
   );
 }
 
+/* ============================================================
+   SUBSTACK WIDGET
+   ============================================================ */
+
 function SubstackWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
   const _scriptLoaded = _uR(false);
@@ -484,6 +540,10 @@ function SubstackWidget() {
     </div>
   );
 }
+
+/* ============================================================
+   PINTEREST WIDGET
+   ============================================================ */
 
 function PinterestWidget() {
   return (
@@ -566,6 +626,235 @@ function PinterestWidget() {
   );
 }
 
+/* ============================================================
+   CLASH ROYALE WIDGET
+   ============================================================ */
+
+function ClashRoyaleWidget() {
+  const [_iframeLoaded, _setIframeLoaded] = _s(false);
+  const [_iframeFailed, _setIframeFailed] = _s(false);
+  const [_isInteracting, _setIsInteracting] = _s(false);
+  const _iframeRef = _uR<HTMLIFrameElement>(null);
+  const _timeoutRef = _uR<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Detect iframe load failure via timeout — RoyaleAPI may block X-Frame-Options */
+  _e(() => {
+    _timeoutRef.current = setTimeout(() => {
+      if (!_iframeLoaded) _setIframeFailed(true);
+    }, 8000);
+    return () => {
+      if (_timeoutRef.current) clearTimeout(_timeoutRef.current);
+    };
+  }, [_iframeLoaded]);
+
+  const _onIframeLoad = _uC(() => {
+    _setIframeLoaded(true);
+    if (_timeoutRef.current) clearTimeout(_timeoutRef.current);
+  }, []);
+
+  return (
+    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative">
+      {/* CR ACCENT BAR */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-[#0070DD] via-[#00C3FF] to-[#0070DD]" />
+
+      {/* HEADER */}
+      <div className="px-6 pt-5 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0070DD] to-[#004A99] flex items-center justify-center shadow-md flex-shrink-0">
+            <_Sw size={16} className="text-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
+              Clash Royale
+            </p>
+            <p className="text-[13px] font-black uppercase italic tracking-tight text-black dark:text-white leading-none">
+              {CR_PLAYER_NAME}
+            </p>
+          </div>
+        </div>
+
+        <a
+          href={CR_ADD_FRIEND_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            e.stopPropagation();
+            toast.success("Opening Clash Royale — Add Friend…");
+          }}
+          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white shadow-sm hover:from-[#00C3FF] hover:to-[#0070DD] transition-all duration-300 flex-shrink-0 flex items-center gap-1.5"
+        >
+          <_Up size={10} /> Add Friend
+        </a>
+      </div>
+
+      {/* PLAYER INFO BAR */}
+      <div className="mx-6 mb-4 p-3 rounded-xl bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 border border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-sm border border-[#CC8800]">
+              <span className="text-[14px] font-black text-white drop-shadow-sm">👑</span>
+            </div>
+            <div>
+              <p className="text-[12px] font-black text-black dark:text-white leading-tight">
+                #{CR_PLAYER_TAG}
+              </p>
+              <p className="text-[9px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                ID: {CR_PLAYER_ID}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#0070DD]">
+              Lv. 53
+            </p>
+            <p className="text-[8px] font-bold text-neutral-400 uppercase">
+              109K+ Gold
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* BATTLE EMBED — 9:16 Responsive Container */}
+      <div
+        className="px-3 pb-2 overflow-hidden relative"
+        onMouseLeave={() => _setIsInteracting(false)}
+      >
+        <div
+          className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-black"
+          style={{ aspectRatio: "9/16", maxHeight: 640 }}
+        >
+          {!_isInteracting && !_iframeFailed && (
+            <div
+              className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+              onClick={() => _setIsInteracting(true)}
+              onTouchStart={() => _setIsInteracting(true)}
+            />
+          )}
+
+          {!_iframeFailed ? (
+            <>
+              {/* Loading state */}
+              {!_iframeLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#001530] to-[#003366] z-5">
+                  <_Sw size={40} className="text-[#00C3FF] animate-pulse mb-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#00C3FF] animate-pulse">
+                    Loading Battle Log...
+                  </p>
+                </div>
+              )}
+              <iframe
+                ref={_iframeRef}
+                src={CR_ROYALEAPI_BATTLES}
+                className="w-full h-full border-0"
+                style={{
+                  pointerEvents: _isInteracting ? "auto" : "none",
+                  opacity: _iframeLoaded ? 1 : 0,
+                }}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                title="Clash Royale Battle Log"
+                onLoad={_onIframeLoad}
+                onError={() => _setIframeFailed(true)}
+              />
+            </>
+          ) : (
+            /* FALLBACK — When iframe is blocked by RoyaleAPI X-Frame-Options */
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] p-6 text-center">
+              {/* Animated arena background effect */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
+                <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
+              </div>
+
+              <div className="relative z-10 flex flex-col items-center gap-5">
+                {/* Crown + Swords Icon */}
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
+                    <_Sw size={36} className="text-white drop-shadow-lg" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
+                    <span className="text-[12px]">👑</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[16px] font-black uppercase text-white tracking-tight mb-1">
+                    {CR_PLAYER_NAME}
+                  </h4>
+                  <p className="text-[11px] font-bold text-[#00C3FF] uppercase tracking-[0.2em]">
+                    #{CR_PLAYER_TAG}
+                  </p>
+                </div>
+
+                <p className="text-[11px] font-serif italic text-neutral-400 leading-relaxed max-w-[240px]">
+                  View recent battles, deck stats & trophies on RoyaleAPI ⚔️
+                </p>
+
+                {/* CTA Buttons */}
+                <div className="flex flex-col gap-3 w-full max-w-[220px]">
+                  <a
+                    href={CR_ROYALEAPI_BATTLES}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                  >
+                    <_Sw size={14} /> View Battles
+                  </a>
+                  <a
+                    href={CR_ADD_FRIEND_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                  >
+                    <_Up size={14} /> Add Friend
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* FOOTER LINKS */}
+      <div className="px-6 pb-5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+        <div className="flex flex-col gap-2">
+          <a
+            href={CR_ROYALEAPI_BATTLES}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#0070DD] hover:text-[#00C3FF] transition-colors duration-300"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+            View full battle log on RoyaleAPI
+          </a>
+          <a
+            href={CR_ADD_FRIEND_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[10px] font-bold text-[#FFD700] hover:text-[#FFA500] transition-colors duration-300"
+          >
+            <_Up size={11} />
+            Add {CR_PLAYER_NAME} as friend in-game
+          </a>
+          <a
+            href={CR_ROYALEAPI_PROFILE}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors duration-300"
+          >
+            <_El size={11} />
+            View full profile — #{CR_PLAYER_TAG}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SOCIAL WIDGET LAYOUT COMPONENTS
+   ============================================================ */
+
 function SocialWidgetsDesktop() {
   return (
     <div className="flex flex-col gap-6">
@@ -595,6 +884,10 @@ function SocialWidgetsMobileBottom() {
   );
 }
 
+/* ============================================================
+   COMMENT ITEM
+   ============================================================ */
+
 function CommentItem({
   comment,
   avatar,
@@ -606,6 +899,8 @@ function CommentItem({
   onReply?: () => void;
   isReply?: boolean;
 }) {
+  const [_avatarError, _setAvatarError] = _s(false);
+
   return (
     <div
       className={`flex gap-4 md:gap-6 relative ${
@@ -625,11 +920,12 @@ function CommentItem({
             isReply ? "w-10 h-10" : "w-14 h-14"
           } border-2 border-black dark:border-white overflow-hidden bg-neutral-100 dark:bg-neutral-900 shadow-sm`}
         >
-          {avatar ? (
+          {avatar && !_avatarError ? (
             <img
               src={avatar}
               className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
               alt=""
+              onError={() => _setAvatarError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-neutral-400 font-black tracking-tighter italic">
@@ -679,6 +975,10 @@ function CommentItem({
   );
 }
 
+/* ============================================================
+   COMMENT SECTION (with CR Widget before Tumblr)
+   ============================================================ */
+
 function CommentSection({ articleId }: { articleId: string }) {
   const { user: _u } = useAuth();
   const _nav = _uN();
@@ -708,7 +1008,9 @@ function CommentSection({ articleId }: { articleId: string }) {
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
-      } catch (err) {}
+      } catch (err) {
+        /* avatar hydration failed — fallback icon will show */
+      }
     }
   };
 
@@ -916,13 +1218,22 @@ function CommentSection({ articleId }: { articleId: string }) {
         </_AP>
       </div>
 
-      {/* TUMBLR WIDGET PLACED BELOW DISCUSSION AS REQUESTED */}
+      {/* CLASH ROYALE WIDGET — BEFORE TUMBLR */}
       <div className="mt-20">
+        <ClashRoyaleWidget />
+      </div>
+
+      {/* TUMBLR WIDGET — AFTER CLASH ROYALE */}
+      <div className="mt-8">
         <TumblrWidget />
       </div>
     </section>
   );
 }
+
+/* ============================================================
+   MAIN ARTICLE DETAIL PAGE
+   ============================================================ */
 
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
@@ -1058,6 +1369,7 @@ export default function ArticleDetail() {
     };
   }, []);
 
+  /* ====== COVER IMAGE PIPELINE (with blob error guard) ====== */
   _e(() => {
     if (!_rawImgSource) return;
 
@@ -1067,31 +1379,52 @@ export default function ArticleDetail() {
     }
 
     let _active = true;
+    let _createdBlobUrls: string[] = [];
+
     (async () => {
       try {
         const cached = await getAssetFromShared(`cover_${_slV}`);
         if (cached && _active) {
-          _setBlobUrl(URL.createObjectURL(cached));
+          const url = URL.createObjectURL(cached);
+          _createdBlobUrls.push(url);
+          _setBlobUrl(url);
           return;
         }
 
         const res = await fetch(_rawImgSource);
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
         const b = await res.blob();
 
-        const placeholder = await _wCP(b);
-        if (_active) _setBlurUrl(placeholder);
+        try {
+          const placeholder = await _wCP(b);
+          if (_active) _setBlurUrl(placeholder);
+        } catch {
+          /* placeholder generation failed — skip blur */
+        }
 
         const _fmt = await _dBF();
         let final: string;
 
         if (_rawImgSource.match(/\.(mp4|webm|ogg|mov)$/i)) {
-          const vThumb = await _wVT(b, 0.25);
-          final = URL.createObjectURL(vThumb);
-          await saveAssetToShared(`cover_${_slV}`, vThumb);
+          try {
+            const vThumb = await _wVT(b, 0.25);
+            final = URL.createObjectURL(vThumb);
+            _createdBlobUrls.push(final);
+            await saveAssetToShared(`cover_${_slV}`, vThumb);
+          } catch {
+            /* video thumbnail extraction failed — use raw source */
+            final = _rawImgSource;
+          }
         } else {
-          const opt = await _wTI(b, _fmt, 0.75);
-          final = URL.createObjectURL(opt);
-          await saveAssetToShared(`cover_${_slV}`, opt);
+          try {
+            const opt = await _wTI(b, _fmt, 0.75);
+            final = URL.createObjectURL(opt);
+            _createdBlobUrls.push(final);
+            await saveAssetToShared(`cover_${_slV}`, opt);
+          } catch {
+            /* WASM transcode failed — use raw source */
+            final = _rawImgSource;
+          }
         }
 
         if (_active) _setBlobUrl(final);
@@ -1102,6 +1435,8 @@ export default function ArticleDetail() {
 
     return () => {
       _active = false;
+      /* Revoke blobs on cleanup — guarded against already-revoked URLs */
+      _createdBlobUrls.forEach(safeBlobRevoke);
     };
   }, [_rawImgSource, _slV]);
 
@@ -1227,6 +1562,9 @@ export default function ArticleDetail() {
                   src={_gOI(_mA, 120)}
                   className="w-full h-full object-cover"
                   alt="B"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
                 />
               </div>
               <div>
@@ -1382,6 +1720,9 @@ export default function ArticleDetail() {
                         className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
                         style={{ objectFit: "contain" }}
                         loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
                       />
                       <div className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white">
                         GIF
@@ -1414,6 +1755,9 @@ export default function ArticleDetail() {
                         alt={`Gallery node ${idx}`}
                         className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
                         loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.opacity = "0.3";
+                        }}
                       />
                       <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     </div>
