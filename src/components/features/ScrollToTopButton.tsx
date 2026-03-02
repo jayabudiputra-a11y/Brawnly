@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronUp } from "lucide-react";
 
@@ -7,58 +7,61 @@ export default function ScrollToTopButton() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as any });
   }, [pathname]);
 
   useEffect(() => {
     const toggleVisibility = () => {
-      setIsVisible(window.scrollY > 300);
+      setIsVisible(window.scrollY > 200);
     };
-    window.addEventListener("scroll", toggleVisibility);
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const scrollToTop = useCallback(() => {
+    // STRATEGI: Momentum Killer
+    // 1. Paksa body jadi non-scrollable sesaat untuk membunuh inertia/momentum
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = "hidden";
+    
+    // 2. Gunakan requestAnimationFrame agar eksekusi selaras dengan render browser
+    requestAnimationFrame(() => {
+      // 3. Kembalikan overflow agar bisa scroll lagi
+      document.body.style.overflow = originalStyle;
+      
+      // 4. Eksekusi scroll ke atas (Smooth via JS)
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    });
+  }, []);
 
   return (
     <button
       onClick={scrollToTop}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] p-4 rounded-full transition-all duration-500 
-      /* Efek Gradien 5 Warna ala 2000-an */
+      className={`fixed bottom-10 left-1/2 z-[9999] p-4 rounded-full transition-all duration-500 
       bg-gradient-to-tr from-[#FF0080] via-[#7928CA] via-[#00DFD8] via-[#47FF00] to-[#FFF500]
-      /* Border Kontras & Shadow Brutalist */
       border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.3)]
-      /* Animasi Hover */
-      hover:scale-110 hover:-translate-y-2 active:scale-90 active:shadow-none
+      hover:scale-110 active:scale-95 active:shadow-none
       ${
         isVisible 
-          ? "opacity-100 scale-100 animate-bounce-slow" 
-          : "opacity-0 scale-0 pointer-events-none"
+          ? "opacity-100 translate-y-0 -translate-x-1/2" 
+          : "opacity-0 translate-y-10 -translate-x-1/2 pointer-events-none"
       }`}
       style={{
-        /* Menambah rotasi gradien agar lebih 'hidup' */
         backgroundSize: "200% 200%",
-        animation: isVisible ? "gradientShift 3s ease infinite" : "none"
+        animation: isVisible ? "gradientShift 3s ease infinite" : "none",
+        willChange: "transform, opacity"
       }}
     >
       <ChevronUp className="w-8 h-8 text-white stroke-[4px] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]" />
       
-      {/* CSS internal untuk animasi gradien bergerak */}
       <style>{`
         @keyframes gradientShift {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
-        }
-        .animate-bounce-slow {
-          animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-          0%, 100% { transform: translate(-50%, 0); }
-          50% { transform: translate(-50%, -10px); }
         }
       `}</style>
     </button>

@@ -19,12 +19,18 @@ button {
 }
 
 .goog-te-banner-frame,
-#google_translate_element_hidden,
+.goog-te-menu-frame,
+.goog-te-gadget,
+#google_translate_element,
 .goog-logo-link,
 .goog-te-gadget-simple {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
+}
+
+body {
+  top: 0 !important;
 }
 
 img {
@@ -36,5 +42,6 @@ img {
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto !important; /* WAJIB AUTO */
+  -webkit-overflow-scrolling: touch; /* Biar tetap enak di iOS tapi bisa di-interupsi JS */
 }

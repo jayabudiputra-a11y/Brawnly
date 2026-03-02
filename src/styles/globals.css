@@ -4,6 +4,7 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  scroll-behavior: auto !important;
 }
 
 * {
@@ -16,13 +17,29 @@
 html, body, #root {
   height: 100%;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
   @apply bg-white text-black dark:bg-black dark:text-white antialiased;
   transition: background-color 0.2s ease;
   overflow-x: hidden;
-  text-rendering: optimizeSpeed;
+  text-rendering: optimizeLegibility;
+}
+
+.goog-te-banner-frame,
+.goog-te-menu-frame,
+.goog-te-gadget,
+#google_translate_element,
+.goog-logo-link,
+.goog-te-gadget-simple {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+}
+
+body {
+  top: 0 !important;
 }
 
 img {
@@ -34,36 +51,29 @@ img {
   content-visibility: auto;
 }
 
-/* --- INTERVENSI KERAPATAN KONTEN --- */
-
-/* Menghilangkan margin bawah pada grid galeri artikel agar menempel ke section bawah */
 article .grid {
   margin-bottom: 0 !important;
 }
 
-/* Menghilangkan spasi pada paragraf terakhir di dalam artikel */
 article .max-w-none div:last-child p,
 article section:last-of-type {
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
 
-/* Menghilangkan elemen p kosong atau hanya berisi <br> */
 p:empty, p:has(br:only-child) {
   display: none;
 }
 
-/* --- EFEK VISUAL GAMBAR (HARDWARE ACCELERATED) --- */
-
-/* Selektor spesifik untuk gambar konten agar tidak mengenai UI/Avatar secara tidak sengaja */
 .group img, 
 article .max-w-none img,
 article .my-6 img {
   filter: grayscale(100%);
   -webkit-filter: grayscale(100%);
-  transform: translateZ(0); /* Force GPU Rendering */
-  transition: filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: filter, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0); 
+  transition: filter 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: filter;
 }
 
 .group:hover img {
@@ -71,7 +81,6 @@ article .my-6 img {
   -webkit-filter: grayscale(0%) saturate(1.2);
 }
 
-/* Reset filter untuk avatar di kolom komentar agar tetap berwarna */
 .group\/comment img,
 .comment-avatar {
   filter: none !important;
@@ -79,7 +88,6 @@ article .my-6 img {
   will-change: auto;
 }
 
-/* Optimasi Touch Device */
 @media (hover: none) {
   .group:active img {
     filter: grayscale(0%) saturate(1.4) brightness(1.1) !important;
@@ -87,8 +95,6 @@ article .my-6 img {
     transform: scale(1.02) translateZ(0) !important;
   }
 }
-
-/* --- TYPOGRAPHY & UTILITIES --- */
 
 p, h1, h2, h3, span {
   user-select: text;
@@ -102,7 +108,6 @@ p, h1, h2, h3, span {
   -webkit-line-clamp: 2;
 }
 
-/* --- CUSTOM SCROLLBAR --- */
 ::-webkit-scrollbar { 
   width: 4px; 
 }
