@@ -18,15 +18,12 @@ export default defineConfig({
     }),
     injectHTML(),
     prerender({
-      // Pindahkan routes ke atas dan pastikan staticDir sesuai dengan ekspektasi plugin
       routes: ['/'],
       renderer: new Renderer({
         renderAfterDocumentEvent: 'render-event',
         headless: true
       }),
-      // Jika TypeScript masih merah, tambahkan @ts-ignore karena 
-      // plugin ini memerlukannya saat runtime untuk menentukan lokasi file dist
-      // @ts-ignore
+      // @ts-ignore: staticDir is required by the plugin at runtime but may not be in the type definition
       staticDir: path.resolve(__dirname, 'dist'),
     }),
     VitePWA({
