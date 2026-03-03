@@ -8,7 +8,6 @@ import { useAuth } from "@/hooks/useAuth";
 
 import _mP from "@/assets/myPride.gif";
 
-// Lazy loading wrapper dengan proteksi offline
 const _safeLazy = (importFunc: () => Promise<any>) => 
   _lz(() => importFunc().catch(() => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -22,12 +21,10 @@ const _safeLazy = (importFunc: () => Promise<any>) =>
         ) 
       };
     }
-    // Jika bukan masalah offline, paksa reload untuk membersihkan cache yang korup
     if (typeof window !== 'undefined') window.location.reload();
     return { default: () => null as any };
   }));
 
-// Pages mapping
 const _H = _safeLazy(() => import("@/pages/Home"));
 const _As = _safeLazy(() => import("@/pages/Articles"));
 const _AP = _safeLazy(() => import("@/pages/ArticlePage"));
@@ -47,7 +44,6 @@ const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
 
-// Protected Route Logic
 const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   const _loc = _uL();
@@ -75,7 +71,6 @@ const _PR: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   const { pathname: _p } = _uL();
   
-  // Reset scroll ke atas setiap kali route berubah
   _e(() => { 
     if (typeof window !== 'undefined') window.scrollTo(0, 0); 
   }, [_p]);

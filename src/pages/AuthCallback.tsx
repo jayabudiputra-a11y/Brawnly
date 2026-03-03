@@ -13,7 +13,6 @@ export default function AuthCallback() {
       processed.current = true;
 
       try {
-        // Biarkan Supabase memproses sesi secara internal
         const { data, error } = await supabase.auth.getSession();
 
         if (error) throw error;
@@ -23,12 +22,10 @@ export default function AuthCallback() {
             description: "Redirecting to your identity node..."
           });
           
-          // PAKSA ke profile, pastikan tidak ada kode lain yang mengarahkan ke articles
           setTimeout(() => {
             navigate("/profile", { replace: true });
           }, 500);
         } else {
-          // Jika gagal sekejap, tunggu sebentar lalu cek ulang atau balik ke signin
           navigate("/signin", { replace: true });
         }
       } catch (err) {

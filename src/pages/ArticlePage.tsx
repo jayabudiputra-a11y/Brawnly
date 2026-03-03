@@ -75,6 +75,74 @@ const ArticlePage = () => {
       
       <StructuredData article={_s} />
       
+      {/* ===== SEO HIDDEN CONTENT - OPTIMIZED KEYWORDS ===== */}
+      <div className="hidden" aria-hidden="true">
+        {/* Primary Keywords */}
+        <span>Brawnly Online article {_s.title} {_s.excerpt}</span>
+        
+        {/* Article Metadata for Crawlers */}
+        <div itemScope itemType="https://schema.org/Article">
+          <meta itemProp="headline" content={_s.title} />
+          <meta itemProp="description" content={_s.excerpt} />
+          <meta itemProp="datePublished" content={_s.published_at || new Date().toISOString()} />
+          <meta itemProp="author" content="Brawnly Editorial Team" />
+          <meta itemProp="wordCount" content={_s.content?.split(/\s+/).length || "0"} />
+        </div>
+        
+        {/* Topic Cluster - Supporting Long-tail Keywords */}
+        <ul>
+          <li>Fitness article {_s.category || "general"}</li>
+          <li>Workout guide and tips</li>
+          <li>Brawnly exclusive content</li>
+          <li>Expert fitness insights</li>
+          <li>Training methodology</li>
+          <li>Nutrition advice from Brawnly</li>
+        </ul>
+        
+        {/* Breadcrumb Trail for SEO */}
+        <div itemScope itemType="https://schema.org/BreadcrumbList">
+          <div itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+            <meta itemProp="position" content="1" />
+            <meta itemProp="name" content="Home" />
+            <meta itemProp="item" content="https://brawnly.online" />
+          </div>
+          <div itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+            <meta itemProp="position" content="2" />
+            <meta itemProp="name" content="Articles" />
+            <meta itemProp="item" content="https://brawnly.online/articles" />
+          </div>
+          <div itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+            <meta itemProp="position" content="3" />
+            <meta itemProp="name" content={_s.title} />
+            <meta itemProp="item" content={`https://brawnly.online/article/${slug}`} />
+          </div>
+        </div>
+        
+        {/* Reading Time Estimation */}
+        <meta name="twitter:label1" content="Reading time" />
+        <meta name="twitter:data1" content={`${Math.ceil((_s.content?.split(/\s+/).length || 0) / 200)} minutes`} />
+        
+        {/* Category & Tags */}
+        <meta name="article:section" content={_s.category || "Fitness"} />
+        {_s.tags?.map((tag: string, idx: number) => (
+          <meta key={idx} name="article:tag" content={tag} />
+        ))}
+      </div>
+      
+      {/* ===== INVISIBLE SEO TEXT BLOCK ===== */}
+      <div style={{ display: 'none' }}>
+        {/* Extended Description */}
+        <p>
+          Brawnly Online presents "{_s.title}" – {_s.excerpt} 
+          This comprehensive guide covers {_s.category || "fitness"} techniques, 
+          expert recommendations, and practical insights for your fitness journey. 
+          Read more exclusive content at Brawnly.online.
+        </p>
+        
+        {/* Keywords Density */}
+        <span>Brawnly, fitness, workout, exercise, health, {_s.title}, {_s.category}, training, muscle, strength, nutrition, wellness, gym, bodybuilding, recovery, supplements, motivation, fitness tips, workout plans, Brawnly Online, exclusive content, expert advice</span>
+      </div>
+      
       <div className="w-full">
          <ArticleDetail />
       </div>

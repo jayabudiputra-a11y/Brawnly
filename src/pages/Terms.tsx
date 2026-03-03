@@ -22,9 +22,148 @@ export default function Terms() {
     <main className={_x.root}>
       <Helmet>
         <title>Terms of Service | Brawnly.online</title>
-        <meta name="description" content="Terms of Service and Medical Disclaimer for Brawnly.online." />
+        <meta name="description" content="Terms of Service and Medical Disclaimer for Brawnly.online. Read our legal framework, usage policies, and governing law information." />
+        <meta name="keywords" content="Brawnly terms of service, legal agreement, medical disclaimer, fitness website terms, Indonesia governing law, digital assets policy, privacy terms" />
         <link rel="canonical" href="https://www.brawnly.online/terms" />
+        
+        {/* Additional SEO meta tags */}
+        <meta property="og:title" content="Terms of Service | Brawnly.online" />
+        <meta property="og:description" content="Legal framework and terms governing your use of Brawnly.online platform." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.brawnly.online/terms" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Terms of Service | Brawnly.online" />
+        <meta name="twitter:description" content="Legal framework and terms governing your use of Brawnly.online platform." />
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow" />
       </Helmet>
+
+      {/* ===== SEO HIDDEN CONTENT - LEGAL KEYWORDS & STRUCTURED DATA ===== */}
+      <div className="hidden" aria-hidden="true">
+        {/* Primary Legal Keywords */}
+        <span>Brawnly Online Terms of Service 2026 Legal Agreement Medical Disclaimer Indonesia Governing Law</span>
+        
+        {/* Structured Data for Terms of Service Page */}
+        <div itemScope itemType="https://schema.org/TermsOfService">
+          <meta itemProp="name" content="Brawnly Online Terms of Service" />
+          <meta itemProp="description" content="Official terms and conditions for using Brawnly.online platform" />
+          <meta itemProp="datePublished" content="2026-02-01" />
+          <meta itemProp="dateModified" content="2026-02-01" />
+          <meta itemProp="version" content="2026.1" />
+          <meta itemProp="jurisdiction" content="Indonesia" />
+          <meta itemProp="inLanguage" content="en" />
+        </div>
+        
+        {/* WebPage Schema */}
+        <div itemScope itemType="https://schema.org/WebPage">
+          <meta itemProp="name" content="Terms of Service - Brawnly Online" />
+          <meta itemProp="description" content="Legal terms, conditions, and medical disclaimer for Brawnly.online" />
+          <meta itemProp="isPartOf" content="https://www.brawnly.online" />
+          <meta itemProp="lastReviewed" content="2026-02-01" />
+          <meta itemProp="reviewedBy" content="Brawnly Legal Team" />
+        </div>
+        
+        {/* Breadcrumb for Terms Page */}
+        <div itemScope itemType="https://schema.org/BreadcrumbList">
+          <div itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+            <meta itemProp="position" content="1" />
+            <meta itemProp="name" content="Home" />
+            <meta itemProp="item" content="https://www.brawnly.online" />
+          </div>
+          <div itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+            <meta itemProp="position" content="2" />
+            <meta itemProp="name" content="Terms of Service" />
+            <meta itemProp="item" content="https://www.brawnly.online/terms" />
+          </div>
+        </div>
+        
+        {/* Organization Details */}
+        <div itemScope itemType="https://schema.org/Organization">
+          <meta itemProp="name" content="Brawnly Online" />
+          <meta itemProp="url" content="https://www.brawnly.online" />
+          <meta itemProp="legalName" content="Brawnly Digital Media" />
+          <meta itemProp="foundingDate" content="2024-01-01" />
+          <meta itemProp="address" content="Medan, Indonesia" />
+          <meta itemProp="jurisdiction" content="Indonesia" />
+        </div>
+        
+        {/* Legal Keywords List */}
+        <ul>
+          <li>terms of service brawnly</li>
+          <li>brawnly online legal agreement</li>
+          <li>medical disclaimer fitness website</li>
+          <li>indonesia governing law digital platform</li>
+          <li>digital assets usage policy</li>
+          <li>user agreement brawnly</li>
+          <li>privacy terms fitness tech</li>
+          <li>platform terms and conditions</li>
+          <li>liability disclaimer health content</li>
+          <li>intellectual property rights</li>
+          <li>data storage policies brawnly</li>
+          <li>jurisdiction medan indonesia</li>
+        </ul>
+        
+        {/* Important Legal Phrases for Crawlers */}
+        <div>
+          <p>Brawnly Online Terms of Service effective February 2026</p>
+          <p>Medical Disclaimer: Not a substitute for professional medical advice</p>
+          <p>Governing Law: Republic of Indonesia, Medan jurisdiction</p>
+          <p>Digital Archive feature uses local storage - user responsibility</p>
+          <p>Anchor sharing limited to non-commercial use</p>
+          <p>Acceptance by continued use of platform</p>
+        </div>
+      </div>
+      
+      {/* ===== INVISIBLE SEO TEXT BLOCK ===== */}
+      <div style={{ display: 'none' }}>
+        {/* Extended Legal Description */}
+        <div>
+          <h3>Complete Terms of Service Overview</h3>
+          <p>
+            Brawnly.online provides digital editorial content focusing on technology and physical performance. 
+            These terms govern all interactions with our platform including but not limited to content consumption, 
+            feature usage (Archive/Save and Anchor/Share features), and any user engagement with our digital assets.
+          </p>
+          <p>
+            <strong>Medical Disclaimer Detail:</strong> All content including fitness routines, nutritional advice, 
+            and performance analysis presented on Brawnly.online is generated for educational purposes. Users must 
+            consult qualified healthcare providers before implementing any information found on this platform. 
+            Brawnly Digital Media expressly disclaims all liability for any injury, loss, or damage resulting from 
+            use of our content.
+          </p>
+          <p>
+            <strong>Jurisdiction Specific Terms:</strong> As Brawnly operates under Indonesian law, all disputes 
+            shall be resolved in Medan courts. Users outside Indonesia acknowledge they are accessing this platform 
+            voluntarily and accept Indonesian legal jurisdiction.
+          </p>
+          <p>
+            <strong>Intellectual Property:</strong> All content, branding, and digital assets on Brawnly.online are 
+            protected by Indonesian and international copyright laws. Unauthorized reproduction, distribution, or 
+            commercial use is strictly prohibited.
+          </p>
+        </div>
+        
+        {/* Keyword Density Block */}
+        <div>
+          <span>Brawnly terms, legal agreement, medical disclaimer, Indonesia law, Medan jurisdiction, fitness content disclaimer, digital platform terms, user agreement, privacy policy, data storage, local storage feature, non-commercial sharing, liability limitation, health information, educational purposes only, professional medical advice, technology performance, physical training, Indonesian courts, legal framework 2026</span>
+        </div>
+        
+        {/* FAQ Structured Data in Text Form */}
+        <div>
+          <div>
+            <span>Q: When do Brawnly Terms become effective?</span>
+            <span>A: February 2026</span>
+          </div>
+          <div>
+            <span>Q: Where is Brawnly legally governed?</span>
+            <span>A: Indonesia, Medan jurisdiction</span>
+          </div>
+          <div>
+            <span>Q: Is Brawnly content medical advice?</span>
+            <span>A: No, educational purposes only</span>
+          </div>
+        </div>
+      </div>
 
       <div className={_x.core}>
         <header className={_x.head}>
