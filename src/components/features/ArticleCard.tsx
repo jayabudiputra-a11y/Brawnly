@@ -19,6 +19,39 @@ interface ArticleCardProps {
   priority?: boolean;
 }
 
+/**
+ * Safely resolves the author display name from an article object.
+ *
+ * Supabase can return `author` in three shapes:
+ *   1. string  → use directly after trim
+ *   2. object  → prefer .username, fallback to .name
+ *   3. null / undefined → try top-level author_name field, then defaultName
+ *
+ * ✅ Export and import this in StructuredData.tsx (and anywhere else) instead
+ *    of calling `article.author?.trim()` directly — that crashes when author
+ *    is an object.
+ */
+export function resolveAuthorName(article: any, defaultName = "Brawnly Editorial"): string {
+  const { author, author_name } = article ?? {};
+
+  if (typeof author === "string" && author.trim()) {
+    return author.trim();
+  }
+
+  if (author && typeof author === "object") {
+    const username = typeof author.username === "string" ? author.username.trim() : "";
+    const name    = typeof author.name     === "string" ? author.name.trim()     : "";
+    if (username) return username;
+    if (name)     return name;
+  }
+
+  if (typeof author_name === "string" && author_name.trim()) {
+    return author_name.trim();
+  }
+
+  return defaultName;
+}
+
 export default function ArticleCard({ article: _a, priority: _p = false }: ArticleCardProps) {
   const _t = _a.title || "Untitled Article";
   const { isEnabled: _iE, saveData: _sD } = _uSD();
@@ -27,6 +60,9 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
   const [_blobUrl, _sBU] = _uS<string | null>(null);
 
   const [_rC, _sRC] = _uS(() => VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)]);
+
+  // ✅ Use shared helper — handles string | object | null safely
+  const _authorName = resolveAuthorName(_a);
 
   _uE(() => {
     const oN = () => _sOF(false);
@@ -45,7 +81,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
     return `${_CC.baseUrl}/${_u}`;
   };
 
-  const _rP = _a.featured_image ? _a.featured_image.split(/[\r\n]+/)[0]?.trim() : null;
+  const _rP = _a.featured_image ? String(_a.featured_image).split(/[\r\n]+/)[0]?.trim() : null;
   const _hQ = _rP ? _fC(_rP) : null;
   const _isLow = _iE && _sD.quality === "low";
   const _tW = _isLow ? 200 : 400;
@@ -111,7 +147,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       : undefined,
     "author": {
       "@type": "Person",
-      "name": _a.author?.username || "Brawnly Editorial",
+      "name": _authorName,
       "url": "https://www.brawnly.online",
     },
     "publisher": {
@@ -156,7 +192,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       "image": _hQ || undefined,
       "author": {
         "@type": "Person",
-        "name": _a.author?.username || "Brawnly Editorial",
+        "name": _authorName,
       },
       "datePublished": _a.published_at || _a.created_at || undefined,
       "interactionStatistic": {
@@ -179,7 +215,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       style={{ "--hover-color": _rC } as React.CSSProperties}
     >
       <script type="application/ld+json">{JSON.stringify(_jL)}</script>
-
       <script type="application/ld+json">{JSON.stringify(_jLListItem)}</script>
 
       <meta itemProp="headline" content={_t} />
@@ -236,7 +271,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           itemProp="author"
         >
           <span itemProp="name">
-            {_a.author?.username || "Brawnly Editorial"}
+            {_authorName}
           </span>
           <a
             href="https://www.brawnly.online"
@@ -396,8 +431,8 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
 
           <div className="flex items-center gap-2">
             <img
-              src={_gOI(_mA, 40)}
-              alt={`Author avatar — ${_a.author?.username || "Brawnly Editorial"}`}
+              src={_mA}
+              alt={`Author avatar — ${_authorName}`}
               className="w-4 h-4 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 border border-neutral-200 dark:border-neutral-800"
             />
             <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
@@ -405,7 +440,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
                 className="text-black dark:text-white group-hover:text-[var(--hover-color)] transition-colors"
                 itemProp="author"
               >
-                By {_a.author?.username || "Brawnly Editorial"}
+                By {_authorName}
               </span>
               <span
                 className="flex items-center gap-1"

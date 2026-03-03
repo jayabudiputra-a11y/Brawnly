@@ -1,6 +1,7 @@
 import React from "react"
 import { Helmet } from "react-helmet-async"
 import masculineLogo from "@/assets/masculineLogo.svg"
+import { resolveAuthorName } from "@/components/features/ArticleCard"
 
 interface ArticleStructuredData {
   title: string
@@ -8,8 +9,11 @@ interface ArticleStructuredData {
   featured_image_url?: string | null
   featured_image?: string | string[] | null
   published_at: string
-  author?: string | null
-  url?: string // Tambahan opsional untuk URL spesifik artikel
+  // ✅ Widened from `string | null` to `any` — Supabase may return an object
+  //    shape like { username: string; name?: string } from a joined query.
+  author?: any
+  author_name?: string | null
+  url?: string
 }
 
 interface StructuredDataProps {
@@ -27,7 +31,7 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     
     if (Array.isArray(rawImageSource)) return rawImageSource[0]
     
-    const urls = rawImageSource
+    const urls = String(rawImageSource)
       .split(/[\n\r|,|\s+]+/)
       .map(s => s.trim())
       .filter(Boolean)
@@ -36,14 +40,12 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     return firstUrl || undefined
   }
 
-  const authorName = article.author?.trim()
-    ? article.author.trim()
-    : "Budi Putra Jaya"
+  // ✅ Use the shared helper — handles string | object | null without crashing
+  const authorName = resolveAuthorName(article, "Budi Putra Jaya")
 
   const articleUrl = article.url || baseUrl
   const imageUrl = getFirstImage()
 
-  // JSON-LD untuk Google Search & Rich Snippets
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -55,18 +57,18 @@ const StructuredData: React.FC<StructuredDataProps> = ({ article }) => {
     description: article.excerpt,
     image: imageUrl,
     datePublished: article.published_at,
-    dateModified: article.published_at, // SEO best practice: selalu sertakan modified date
+    dateModified: article.published_at,
     author: {
       "@type": "Person",
       name: authorName,
-      url: baseUrl // Membantu E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
+      url: baseUrl
     },
     publisher: {
       "@type": "Organization",
       name: "Brawnly",
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}${masculineLogo}`, // Skema mewajibkan URL absolut
+        url: `${baseUrl}${masculineLogo}`,
       },
     },
   }
