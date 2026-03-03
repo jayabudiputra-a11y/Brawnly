@@ -1,4 +1,13 @@
-import React, { useState as _s, useEffect as _e, useMemo as _uM, useRef as _uR, useCallback as _uC } from "react";
+import React, {
+  useState as _s,
+  useEffect as _e,
+  useMemo as _uM,
+  useRef as _uR,
+  useCallback as _uC,
+  Suspense,
+  lazy,
+  startTransition,
+} from "react";
 import { Link as _L, useParams as _uP, useNavigate as _uN } from "react-router-dom";
 import { Helmet as _Hm } from "react-helmet-async";
 import {
@@ -45,17 +54,13 @@ import { commentsApi } from "@/lib/api";
 
 import { wasmTranscodeImage as _wTI, wasmCreatePlaceholder as _wCP } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail as _wVT } from "@/lib/wasmVideoPipeline";
-import { detectBestFormat as _dBF, detectBestFormat } from "@/lib/imageFormat"; // FIX: Hapus duplikasi impor
+import { detectBestFormat as _dBF, detectBestFormat } from "@/lib/imageFormat";
 import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage";
 import { enqueue } from "@/lib/idbQueue";
 import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
 import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
-
-/* ============================================================
-   SOCIAL PLATFORM CONSTANTS
-   ============================================================ */
 
 const INSTAGRAM_USERNAME = "deul.umm";
 const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
@@ -85,10 +90,6 @@ const PINTEREST_PROFILE_URL =
 const PINTEREST_PIN_URL = "https://pin.it/54og3CaPN";
 const PINTEREST_PIN_URL_2 = "https://pin.it/4D4StcRSo";
 
-/* ============================================================
-   CLASH ROYALE CONSTANTS
-   ============================================================ */
-
 const CR_PLAYER_TAG = "RY9J2RC2Y";
 const CR_PLAYER_NAME = "bmjpdam9";
 const CR_PLAYER_ID = "7-54051567";
@@ -96,10 +97,6 @@ const CR_ADD_FRIEND_URL =
   "https://link.clashroyale.com/?supercell_id&p=34-325a499d-fa6d-436b-a6cd-1d592a8afdea";
 const CR_ROYALEAPI_BATTLES = `https://royaleapi.com/player/${CR_PLAYER_TAG}/battles`;
 const CR_ROYALEAPI_PROFILE = `https://royaleapi.com/player/${CR_PLAYER_TAG}`;
-
-/* ============================================================
-   PARAGRAPH PARSER
-   ============================================================ */
 
 type ParsedBlock =
   | { type: "text"; html: string }
@@ -157,22 +154,66 @@ function fmtHtml(text: string): string {
     );
 }
 
-/* ============================================================
-   SAFE BLOB URL HELPER
-   ============================================================ */
-
 function safeBlobRevoke(url: string | null) {
   if (!url || !url.startsWith("blob:")) return;
   try {
     URL.revokeObjectURL(url);
   } catch {
-    /* already revoked or invalid */
   }
 }
 
-/* ============================================================
-   SEO HIDDEN NODE — INSTAGRAM WIDGET
-   ============================================================ */
+function SuspenseFallbackWidget() {
+  return (
+    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] animate-pulse">
+      <div className="h-1.5 w-full bg-neutral-200 dark:bg-neutral-800" />
+      <div className="p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-neutral-200 dark:bg-neutral-800" />
+          <div className="space-y-2">
+            <div className="h-2 w-20 bg-neutral-200 dark:bg-neutral-800 rounded" />
+            <div className="h-3 w-28 bg-neutral-200 dark:bg-neutral-800 rounded" />
+          </div>
+        </div>
+        <div className="h-32 w-full bg-neutral-100 dark:bg-neutral-900 rounded-xl" />
+        <div className="h-3 w-40 bg-neutral-200 dark:bg-neutral-800 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function SuspenseFallbackArticle() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
+      <div className="w-20 h-[3px] bg-red-600 animate-pulse" />
+    </div>
+  );
+}
+
+function SuspenseFallbackComments() {
+  return (
+    <div className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
+      <div className="animate-pulse space-y-8">
+        <div className="flex items-center gap-4 mb-12">
+          <div className="w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-800" />
+          <div className="h-6 w-40 bg-neutral-200 dark:bg-neutral-800 rounded" />
+        </div>
+        <div className="h-40 w-full bg-neutral-100 dark:bg-neutral-900 rounded-xl border-2 border-neutral-200 dark:border-neutral-800" />
+        <div className="space-y-6">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex gap-4">
+              <div className="w-14 h-14 bg-neutral-200 dark:bg-neutral-800 rounded flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-24 bg-neutral-200 dark:bg-neutral-800 rounded" />
+                <div className="h-4 w-full bg-neutral-100 dark:bg-neutral-900 rounded" />
+                <div className="h-4 w-3/4 bg-neutral-100 dark:bg-neutral-900 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function InstagramSEONode() {
   return (
@@ -180,7 +221,6 @@ function InstagramSEONode() {
       aria-hidden="true"
       style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
     >
-      {/* Social presence structured data for crawlers */}
       <span itemScope itemType="https://schema.org/Person">
         <span itemProp="sameAs" content={INSTAGRAM_URL} />
         <span itemProp="sameAs" content={INSTAGRAM_POST_PERMALINK} />
@@ -200,10 +240,6 @@ function InstagramSEONode() {
     </div>
   );
 }
-
-/* ============================================================
-   INSTAGRAM WIDGET
-   ============================================================ */
 
 function InstagramWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -257,7 +293,6 @@ function InstagramWidget() {
       itemScope
       itemType="https://schema.org/SocialMediaPosting"
     >
-      {/* SEO: Instagram widget structured data */}
       <InstagramSEONode />
       <meta itemProp="url" content={INSTAGRAM_POST_PERMALINK} />
       <meta itemProp="author" content={INSTAGRAM_USERNAME} />
@@ -321,10 +356,6 @@ function InstagramWidget() {
   );
 }
 
-/* ============================================================
-   SEO HIDDEN NODE — YOUTUBE WIDGET
-   ============================================================ */
-
 function YouTubeSEONode() {
   return (
     <div
@@ -332,9 +363,13 @@ function YouTubeSEONode() {
       style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
     >
       <span itemScope itemType="https://schema.org/VideoChannel">
-        <a href={YOUTUBE_CHANNEL_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+        <span
+          data-href={YOUTUBE_CHANNEL_URL}
+          itemProp="url"
+          data-rel="noopener noreferrer"
+        >
           YouTube Channel — @{YOUTUBE_CHANNEL_HANDLE}
-        </a>
+        </span>
         <span itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
         <span itemProp="description" content={`Watch videos and shorts on YouTube channel @${YOUTUBE_CHANNEL_HANDLE}. Subscribe for the latest content from Brawnly.`} />
         <span itemProp="sameAs" content={YOUTUBE_CHANNEL_URL} />
@@ -344,10 +379,6 @@ function YouTubeSEONode() {
     </div>
   );
 }
-
-/* ============================================================
-   YOUTUBE WIDGET
-   ============================================================ */
 
 function YouTubeWidget() {
   const [_subbed, _setSubbed] = _s(false);
@@ -363,17 +394,23 @@ function YouTubeWidget() {
     toast.success("+1 Subscriber! Opening YouTube…");
   };
 
+  const _handleWidgetClick = () => {
+    window.open(YOUTUBE_CHANNEL_URL, "_blank", "noopener,noreferrer");
+  };
+
   return (
-    <a
-      href={YOUTUBE_CHANNEL_URL}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
+      role="link"
+      tabIndex={0}
       aria-label={`Visit YouTube channel @${YOUTUBE_CHANNEL_HANDLE}`}
-      className="group block"
+      className="group block cursor-pointer"
       itemScope
       itemType="https://schema.org/VideoChannel"
+      onClick={_handleWidgetClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") _handleWidgetClick();
+      }}
     >
-      {/* SEO: YouTube channel structured data */}
       <YouTubeSEONode />
       <meta itemProp="url" content={YOUTUBE_CHANNEL_URL} />
       <meta itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
@@ -431,13 +468,9 @@ function YouTubeWidget() {
           </div>
         </div>
       </div>
-    </a>
+    </div>
   );
 }
-
-/* ============================================================
-   SEO HIDDEN NODE — TUMBLR WIDGET
-   ============================================================ */
 
 function TumblrSEONode() {
   return (
@@ -464,10 +497,6 @@ function TumblrSEONode() {
     </div>
   );
 }
-
-/* ============================================================
-   TUMBLR WIDGET
-   ============================================================ */
 
 function TumblrWidget() {
   const _iframeRef = _uR<HTMLIFrameElement>(null);
@@ -496,7 +525,6 @@ function TumblrWidget() {
       itemScope
       itemType="https://schema.org/BlogPosting"
     >
-      {/* SEO: Tumblr widget structured data */}
       <TumblrSEONode />
       <meta itemProp="url" content={TUMBLR_POST_URL} />
       <meta itemProp="author" content="deulo" />
@@ -581,10 +609,6 @@ function TumblrWidget() {
   );
 }
 
-/* ============================================================
-   SEO HIDDEN NODE — SUBSTACK WIDGET
-   ============================================================ */
-
 function SubstackSEONode() {
   return (
     <div
@@ -612,10 +636,6 @@ function SubstackSEONode() {
     </div>
   );
 }
-
-/* ============================================================
-   SUBSTACK WIDGET
-   ============================================================ */
 
 function SubstackWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -648,7 +668,6 @@ function SubstackWidget() {
       itemScope
       itemType="https://schema.org/NewsArticle"
     >
-      {/* SEO: Substack widget structured data */}
       <SubstackSEONode />
       <meta itemProp="url" content={SUBSTACK_URL} />
       <meta itemProp="headline" content={SUBSTACK_POST_TITLE} />
@@ -706,10 +725,6 @@ function SubstackWidget() {
   );
 }
 
-/* ============================================================
-   SEO HIDDEN NODE — PINTEREST WIDGET
-   ============================================================ */
-
 function PinterestSEONode() {
   return (
     <div
@@ -739,10 +754,6 @@ function PinterestSEONode() {
   );
 }
 
-/* ============================================================
-   PINTEREST WIDGET
-   ============================================================ */
-
 function PinterestWidget() {
   return (
     <div
@@ -750,7 +761,6 @@ function PinterestWidget() {
       itemScope
       itemType="https://schema.org/Person"
     >
-      {/* SEO: Pinterest widget structured data */}
       <PinterestSEONode />
       <meta itemProp="sameAs" content={PINTEREST_PROFILE_URL} />
       <meta itemProp="name" content="mustbeloveonthebrain" />
@@ -837,10 +847,6 @@ function PinterestWidget() {
   );
 }
 
-/* ============================================================
-   SEO HIDDEN NODE — CLASH ROYALE WIDGET
-   ============================================================ */
-
 function ClashRoyaleSEONode() {
   return (
     <div
@@ -868,10 +874,6 @@ function ClashRoyaleSEONode() {
   );
 }
 
-/* ============================================================
-   CLASH ROYALE WIDGET
-   ============================================================ */
-
 function ClashRoyaleWidget() {
   return (
     <div
@@ -879,7 +881,6 @@ function ClashRoyaleWidget() {
       itemScope
       itemType="https://schema.org/Person"
     >
-      {/* SEO: Clash Royale widget structured data */}
       <ClashRoyaleSEONode />
       <meta itemProp="name" content={CR_PLAYER_NAME} />
       <meta itemProp="identifier" content={CR_PLAYER_TAG} />
@@ -1037,17 +1038,21 @@ function ClashRoyaleWidget() {
   );
 }
 
-/* ============================================================
-   SOCIAL WIDGET LAYOUT COMPONENTS
-   ============================================================ */
-
 function SocialWidgetsDesktop() {
   return (
     <div className="flex flex-col gap-6">
-      <InstagramWidget />
-      <YouTubeWidget />
-      <SubstackWidget />
-      <PinterestWidget />
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <InstagramWidget />
+      </Suspense>
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <YouTubeWidget />
+      </Suspense>
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <SubstackWidget />
+      </Suspense>
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <PinterestWidget />
+      </Suspense>
     </div>
   );
 }
@@ -1055,8 +1060,12 @@ function SocialWidgetsDesktop() {
 function SocialWidgetsMobileTop() {
   return (
     <div className="lg:hidden flex flex-col gap-6 my-10 max-w-[840px] mx-auto">
-      <InstagramWidget />
-      <YouTubeWidget />
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <InstagramWidget />
+      </Suspense>
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <YouTubeWidget />
+      </Suspense>
     </div>
   );
 }
@@ -1064,15 +1073,15 @@ function SocialWidgetsMobileTop() {
 function SocialWidgetsMobileBottom() {
   return (
     <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
-      <SubstackWidget />
-      <PinterestWidget />
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <SubstackWidget />
+      </Suspense>
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <PinterestWidget />
+      </Suspense>
     </div>
   );
 }
-
-/* ============================================================
-   COMMENT ITEM
-   ============================================================ */
 
 function CommentItem({
   comment,
@@ -1095,7 +1104,6 @@ function CommentItem({
       itemScope
       itemType="https://schema.org/Comment"
     >
-      {/* SEO: Comment structured data */}
       <meta itemProp="identifier" content={String(comment.id)} />
       <meta itemProp="text" content={comment.content} />
       <meta itemProp="datePublished" content={comment.created_at} />
@@ -1184,12 +1192,8 @@ function CommentItem({
   );
 }
 
-/* ============================================================
-   COMMENT SECTION
-   ============================================================ */
-
-function CommentSection({ articleId }: { articleId: string }) {
-  const { user: _u } = useAuth(); // SINKRON: useAuth sekarang optimistic & instan
+function CommentSectionInner({ articleId }: { articleId: string }) {
+  const { user: _u } = useAuth();
   const _nav = _uN();
   const _qC = useQueryClient();
 
@@ -1218,7 +1222,6 @@ function CommentSection({ articleId }: { articleId: string }) {
         const blobUrl = URL.createObjectURL(blob);
         _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
       } catch (err) {
-        /* avatar hydration failed — fallback icon will show */
       }
     }
   };
@@ -1311,7 +1314,6 @@ function CommentSection({ articleId }: { articleId: string }) {
       itemScope
       itemType="https://schema.org/DiscussionForumPosting"
     >
-      {/* SEO: Discussion section structured data */}
       <meta itemProp="discussionUrl" content={`#discussion-${articleId}`} />
       <meta itemProp="interactionCount" content={`CommentAction:${_localComments.length}`} />
 
@@ -1445,19 +1447,27 @@ function CommentSection({ articleId }: { articleId: string }) {
       </div>
 
       <div className="mt-20">
-        <ClashRoyaleWidget />
+        <Suspense fallback={<SuspenseFallbackWidget />}>
+          <ClashRoyaleWidget />
+        </Suspense>
       </div>
 
       <div className="mt-8">
-        <TumblrWidget />
+        <Suspense fallback={<SuspenseFallbackWidget />}>
+          <TumblrWidget />
+        </Suspense>
       </div>
     </section>
   );
 }
 
-/* ============================================================
-   MAIN ARTICLE DETAIL PAGE
-   ============================================================ */
+function CommentSection({ articleId }: { articleId: string }) {
+  return (
+    <Suspense fallback={<SuspenseFallbackComments />}>
+      <CommentSectionInner articleId={articleId} />
+    </Suspense>
+  );
+}
 
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
@@ -1477,7 +1487,6 @@ export default function ArticleDetail() {
     return `${_CC.baseUrl}/${_u}`;
   };
 
-  // SINKRONISASI: Mengambil data dari cache memori tanpa me-render ulang berat
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
   const _allMedia = _uM(() => {
@@ -1593,7 +1602,6 @@ export default function ArticleDetail() {
     };
   }, []);
 
-  /* ====== COVER IMAGE PIPELINE ====== */
   _e(() => {
     if (!_rawImgSource) return;
 
@@ -1623,7 +1631,6 @@ export default function ArticleDetail() {
           const placeholder = await _wCP(b);
           if (_active) _setBlurUrl(placeholder);
         } catch {
-          /* placeholder generation failed — skip blur */
         }
 
         const _fmt = await _dBF();
@@ -1674,7 +1681,6 @@ export default function ArticleDetail() {
     }
   }, [_art?.id, _hasTracked, _slV]);
 
-  // SINKRONISASI: Menangkap data dari useArticles dengan aman
   const { data: _allA } = _uAs();
   const _hC = _uM(
     () =>
@@ -1698,17 +1704,12 @@ export default function ArticleDetail() {
     }
   };
 
-  // SINKRONISASI: Menggunakan data dari useArticleViews bebas render berlebih
   const { viewCount: _realtimeViews } = _uAV({
     id: _art?.id ?? "",
     slug: _slV,
     initialViews: _art?.views ?? 0,
   });
 
-  /* ============================================================
-     DYNAMIC JSON-LD STRUCTURED DATA — injected into <Helmet>
-     Covers: Article, BreadcrumbList, WebPage, VideoObject, ImageGallery
-     ============================================================ */
   const _jsonLdArticle = _pD && _art
     ? JSON.stringify({
         "@context": "https://schema.org",
@@ -1903,775 +1904,789 @@ export default function ArticleDetail() {
   if (!_pD || !_art) return null;
 
   return (
-    <main
-      className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative overflow-x-hidden"
-      itemScope
-      itemType="https://schema.org/Article"
-    >
-      <_Hm>
-        <title>{_pD.title} | Brawnly</title>
-        <meta name="description" content={_pD.excerpt} />
-
-        {/* ── Open Graph ── */}
-        <meta property="og:type" content="article" />
-        <meta property="og:title" content={`${_pD.title} | Brawnly`} />
-        <meta property="og:description" content={_pD.excerpt} />
-        <meta property="og:url" content={`https://www.brawnly.online/article/${_slV}`} />
-        <meta property="og:site_name" content="Brawnly" />
-        <meta property="og:locale" content="id_ID" />
-        {_rawImgSource && (
-          <meta property="og:image" content={_gOI(_rawImgSource, 1200)} />
-        )}
-        {_rawImgSource && (
-          <meta property="og:image:width" content="1200" />
-        )}
-        {_rawImgSource && (
-          <meta property="og:image:height" content="630" />
-        )}
-        {_art.published_at && (
-          <meta property="article:published_time" content={_art.published_at} />
-        )}
-        {_art.updated_at && (
-          <meta property="article:modified_time" content={_art.updated_at} />
-        )}
-        <meta property="article:author" content={_art.author || "Brawnly"} />
-        <meta property="article:section" content="Technology" />
-
-        {/* ── Twitter / X Card ── */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${_pD.title} | Brawnly`} />
-        <meta name="twitter:description" content={_pD.excerpt} />
-        {_rawImgSource && (
-          <meta name="twitter:image" content={_gOI(_rawImgSource, 1200)} />
-        )}
-        <meta name="twitter:site" content="@brawnly" />
-        <meta name="twitter:creator" content="@brawnly" />
-
-        {/* ── Canonical & Indexing ── */}
-        <link rel="canonical" href={`https://www.brawnly.online/article/${_slV}`} />
-        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-
-        {/* ── Author & Publisher ── */}
-        <meta name="author" content={_art.author || "Brawnly"} />
-        <link rel="author" href="https://www.brawnly.online" />
-        <meta name="publisher" content="Brawnly" />
-
-        {/* ── Social Profiles ── */}
-        <link rel="me" href={INSTAGRAM_URL} />
-        <link rel="me" href={YOUTUBE_CHANNEL_URL} />
-        <link rel="me" href={SUBSTACK_ROOT_URL} />
-        <link rel="me" href={TUMBLR_BLOG_URL} />
-        <link rel="me" href={PINTEREST_PROFILE_URL} />
-
-        {/* ── JSON-LD Structured Data: Article ── */}
-        {_jsonLdArticle && (
-          <script type="application/ld+json">{_jsonLdArticle}</script>
-        )}
-
-        {/* ── JSON-LD Structured Data: BreadcrumbList ── */}
-        {_jsonLdBreadcrumb && (
-          <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
-        )}
-
-        {/* ── JSON-LD Structured Data: WebPage ── */}
-        {_jsonLdWebPage && (
-          <script type="application/ld+json">{_jsonLdWebPage}</script>
-        )}
-
-        {/* ── JSON-LD Structured Data: VideoObject (YouTube Shorts) ── */}
-        {_jsonLdYoutubeShorts && (
-          <script type="application/ld+json">{_jsonLdYoutubeShorts}</script>
-        )}
-
-        {/* ── JSON-LD Structured Data: ImageGallery ── */}
-        {_jsonLdGallery && (
-          <script type="application/ld+json">{_jsonLdGallery}</script>
-        )}
-
-        {/* ── JSON-LD Structured Data: Social Presence ── */}
-        <script type="application/ld+json">{_jsonLdSocialLinks}</script>
-      </_Hm>
-
-      {/* ── SEMANTIC HTML UNTUK LLM/SEO ── */}
-      <article
-        className="sr-only"
+    <Suspense fallback={<SuspenseFallbackArticle />}>
+      <main
+        className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative overflow-x-hidden"
         itemScope
         itemType="https://schema.org/Article"
-        aria-hidden="true"
       >
-        <h1 itemProp="headline">{_pD.title}</h1>
-        <p itemProp="description">{_pD.excerpt}</p>
-        <address
-          className="author"
+        <_Hm>
+          <title>{_pD.title} | Brawnly</title>
+          <meta name="description" content={_pD.excerpt} />
+
+          <meta property="og:type" content="article" />
+          <meta property="og:title" content={`${_pD.title} | Brawnly`} />
+          <meta property="og:description" content={_pD.excerpt} />
+          <meta property="og:url" content={`https://www.brawnly.online/article/${_slV}`} />
+          <meta property="og:site_name" content="Brawnly" />
+          <meta property="og:locale" content="id_ID" />
+          {_rawImgSource && (
+            <meta property="og:image" content={_gOI(_rawImgSource, 1200)} />
+          )}
+          {_rawImgSource && (
+            <meta property="og:image:width" content="1200" />
+          )}
+          {_rawImgSource && (
+            <meta property="og:image:height" content="630" />
+          )}
+          {_art.published_at && (
+            <meta property="article:published_time" content={_art.published_at} />
+          )}
+          {_art.updated_at && (
+            <meta property="article:modified_time" content={_art.updated_at} />
+          )}
+          <meta property="article:author" content={_art.author || "Brawnly"} />
+          <meta property="article:section" content="Technology" />
+
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={`${_pD.title} | Brawnly`} />
+          <meta name="twitter:description" content={_pD.excerpt} />
+          {_rawImgSource && (
+            <meta name="twitter:image" content={_gOI(_rawImgSource, 1200)} />
+          )}
+          <meta name="twitter:site" content="@brawnly" />
+          <meta name="twitter:creator" content="@brawnly" />
+
+          <link rel="canonical" href={`https://www.brawnly.online/article/${_slV}`} />
+          <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+          <meta name="author" content={_art.author || "Brawnly"} />
+          <link rel="author" href="https://www.brawnly.online" />
+          <meta name="publisher" content="Brawnly" />
+
+          <link rel="me" href={INSTAGRAM_URL} />
+          <link rel="me" href={YOUTUBE_CHANNEL_URL} />
+          <link rel="me" href={SUBSTACK_ROOT_URL} />
+          <link rel="me" href={TUMBLR_BLOG_URL} />
+          <link rel="me" href={PINTEREST_PROFILE_URL} />
+
+          {_jsonLdArticle && (
+            <script type="application/ld+json">{_jsonLdArticle}</script>
+          )}
+
+          {_jsonLdBreadcrumb && (
+            <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
+          )}
+
+          {_jsonLdWebPage && (
+            <script type="application/ld+json">{_jsonLdWebPage}</script>
+          )}
+
+          {_jsonLdYoutubeShorts && (
+            <script type="application/ld+json">{_jsonLdYoutubeShorts}</script>
+          )}
+
+          {_jsonLdGallery && (
+            <script type="application/ld+json">{_jsonLdGallery}</script>
+          )}
+
+          <script type="application/ld+json">{_jsonLdSocialLinks}</script>
+        </_Hm>
+
+        <article
+          className="sr-only"
           itemScope
-          itemType="https://schema.org/Person"
+          itemType="https://schema.org/Article"
+          aria-hidden="true"
         >
-          By{" "}
-          <span itemProp="name">{_art.author || "Brawnly"}</span>
-          <a
-            itemProp="url"
-            href="https://www.brawnly.online"
-            rel="author"
-            tabIndex={-1}
+          <h1 itemProp="headline">{_pD.title}</h1>
+          <p itemProp="description">{_pD.excerpt}</p>
+          <address
+            className="author"
+            itemScope
+            itemType="https://schema.org/Person"
           >
-            Brawnly
-          </a>
-        </address>
-        <time
-          dateTime={_art.published_at}
-          itemProp="datePublished"
-        >
-          {_art.published_at}
-        </time>
-        {(_art as any).updated_at && (
+            By{" "}
+            <span itemProp="name">{_art.author || "Brawnly"}</span>
+            <a
+              itemProp="url"
+              href="https://www.brawnly.online"
+              rel="author"
+              tabIndex={-1}
+            >
+              Brawnly
+            </a>
+          </address>
           <time
-            dateTime={(_art as any).updated_at}
-            itemProp="dateModified"
+            dateTime={_art.published_at}
+            itemProp="datePublished"
           >
-            {(_art as any).updated_at}
+            {_art.published_at}
           </time>
-        )}
+          {(_art as any).updated_at && (
+            <time
+              dateTime={(_art as any).updated_at}
+              itemProp="dateModified"
+            >
+              {(_art as any).updated_at}
+            </time>
+          )}
 
-        {/* ── Hidden full text for crawlers — paragraphs ── */}
-        <div itemProp="articleBody">
-          {_parsedParagraphs.map((block, i) => {
-            if (block.type === "text") {
-              return (
-                <p
-                  key={`seo-para-${i}`}
-                  dangerouslySetInnerHTML={{
-                    __html: block.html,
-                  }}
-                />
-              );
-            }
-            return (
-              <a
-                key={`seo-tweet-${i}`}
-                href={block.url}
-                rel="noopener noreferrer"
-                tabIndex={-1}
-              >
-                Embedded Tweet: {block.url}
-              </a>
-            );
-          })}
-        </div>
-
-        {/* ── Hidden social links for crawlers ── */}
-        <nav aria-label="Social profiles" itemProp="sameAs">
-          <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
-            Instagram: @{INSTAGRAM_USERNAME}
-          </a>
-          <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>
-            YouTube: @{YOUTUBE_CHANNEL_HANDLE}
-          </a>
-          <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>
-            Substack: deulo
-          </a>
-          <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>
-            Tumblr: deulo
-          </a>
-          <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>
-            Pinterest: mustbeloveonthebrain
-          </a>
-          <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>
-            Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
-          </a>
-        </nav>
-
-        {/* ── Hidden YouTube Shorts links for crawlers ── */}
-        {_youtubeShorts.length > 0 && (
-          <section aria-label="Embedded YouTube videos">
-            {_youtubeShorts.map((url: string, idx: number) => {
-              const embedUrl = _getEmbedUrl(url);
+          <div itemProp="articleBody">
+            {_parsedParagraphs.map((block, i) => {
+              if (block.type === "text") {
+                return (
+                  <p
+                    key={`seo-para-${i}`}
+                    dangerouslySetInnerHTML={{
+                      __html: block.html,
+                    }}
+                  />
+                );
+              }
               return (
                 <a
-                  key={`seo-yt-${idx}`}
+                  key={`seo-tweet-${i}`}
+                  href={block.url}
+                  rel="noopener noreferrer"
+                  tabIndex={-1}
+                >
+                  Embedded Tweet: {block.url}
+                </a>
+              );
+            })}
+          </div>
+
+          <nav aria-label="Social profiles" itemProp="sameAs">
+            <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
+              Instagram: @{INSTAGRAM_USERNAME}
+            </a>
+            <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>
+              YouTube: @{YOUTUBE_CHANNEL_HANDLE}
+            </a>
+            <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>
+              Substack: deulo
+            </a>
+            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>
+              Tumblr: deulo
+            </a>
+            <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>
+              Pinterest: mustbeloveonthebrain
+            </a>
+            <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>
+              Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
+            </a>
+          </nav>
+
+          {_youtubeShorts.length > 0 && (
+            <section aria-label="Embedded YouTube videos">
+              {_youtubeShorts.map((url: string, idx: number) => {
+                const embedUrl = _getEmbedUrl(url);
+                return (
+                  <a
+                    key={`seo-yt-${idx}`}
+                    href={url}
+                    rel="noopener noreferrer"
+                    tabIndex={-1}
+                  >
+                    Watch YouTube Short {idx + 1}: {url}
+                  </a>
+                );
+              })}
+            </section>
+          )}
+
+          {_allTweetUrls.length > 0 && (
+            <section aria-label="Embedded tweets">
+              {_allTweetUrls.map((url, idx) => (
+                <a
+                  key={`seo-tw-${idx}`}
                   href={url}
                   rel="noopener noreferrer"
                   tabIndex={-1}
                 >
-                  Watch YouTube Short {idx + 1}: {url}
+                  Embedded Tweet {idx + 1}: {url}
                 </a>
-              );
-            })}
-          </section>
-        )}
-
-        {/* ── Hidden Tweet links for crawlers ── */}
-        {_allTweetUrls.length > 0 && (
-          <section aria-label="Embedded tweets">
-            {_allTweetUrls.map((url, idx) => (
-              <a
-                key={`seo-tw-${idx}`}
-                href={url}
-                rel="noopener noreferrer"
-                tabIndex={-1}
-              >
-                Embedded Tweet {idx + 1}: {url}
-              </a>
-            ))}
-          </section>
-        )}
-
-        {/* ── Hidden gallery links for crawlers ── */}
-        {_galleryImages.length > 0 && (
-          <section aria-label="Article image gallery">
-            {_galleryImages.map((img: string, idx: number) => (
-              <figure key={`seo-gallery-${idx}`} itemScope itemType="https://schema.org/ImageObject">
-                <img
-                  src={_fC(img)}
-                  alt={`${_pD.title} — Gallery image ${idx + 1}`}
-                  loading="lazy"
-                  itemProp="url"
-                />
-                <meta itemProp="name" content={`${_pD.title} — Gallery image ${idx + 1}`} />
-              </figure>
-            ))}
-          </section>
-        )}
-
-        {/* ── Hidden Substack post info for crawlers ── */}
-        <aside
-          aria-label="Related Substack post"
-          itemScope
-          itemType="https://schema.org/NewsArticle"
-        >
-          <h2 itemProp="headline">{SUBSTACK_POST_TITLE}</h2>
-          <p itemProp="description">{SUBSTACK_POST_DESC}</p>
-          <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>
-            Read on Substack
-          </a>
-        </aside>
-
-        {/* ── Hidden view count for crawlers ── */}
-        <meta
-          itemProp="interactionStatistic"
-          content={`${_realtimeViews} reads`}
-        />
-        <span itemScope itemType="https://schema.org/InteractionCounter">
-          <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
-          <meta itemProp="userInteractionCount" content={String(_realtimeViews)} />
-        </span>
-      </article>
-
-      <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
-        <button
-          onClick={_hSv}
-          aria-label={_iS ? "Remove article from saved" : "Save this article"}
-          aria-pressed={_iS}
-          className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
-            _iS
-              ? "bg-emerald-500 border-black text-black scale-110"
-              : "bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl"
-          }`}
-        >
-          {_iS ? <_Ck size={20} aria-hidden="true" /> : <_Bm size={20} aria-hidden="true" />}
-        </button>
-
-        <button
-          onClick={() => {
-            if (typeof navigator !== "undefined" && navigator.clipboard) {
-              navigator.clipboard.writeText(window.location.href);
-              toast.success("Node Link Copied");
-            }
-          }}
-          aria-label="Copy link to this article"
-          className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500"
-        >
-          <_Sh size={20} aria-hidden="true" />
-        </button>
-      </aside>
-
-      <div className="max-w-[1320px] mx-auto px-4 md:px-10">
-        <header
-          className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white"
-          itemScope
-          itemType="https://schema.org/Article"
-        >
-          {/* SEO: Header article structured data (supplement to sr-only article above) */}
-          <meta itemProp="headline" content={_pD.title} />
-          <meta itemProp="description" content={_pD.excerpt} />
-          <meta itemProp="datePublished" content={_art.published_at} />
-          {(_art as any).updated_at && (
-            <meta itemProp="dateModified" content={(_art as any).updated_at} />
-          )}
-          <meta itemProp="author" content={_art.author || "Brawnly"} />
-          <meta itemProp="url" content={`https://www.brawnly.online/article/${_slV}`} />
-          {_rawImgSource && (
-            <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
+              ))}
+            </section>
           )}
 
-          <div className="flex justify-between items-start mb-6">
-            <_L
-              to="/articles"
-              aria-label="Back to all articles"
-              className="text-red-700 font-black uppercase text-[11px] md:text-[13px] tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all italic"
-            >
-              <_Al size={14} aria-hidden="true" /> Node_Explore
-            </_L>
-
-            {_isOff && (
-              <span
-                role="status"
-                aria-live="polite"
-                className="flex items-center gap-2 text-red-500 text-[9px] font-bold uppercase tracking-widest animate-pulse border border-red-500 px-3 py-1 rounded-full"
-              >
-                <_Wo size={12} aria-hidden="true" /> OFFLINE
-              </span>
-            )}
-          </div>
-
-          <h1
-            className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words"
-            aria-hidden="true"
-          >
-            {_pD.title}
-          </h1>
-
-          <div className="flex flex-col md:flex-row md:items-end justify-between py-6 md:py-8 border-t-2 border-black dark:border-white gap-6">
-            <div
-              className="flex items-center gap-4 md:gap-5"
-              itemScope
-              itemType="https://schema.org/Person"
-            >
-              <div className="w-12 h-12 md:w-14 md:h-14 overflow-hidden border-2 border-black grayscale shadow-lg bg-neutral-100">
-                <img
-                  src={_gOI(_mA, 120)}
-                  className="w-full h-full object-cover"
-                  alt={`Author avatar — ${_art.author || "Brawnly"}`}
-                  itemProp="image"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-              <div>
-                <span
-                  className="block text-[13px] md:text-[15px] font-black uppercase italic"
-                  itemProp="name"
-                >
-                  By {_art.author || "Brawnly"}
-                </span>
-                <time
-                  dateTime={_art.published_at}
-                  className="text-[10px] md:text-[12px] uppercase opacity-80"
-                  itemProp="birthDate"
-                >
-                  <FormattedDate dateString={_art.published_at} />
-                </time>
-              </div>
-            </div>
-
-            <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-              <span
-                aria-label={`${_realtimeViews} kali dibaca`}
-                itemProp="interactionStatistic"
-              >
-                {_realtimeViews.toLocaleString("en-US")}
-              </span>{" "}
-              <_Ey size={20} className="text-red-600" aria-hidden="true" />
-            </div>
-          </div>
-        </header>
-
-        <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
-          <article className="flex-1 relative min-w-0" itemProp="articleBody">
-            <p
-              className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic"
-              aria-hidden="true"
-              itemProp="description"
-            >
-              {_pD.excerpt}
-            </p>
-
-            <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
-              <div
-                className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
-                aria-hidden="true"
-              >
-                <img
-                  src={_muscleLeft}
-                  alt=""
-                  className="w-full drop-shadow-2xl"
-                />
-              </div>
-              <figure
-                className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
-                itemScope
-                itemType="https://schema.org/ImageObject"
-              >
-                {/* SEO: Cover image structured data */}
-                <meta itemProp="url" content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""} />
-                <meta itemProp="name" content={`Cover image — ${_pD.title}`} />
-                <meta itemProp="description" content={`Featured cover image for: ${_pD.title}`} />
-                <ArticleCoverImage
-                  imageUrl={_blobUrl || _rawImgSource || ""}
-                  title={_pD.title}
-                  slug={_slV}
-                  className="w-full aspect-video md:aspect-[21/9] object-cover"
-                />
-                <figcaption className="sr-only">
-                  {_pD.title} — cover image
-                </figcaption>
-              </figure>
-              <div
-                className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
-                aria-hidden="true"
-              >
-                <img
-                  src={_muscleRight}
-                  alt=""
-                  className="w-full drop-shadow-2xl"
-                />
-              </div>
-            </div>
-
-            <SocialWidgetsMobileTop />
-
-            <div className="max-w-[840px] mx-auto">
-              {_parsedParagraphs.map((block, i) => {
-                if (block.type === "tweet") {
-                  return (
-                    <div
-                      key={`para-tweet-${i}`}
-                      className="my-10 md:my-14"
-                      itemScope
-                      itemType="https://schema.org/SocialMediaPosting"
-                    >
-                      <meta itemProp="url" content={block.url} />
-                      <meta itemProp="sharedContent" content={block.url} />
-                      <TwitterEmbed url={block.url} align="center" />
-                    </div>
-                  );
-                }
-                return (
-                  <div
-                    key={`para-text-${i}`}
-                    className="text-[18px] md:text-[22px] leading-[1.8] md:leading-[1.85] mb-8 md:mb-10 font-serif text-neutral-800 dark:text-neutral-300"
-                    dangerouslySetInnerHTML={{ __html: block.html }}
+          {_galleryImages.length > 0 && (
+            <section aria-label="Article image gallery">
+              {_galleryImages.map((img: string, idx: number) => (
+                <figure key={`seo-gallery-${idx}`} itemScope itemType="https://schema.org/ImageObject">
+                  <img
+                    src={_fC(img)}
+                    alt={`${_pD.title} — Gallery image ${idx + 1}`}
+                    loading="lazy"
+                    itemProp="url"
                   />
-                );
-              })}
-            </div>
-
-            {_allTweetUrls.length > 0 && (
-              <section
-                className="my-16 max-w-[840px] mx-auto"
-                aria-label="Embedded tweets"
-                itemScope
-                itemType="https://schema.org/ItemList"
-              >
-                {/* SEO: Tweet section structured data */}
-                <meta itemProp="name" content="Embedded Tweets" />
-                <meta itemProp="description" content={`Tweets embedded in article: ${_pD.title}`} />
-
-                <div className="flex items-center gap-3 mb-10 opacity-60">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="w-5 h-5 fill-current text-black dark:text-white"
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  <span className="text-[10px] uppercase font-black tracking-[0.3em]">
-                    Embedded_Tweets
-                  </span>
-                </div>
-                <div className="flex flex-col gap-8">
-                  {_allTweetUrls.map((url, idx) => (
-                    <div
-                      key={`db-tweet-${idx}`}
-                      itemScope
-                      itemType="https://schema.org/SocialMediaPosting"
-                      itemProp="itemListElement"
-                    >
-                      <meta itemProp="position" content={String(idx + 1)} />
-                      <meta itemProp="url" content={url} />
-                      <TwitterEmbed url={url} align="center" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {_youtubeShorts.length > 0 && (
-              <section
-                className="my-16 max-w-[840px] mx-auto"
-                aria-label="Embedded YouTube videos"
-                itemScope
-                itemType="https://schema.org/ItemList"
-              >
-                {/* SEO: YouTube shorts section structured data */}
-                <meta itemProp="name" content="Embedded YouTube Videos" />
-                <meta itemProp="description" content={`Videos embedded in article: ${_pD.title}`} />
-
-                {_youtubeShorts.map((videoUrl: string, idx: number) => {
-                  const embedUrl = _getEmbedUrl(videoUrl);
-                  if (!embedUrl) return null;
-
-                  const autoplayUrl = `${embedUrl}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
-
-                  return (
-                    <div
-                      key={`yt-${idx}`}
-                      className="flex flex-col items-center justify-center mb-16"
-                      itemScope
-                      itemType="https://schema.org/VideoObject"
-                      itemProp="itemListElement"
-                    >
-                      {/* SEO: VideoObject structured data per video */}
-                      <meta itemProp="position" content={String(idx + 1)} />
-                      <meta itemProp="name" content={`${_pD.title} — Video ${idx + 1}`} />
-                      <meta itemProp="description" content={_pD.excerpt} />
-                      <meta itemProp="embedUrl" content={embedUrl} />
-                      <meta itemProp="contentUrl" content={videoUrl} />
-                      {_rawImgSource && (
-                        <meta itemProp="thumbnailUrl" content={_gOI(_rawImgSource, 600)} />
-                      )}
-                      {_art.published_at && (
-                        <meta itemProp="uploadDate" content={_art.published_at} />
-                      )}
-
-                      <div className="relative w-full flex justify-center">
-                        <div
-                          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
-                          aria-hidden="true"
-                        />
-                        <iframe
-                          width="459"
-                          height="816"
-                          src={autoplayUrl}
-                          title={`${_pD.title} — Video ${idx + 1}`}
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                          loading="lazy"
-                          className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
-                        />
-                      </div>
-
-                      <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
-                        <_Pc size={16} aria-hidden="true" /> Watch Short
-                      </div>
-                    </div>
-                  );
-                })}
-              </section>
-            )}
-
-            {_animatedImages.length > 0 && (
-              <section
-                className="my-20 max-w-[600px] mx-auto"
-                aria-label="Animated images"
-                itemScope
-                itemType="https://schema.org/ItemList"
-              >
-                {/* SEO: Animated images section structured data */}
-                <meta itemProp="name" content="Motion Capture — Animated Images" />
-
-                <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
-                  <_Ap size={18} className="animate-spin-slow" aria-hidden="true" />
-                  <span className="text-[10px] uppercase font-black tracking-[0.3em]">
-                    Motion_Capture
-                  </span>
-                </div>
-                <div className="flex flex-col gap-10 items-center">
-                  {_animatedImages.map((img: string, idx: number) => (
-                    <figure
-                      key={`gif-${idx}`}
-                      className="w-auto max-w-[80%] md:max-w-full relative group"
-                      itemScope
-                      itemType="https://schema.org/ImageObject"
-                      itemProp="itemListElement"
-                    >
-                      <meta itemProp="position" content={String(idx + 1)} />
-                      <meta itemProp="url" content={_fC(img)} />
-                      <meta itemProp="name" content={`${_pD.title} — Animated image ${idx + 1}`} />
-                      <img
-                        src={_fC(img)}
-                        alt={`${_pD.title} — Animated image ${idx + 1}`}
-                        className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
-                        style={{ objectFit: "contain" }}
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      <div
-                        className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white"
-                        aria-hidden="true"
-                      >
-                        GIF
-                      </div>
-                      <figcaption className="sr-only">
-                        {_pD.title} — Animated image {idx + 1}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {_galleryImages.length > 0 && (
-              <section
-                className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
-                aria-label="Image gallery"
-                itemScope
-                itemType="https://schema.org/ImageGallery"
-              >
-                {/* SEO: Gallery section structured data */}
-                <meta itemProp="name" content={`Gallery — ${_pD.title}`} />
-                <meta itemProp="description" content={`Image gallery for: ${_pD.title}`} />
-
-                <div className="flex items-center gap-4 mb-10">
-                  <div
-                    className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"
-                    aria-hidden="true"
-                  >
-                    <_Ca size={18} />
-                  </div>
-                  <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
-                    Gallery
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {_galleryImages.map((img: string, idx: number) => (
-                    <figure
-                      key={idx}
-                      className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative"
-                      itemScope
-                      itemType="https://schema.org/ImageObject"
-                      itemProp="image"
-                    >
-                      <meta itemProp="url" content={_fC(img)} />
-                      <meta itemProp="name" content={`${_pD.title} — Gallery ${idx + 1}`} />
-                      <img
-                        src={_fC(img)}
-                        alt={`${_pD.title} — Gallery image ${idx + 1}`}
-                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.opacity = "0.3";
-                        }}
-                      />
-                      <div
-                        className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                        aria-hidden="true"
-                      />
-                      <figcaption className="sr-only">
-                        {_pD.title} — Gallery image {idx + 1}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-
-                <div className="mt-10">
-                  <SocialWidgetsMobileBottom />
-                </div>
-              </section>
-            )}
-
-            {_galleryImages.length === 0 && <SocialWidgetsMobileBottom />}
-
-            <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
-              <button
-                onClick={_hSv}
-                aria-label={_iS ? "Remove from saved" : "Save this article"}
-                aria-pressed={_iS}
-                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
-                  _iS
-                    ? "bg-emerald-500 border-black text-black"
-                    : "bg-white dark:bg-black border-black dark:border-white text-black dark:text-white"
-                }`}
-              >
-                {_iS ? <_Ck size={16} aria-hidden="true" /> : <_Bm size={16} aria-hidden="true" />}
-                {_iS ? "Saved" : "Save"}
-              </button>
-
-              <button
-                onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
-                    navigator.clipboard.writeText(window.location.href);
-                    toast.success("Node Link Copied");
-                  }
-                }}
-                aria-label="Copy permalink for this article"
-                className="flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-black uppercase text-[12px] tracking-widest shadow-md hover:invert active:scale-95 transition-all"
-              >
-                <_Sh size={16} aria-hidden="true" />
-                Permalink
-              </button>
-            </div>
-
-            {/* SINKRONISASI: Comment Section sekarang me-render aman berkat perbaikan useAuth */}
-            <CommentSection articleId={_art.id} />
-          </article>
+                  <meta itemProp="name" content={`${_pD.title} — Gallery image ${idx + 1}`} />
+                </figure>
+              ))}
+            </section>
+          )}
 
           <aside
-            className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0"
-            aria-label="Sidebar — Trending articles and social links"
+            aria-label="Related Substack post"
+            itemScope
+            itemType="https://schema.org/NewsArticle"
           >
-            <div className="sticky top-32 space-y-8">
-              <nav
-                className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl"
-                aria-label="Trending articles"
-                itemScope
-                itemType="https://schema.org/ItemList"
-              >
-                {/* SEO: Trending articles structured data */}
-                <meta itemProp="name" content="Trending Articles on Brawnly" />
-
-                <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" aria-hidden="true" />{" "}
-                  Trending
-                </h2>
-                <ol className="flex flex-col gap-10">
-                  {_hC.map((it: any, i: number) => (
-                    <li key={it.id} itemScope itemType="https://schema.org/Article" itemProp="itemListElement">
-                      <meta itemProp="position" content={String(i + 1)} />
-                      <meta itemProp="url" content={`https://www.brawnly.online/article/${it.slug}`} />
-                      <meta itemProp="headline" content={it.title} />
-                      <_L
-                        to={`/article/${it.slug}`}
-                        aria-label={`Read trending article: ${it.title}`}
-                        className="group block"
-                      >
-                        <div className="flex gap-4">
-                          <span
-                            className="text-3xl font-black text-neutral-200 dark:text-neutral-800 group-hover:text-emerald-500 transition-colors"
-                            aria-hidden="true"
-                          >
-                            0{i + 1}
-                          </span>
-                          <div>
-                            <p
-                              className="text-[14px] font-black leading-tight uppercase group-hover:underline line-clamp-2 text-black dark:text-white"
-                              itemProp="headline"
-                            >
-                              {it.title}
-                            </p>
-                            <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
-                              {(it.views || 0).toLocaleString("en-US")} Identity_Reads
-                            </span>
-                          </div>
-                        </div>
-                      </_L>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
-
-              <SocialWidgetsDesktop />
-            </div>
+            <h2 itemProp="headline">{SUBSTACK_POST_TITLE}</h2>
+            <p itemProp="description">{SUBSTACK_POST_DESC}</p>
+            <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>
+              Read on Substack
+            </a>
           </aside>
-        </div>
-      </div>
 
-      <ScrollToTopButton />
-    </main>
+          <meta
+            itemProp="interactionStatistic"
+            content={`${_realtimeViews} reads`}
+          />
+          <span itemScope itemType="https://schema.org/InteractionCounter">
+            <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
+            <meta itemProp="userInteractionCount" content={String(_realtimeViews)} />
+          </span>
+        </article>
+
+        <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
+          <button
+            onClick={_hSv}
+            aria-label={_iS ? "Remove article from saved" : "Save this article"}
+            aria-pressed={_iS}
+            className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
+              _iS
+                ? "bg-emerald-500 border-black text-black scale-110"
+                : "bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl"
+            }`}
+          >
+            {_iS ? <_Ck size={20} aria-hidden="true" /> : <_Bm size={20} aria-hidden="true" />}
+          </button>
+
+          <button
+            onClick={() => {
+              if (typeof navigator !== "undefined" && navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Node Link Copied");
+              }
+            }}
+            aria-label="Copy link to this article"
+            className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500"
+          >
+            <_Sh size={20} aria-hidden="true" />
+          </button>
+        </aside>
+
+        <div className="max-w-[1320px] mx-auto px-4 md:px-10">
+          <header
+            className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white"
+            itemScope
+            itemType="https://schema.org/Article"
+          >
+            <meta itemProp="headline" content={_pD.title} />
+            <meta itemProp="description" content={_pD.excerpt} />
+            <meta itemProp="datePublished" content={_art.published_at} />
+            {(_art as any).updated_at && (
+              <meta itemProp="dateModified" content={(_art as any).updated_at} />
+            )}
+            <meta itemProp="author" content={_art.author || "Brawnly"} />
+            <meta itemProp="url" content={`https://www.brawnly.online/article/${_slV}`} />
+            {_rawImgSource && (
+              <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
+            )}
+
+            <div className="flex justify-between items-start mb-6">
+              <_L
+                to="/articles"
+                aria-label="Back to all articles"
+                className="text-red-700 font-black uppercase text-[11px] md:text-[13px] tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all italic"
+              >
+                <_Al size={14} aria-hidden="true" /> Node_Explore
+              </_L>
+
+              {_isOff && (
+                <span
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-center gap-2 text-red-500 text-[9px] font-bold uppercase tracking-widest animate-pulse border border-red-500 px-3 py-1 rounded-full"
+                >
+                  <_Wo size={12} aria-hidden="true" /> OFFLINE
+                </span>
+              )}
+            </div>
+
+            <h1
+              className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words"
+              aria-hidden="true"
+            >
+              {_pD.title}
+            </h1>
+
+            <div className="flex flex-col md:flex-row md:items-end justify-between py-6 md:py-8 border-t-2 border-black dark:border-white gap-6">
+              <div
+                className="flex items-center gap-4 md:gap-5"
+                itemScope
+                itemType="https://schema.org/Person"
+              >
+                <div className="w-12 h-12 md:w-14 md:h-14 overflow-hidden border-2 border-black grayscale shadow-lg bg-neutral-100">
+                  <img
+                    src={_gOI(_mA, 120)}
+                    className="w-full h-full object-cover"
+                    alt={`Author avatar — ${_art.author || "Brawnly"}`}
+                    itemProp="image"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <div>
+                  <span
+                    className="block text-[13px] md:text-[15px] font-black uppercase italic"
+                    itemProp="name"
+                  >
+                    By {_art.author || "Brawnly"}
+                  </span>
+                  <time
+                    dateTime={_art.published_at}
+                    className="text-[10px] md:text-[12px] uppercase opacity-80"
+                    itemProp="birthDate"
+                  >
+                    <FormattedDate dateString={_art.published_at} />
+                  </time>
+                </div>
+              </div>
+
+              <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
+                <span
+                  aria-label={`${_realtimeViews} kali dibaca`}
+                  itemProp="interactionStatistic"
+                >
+                  {_realtimeViews.toLocaleString("en-US")}
+                </span>{" "}
+                <_Ey size={20} className="text-red-600" aria-hidden="true" />
+              </div>
+            </div>
+          </header>
+
+          <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
+            <article className="flex-1 relative min-w-0" itemProp="articleBody">
+              <p
+                className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic"
+                aria-hidden="true"
+                itemProp="description"
+              >
+                {_pD.excerpt}
+              </p>
+
+              <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
+                <div
+                  className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <img
+                    src={_muscleLeft}
+                    alt=""
+                    className="w-full drop-shadow-2xl"
+                  />
+                </div>
+                <figure
+                  className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
+                  itemScope
+                  itemType="https://schema.org/ImageObject"
+                >
+                  <meta itemProp="url" content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""} />
+                  <meta itemProp="name" content={`Cover image — ${_pD.title}`} />
+                  <meta itemProp="description" content={`Featured cover image for: ${_pD.title}`} />
+                  <ArticleCoverImage
+                    imageUrl={_blobUrl || _rawImgSource || ""}
+                    title={_pD.title}
+                    slug={_slV}
+                    className="w-full aspect-video md:aspect-[21/9] object-cover"
+                  />
+                  <figcaption className="sr-only">
+                    {_pD.title} — cover image
+                  </figcaption>
+                </figure>
+                <div
+                  className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <img
+                    src={_muscleRight}
+                    alt=""
+                    className="w-full drop-shadow-2xl"
+                  />
+                </div>
+              </div>
+
+              <Suspense fallback={
+                <div className="lg:hidden flex flex-col gap-6 my-10 max-w-[840px] mx-auto">
+                  <SuspenseFallbackWidget />
+                  <SuspenseFallbackWidget />
+                </div>
+              }>
+                <SocialWidgetsMobileTop />
+              </Suspense>
+
+              <div className="max-w-[840px] mx-auto">
+                {_parsedParagraphs.map((block, i) => {
+                  if (block.type === "tweet") {
+                    return (
+                      <div
+                        key={`para-tweet-${i}`}
+                        className="my-10 md:my-14"
+                        itemScope
+                        itemType="https://schema.org/SocialMediaPosting"
+                      >
+                        <meta itemProp="url" content={block.url} />
+                        <meta itemProp="sharedContent" content={block.url} />
+                        <Suspense fallback={
+                          <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
+                        }>
+                          <TwitterEmbed url={block.url} align="center" />
+                        </Suspense>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={`para-text-${i}`}
+                      className="text-[18px] md:text-[22px] leading-[1.8] md:leading-[1.85] mb-8 md:mb-10 font-serif text-neutral-800 dark:text-neutral-300"
+                      dangerouslySetInnerHTML={{ __html: block.html }}
+                    />
+                  );
+                })}
+              </div>
+
+              {_allTweetUrls.length > 0 && (
+                <section
+                  className="my-16 max-w-[840px] mx-auto"
+                  aria-label="Embedded tweets"
+                  itemScope
+                  itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="name" content="Embedded Tweets" />
+                  <meta itemProp="description" content={`Tweets embedded in article: ${_pD.title}`} />
+
+                  <div className="flex items-center gap-3 mb-10 opacity-60">
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="w-5 h-5 fill-current text-black dark:text-white"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
+                      Embedded_Tweets
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-8">
+                    {_allTweetUrls.map((url, idx) => (
+                      <div
+                        key={`db-tweet-${idx}`}
+                        itemScope
+                        itemType="https://schema.org/SocialMediaPosting"
+                        itemProp="itemListElement"
+                      >
+                        <meta itemProp="position" content={String(idx + 1)} />
+                        <meta itemProp="url" content={url} />
+                        <Suspense fallback={
+                          <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
+                        }>
+                          <TwitterEmbed url={url} align="center" />
+                        </Suspense>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {_youtubeShorts.length > 0 && (
+                <section
+                  className="my-16 max-w-[840px] mx-auto"
+                  aria-label="Embedded YouTube videos"
+                  itemScope
+                  itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="name" content="Embedded YouTube Videos" />
+                  <meta itemProp="description" content={`Videos embedded in article: ${_pD.title}`} />
+
+                  {_youtubeShorts.map((videoUrl: string, idx: number) => {
+                    const embedUrl = _getEmbedUrl(videoUrl);
+                    if (!embedUrl) return null;
+
+                    const autoplayUrl = `${embedUrl}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
+
+                    return (
+                      <div
+                        key={`yt-${idx}`}
+                        className="flex flex-col items-center justify-center mb-16"
+                        itemScope
+                        itemType="https://schema.org/VideoObject"
+                        itemProp="itemListElement"
+                      >
+                        <meta itemProp="position" content={String(idx + 1)} />
+                        <meta itemProp="name" content={`${_pD.title} — Video ${idx + 1}`} />
+                        <meta itemProp="description" content={_pD.excerpt} />
+                        <meta itemProp="embedUrl" content={embedUrl} />
+                        <meta itemProp="contentUrl" content={videoUrl} />
+                        {_rawImgSource && (
+                          <meta itemProp="thumbnailUrl" content={_gOI(_rawImgSource, 600)} />
+                        )}
+                        {_art.published_at && (
+                          <meta itemProp="uploadDate" content={_art.published_at} />
+                        )}
+
+                        <div className="relative w-full flex justify-center">
+                          <div
+                            className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
+                            aria-hidden="true"
+                          />
+                          <iframe
+                            width="459"
+                            height="816"
+                            src={autoplayUrl}
+                            title={`${_pD.title} — Video ${idx + 1}`}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                            loading="lazy"
+                            className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
+                          />
+                        </div>
+
+                        <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
+                          <_Pc size={16} aria-hidden="true" /> Watch Short
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+
+              {_animatedImages.length > 0 && (
+                <section
+                  className="my-20 max-w-[600px] mx-auto"
+                  aria-label="Animated images"
+                  itemScope
+                  itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="name" content="Motion Capture — Animated Images" />
+
+                  <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
+                    <_Ap size={18} className="animate-spin-slow" aria-hidden="true" />
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
+                      Motion_Capture
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-10 items-center">
+                    {_animatedImages.map((img: string, idx: number) => (
+                      <figure
+                        key={`gif-${idx}`}
+                        className="w-auto max-w-[80%] md:max-w-full relative group"
+                        itemScope
+                        itemType="https://schema.org/ImageObject"
+                        itemProp="itemListElement"
+                      >
+                        <meta itemProp="position" content={String(idx + 1)} />
+                        <meta itemProp="url" content={_fC(img)} />
+                        <meta itemProp="name" content={`${_pD.title} — Animated image ${idx + 1}`} />
+                        <img
+                          src={_fC(img)}
+                          alt={`${_pD.title} — Animated image ${idx + 1}`}
+                          className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
+                          style={{ objectFit: "contain" }}
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        <div
+                          className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white"
+                          aria-hidden="true"
+                        >
+                          GIF
+                        </div>
+                        <figcaption className="sr-only">
+                          {_pD.title} — Animated image {idx + 1}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {_galleryImages.length > 0 && (
+                <section
+                  className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
+                  aria-label="Image gallery"
+                  itemScope
+                  itemType="https://schema.org/ImageGallery"
+                >
+                  <meta itemProp="name" content={`Gallery — ${_pD.title}`} />
+                  <meta itemProp="description" content={`Image gallery for: ${_pD.title}`} />
+
+                  <div className="flex items-center gap-4 mb-10">
+                    <div
+                      className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"
+                      aria-hidden="true"
+                    >
+                      <_Ca size={18} />
+                    </div>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
+                      Gallery
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {_galleryImages.map((img: string, idx: number) => (
+                      <figure
+                        key={idx}
+                        className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative"
+                        itemScope
+                        itemType="https://schema.org/ImageObject"
+                        itemProp="image"
+                      >
+                        <meta itemProp="url" content={_fC(img)} />
+                        <meta itemProp="name" content={`${_pD.title} — Gallery ${idx + 1}`} />
+                        <img
+                          src={_fC(img)}
+                          alt={`${_pD.title} — Gallery image ${idx + 1}`}
+                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.opacity = "0.3";
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                          aria-hidden="true"
+                        />
+                        <figcaption className="sr-only">
+                          {_pD.title} — Gallery image {idx + 1}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+
+                  <div className="mt-10">
+                    <Suspense fallback={
+                      <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
+                        <SuspenseFallbackWidget />
+                        <SuspenseFallbackWidget />
+                      </div>
+                    }>
+                      <SocialWidgetsMobileBottom />
+                    </Suspense>
+                  </div>
+                </section>
+              )}
+
+              {_galleryImages.length === 0 && (
+                <Suspense fallback={
+                  <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
+                    <SuspenseFallbackWidget />
+                    <SuspenseFallbackWidget />
+                  </div>
+                }>
+                  <SocialWidgetsMobileBottom />
+                </Suspense>
+              )}
+
+              <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
+                <button
+                  onClick={_hSv}
+                  aria-label={_iS ? "Remove from saved" : "Save this article"}
+                  aria-pressed={_iS}
+                  className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
+                    _iS
+                      ? "bg-emerald-500 border-black text-black"
+                      : "bg-white dark:bg-black border-black dark:border-white text-black dark:text-white"
+                  }`}
+                >
+                  {_iS ? <_Ck size={16} aria-hidden="true" /> : <_Bm size={16} aria-hidden="true" />}
+                  {_iS ? "Saved" : "Save"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href);
+                      toast.success("Node Link Copied");
+                    }
+                  }}
+                  aria-label="Copy permalink for this article"
+                  className="flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-black uppercase text-[12px] tracking-widest shadow-md hover:invert active:scale-95 transition-all"
+                >
+                  <_Sh size={16} aria-hidden="true" />
+                  Permalink
+                </button>
+              </div>
+
+              <CommentSection articleId={_art.id} />
+            </article>
+
+            <aside
+              className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0"
+              aria-label="Sidebar — Trending articles and social links"
+            >
+              <div className="sticky top-32 space-y-8">
+                <nav
+                  className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl"
+                  aria-label="Trending articles"
+                  itemScope
+                  itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="name" content="Trending Articles on Brawnly" />
+
+                  <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" aria-hidden="true" />{" "}
+                    Trending
+                  </h2>
+                  <ol className="flex flex-col gap-10">
+                    {_hC.map((it: any, i: number) => (
+                      <li key={it.id} itemScope itemType="https://schema.org/Article" itemProp="itemListElement">
+                        <meta itemProp="position" content={String(i + 1)} />
+                        <meta itemProp="url" content={`https://www.brawnly.online/article/${it.slug}`} />
+                        <meta itemProp="headline" content={it.title} />
+                        <_L
+                          to={`/article/${it.slug}`}
+                          aria-label={`Read trending article: ${it.title}`}
+                          className="group block"
+                        >
+                          <div className="flex gap-4">
+                            <span
+                              className="text-3xl font-black text-neutral-200 dark:text-neutral-800 group-hover:text-emerald-500 transition-colors"
+                              aria-hidden="true"
+                            >
+                              0{i + 1}
+                            </span>
+                            <div>
+                              <p
+                                className="text-[14px] font-black leading-tight uppercase group-hover:underline line-clamp-2 text-black dark:text-white"
+                                itemProp="headline"
+                              >
+                                {it.title}
+                              </p>
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
+                                {(it.views || 0).toLocaleString("en-US")} Identity_Reads
+                              </span>
+                            </div>
+                          </div>
+                        </_L>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+
+                <Suspense fallback={
+                  <div className="flex flex-col gap-6">
+                    <SuspenseFallbackWidget />
+                    <SuspenseFallbackWidget />
+                    <SuspenseFallbackWidget />
+                    <SuspenseFallbackWidget />
+                  </div>
+                }>
+                  <SocialWidgetsDesktop />
+                </Suspense>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <ScrollToTopButton />
+      </main>
+    </Suspense>
   );
 }

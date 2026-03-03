@@ -6,7 +6,8 @@ import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
 import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
 import { detectBestFormat } from '@/lib/imageFormat';
 import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
-import { wasmTranscodeImage } from '@/lib/wasmImagePipeline';
+
+type ImageFormat = "webp" | "avif";
 
 interface ArticleImageGalleryProps {
   images: string;
@@ -77,9 +78,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
 
   if (!_iP.length) return null;
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — ImageGallery (existing + extended)
-     ============================================================ */
   const _ld = {
     "@context": "https://schema.org",
     "@type": "ImageGallery",
@@ -111,9 +109,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
     },
   };
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — ItemList (per-image list for crawlers)
-     ============================================================ */
   const _ldItemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -144,13 +139,10 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
       itemScope
       itemType="https://schema.org/ImageGallery"
     >
-      {/* ── JSON-LD: ImageGallery (existing, extended) ── */}
       <script type="application/ld+json">{JSON.stringify(_ld)}</script>
 
-      {/* ── JSON-LD: ItemList (per-image ordered list for crawlers) ── */}
       <script type="application/ld+json">{JSON.stringify(_ldItemList)}</script>
 
-      {/* ── Microdata: gallery-level meta ── */}
       <meta itemProp="name" content={_tS || `Gallery ${_sl}`} />
       <meta
         itemProp="description"
@@ -166,7 +158,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
       />
       <meta itemProp="numberOfItems" content={String(_iP.length)} />
 
-      {/* ── SEO HIDDEN: full image list for crawlers ── */}
       <div
         aria-hidden="true"
         style={{
@@ -178,7 +169,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           whiteSpace: "nowrap",
         }}
       >
-        {/* Gallery title & article association */}
         <span itemScope itemType="https://schema.org/Article">
           <a
             href={`https://www.brawnly.online/article/${_sl}`}
@@ -192,7 +182,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           <span itemProp="publisher" content="Brawnly" />
         </span>
 
-        {/* Publisher */}
         <span itemScope itemType="https://schema.org/Organization">
           <a
             href="https://www.brawnly.online"
@@ -205,7 +194,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           <span itemProp="name" content="Brawnly" />
         </span>
 
-        {/* Hidden image list — each image fully described for crawlers */}
         <ol aria-label={_tS ? `Image list for ${_tS}` : "Gallery image list"}>
           {_iP.map((_p, _idx) => {
             const _url = _fC(_p);
@@ -266,14 +254,12 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           })}
         </ol>
 
-        {/* Canonical article back-reference */}
         <link
           rel="isPartOf"
           href={`https://www.brawnly.online/article/${_sl}`}
         />
       </div>
 
-      {/* ── Visible heading (existing logic preserved) ── */}
       {_tS && (
         <h2
           className="text-lg font-black uppercase mb-4 text-gray-900 dark:text-white"
@@ -283,7 +269,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
         </h2>
       )}
 
-      {/* ── Gallery grid ── */}
       <div
         className="grid grid-cols-2 gap-2 md:gap-3 w-full"
         role="list"
@@ -310,12 +295,33 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                 setOptimizedUrl(URL.createObjectURL(cached));
               } else if (navigator.onLine) {
                 try {
-                  const fmt = await detectBestFormat();
+                  const fmtStr = await detectBestFormat();
+                  const fmt = (fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
                   const res = await fetch(_hQ, { mode: 'cors' });
                   const blob = await res.blob();
-                  const transcoded = await wasmTranscodeImage(blob, fmt, 0.7);
-                  await saveAssetToShared(assetId, transcoded);
-                  setOptimizedUrl(URL.createObjectURL(transcoded));
+                  
+                  if (window.Worker) {
+                    const transcoded = await new Promise<Blob>((resolve, reject) => {
+                      const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
+                      
+                      worker.onmessage = (e) => {
+                        const { error, result } = e.data;
+                        worker.terminate();
+                        if (error) reject(new Error(error));
+                        else resolve(result);
+                      };
+
+                      worker.onerror = (err) => {
+                        worker.terminate();
+                        reject(err);
+                      };
+
+                      worker.postMessage({ id: assetId, blob: blob, format: fmt, quality: 0.7 });
+                    });
+                    
+                    await saveAssetToShared(assetId, transcoded);
+                    setOptimizedUrl(URL.createObjectURL(transcoded));
+                  }
                 } catch (e) {}
               }
             })();
@@ -329,7 +335,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
               itemScope
               itemType="https://schema.org/ImageObject"
             >
-              {/* ── Microdata per image item ── */}
               <meta itemProp="url" content={_hQ} />
               <meta itemProp="contentUrl" content={_hQ} />
               <meta
@@ -402,7 +407,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                 )}
               </a>
 
-              {/* ── sr-only figcaption for accessibility + SEO ── */}
               <figcaption className="sr-only">
                 {_tS
                   ? `${_tS} — Image ${_sI + _ix + 1}${_isGif ? " (animated GIF)" : ""}`
@@ -413,7 +417,6 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
         })}
       </div>
 
-      {/* ── SEO HIDDEN: summary footer for crawlers ── */}
       <div
         aria-hidden="true"
         style={{

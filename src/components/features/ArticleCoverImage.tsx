@@ -1,10 +1,11 @@
 import React, { useState as _s, useMemo as _m, useEffect as _e } from 'react';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
-import { wasmTranscodeImage as _wTI } from "@/lib/wasmImagePipeline";
 import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
 import { detectBestFormat } from '@/lib/imageFormat';
 import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
+
+type ImageFormat = "webp" | "avif";
 
 interface ArticleCoverImageProps {
   imageUrl?: string | null;
@@ -50,13 +51,31 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       const b = await r.blob();
       
       let finalBlob = b;
-      if (b.type !== "image/gif") {
+      if (b.type !== "image/gif" && window.Worker) {
         try {
-          const _fmt = await detectBestFormat();
+          const _fmtStr = await detectBestFormat();
+          const _fmt = (_fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
           const _quality = _iE ? 0.4 : 0.75; 
-          const optimized = await _wTI(b, _fmt, _quality);
-          if (optimized) {
-            finalBlob = optimized;
+
+          finalBlob = await new Promise<Blob>((resolve, reject) => {
+            const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
+            
+            worker.onmessage = (e) => {
+              const { error, result } = e.data;
+              worker.terminate();
+              if (error) reject(new Error(error));
+              else resolve(result);
+            };
+
+            worker.onerror = (err) => {
+              worker.terminate();
+              reject(err);
+            };
+
+            worker.postMessage({ id: `cover_${_sl}`, blob: b, format: _fmt, quality: _quality });
+          });
+
+          if (finalBlob) {
             await saveAssetToShared(`cover_${_sl}`, finalBlob);
           }
         } catch { }
@@ -107,9 +126,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
   const _dU = _isGif ? _sU : _gOI(_sU, _tWidth);
   const _fU = _oW || _dU;
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — ImageObject (cover image)
-     ============================================================ */
   const _ldImageObject = {
     "@context": "https://schema.org",
     "@type": "ImageObject",
@@ -143,9 +159,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     "acquireLicensePage": `https://www.brawnly.online/article/${_sl}`,
   };
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — WebPage primaryImage reference
-     ============================================================ */
   const _ldWebPage = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -171,13 +184,10 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       itemScope
       itemType="https://schema.org/ImageObject"
     >
-      {/* ── JSON-LD: ImageObject (cover image) ── */}
       <script type="application/ld+json">{JSON.stringify(_ldImageObject)}</script>
 
-      {/* ── JSON-LD: WebPage primaryImageOfPage reference ── */}
       <script type="application/ld+json">{JSON.stringify(_ldWebPage)}</script>
 
-      {/* ── Microdata: ImageObject wrapper ── */}
       <meta itemProp="url" content={_sU} />
       <meta itemProp="contentUrl" content={_sU} />
       <meta
@@ -200,7 +210,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       <meta itemProp="caption" content={_t || _sl.replace(/-/g, ' ')} />
       <meta itemProp="creditText" content="Brawnly" />
 
-      {/* ── SEO HIDDEN: full cover image node for crawlers ── */}
       <div
         aria-hidden="true"
         style={{
@@ -212,7 +221,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           whiteSpace: "nowrap",
         }}
       >
-        {/* Primary image + article association */}
         <figure itemScope itemType="https://schema.org/ImageObject">
           <img
             src={_sU}
@@ -250,7 +258,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           </figcaption>
         </figure>
 
-        {/* Article back-reference */}
         <span itemScope itemType="https://schema.org/Article">
           <a
             href={`https://www.brawnly.online/article/${_sl}`}
@@ -267,7 +274,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           />
         </span>
 
-        {/* Publisher */}
         <span itemScope itemType="https://schema.org/Organization">
           <a
             href="https://www.brawnly.online"
@@ -280,13 +286,11 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           <span itemProp="name" content="Brawnly" />
         </span>
 
-        {/* Canonical article link */}
         <link
           rel="isPartOf"
           href={`https://www.brawnly.online/article/${_sl}`}
         />
 
-        {/* Optimized image variant reference (1200w) */}
         <span itemScope itemType="https://schema.org/ImageObject">
           <meta
             itemProp="url"
@@ -301,7 +305,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         </span>
       </div>
 
-      {/* ── Visual wrapper (existing logic preserved) ── */}
       <div className="p-[4px] bg-gradient-to-r from-[#ff0099] via-[#00ffff] to-[#ccff00] rounded-sm shadow-[6px_6px_0px_0px_#aa00ff] dark:shadow-[6px_6px_0px_0px_#00ffff] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_#aa00ff] transition-all duration-200">
         <div className="bg-white dark:bg-[#1a0b2e] p-[2px]">
           <a
@@ -342,7 +345,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         </div>
       </div>
 
-      {/* ── Caption (existing logic preserved) ── */}
       <p
         className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#ff0099] dark:text-[#00ffff] font-black text-center drop-shadow-sm italic"
         itemProp="caption"
@@ -350,7 +352,6 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         Brawnly Visual Asset — {_sl.replace(/-/g, ' ')}
       </p>
 
-      {/* ── sr-only figcaption for accessibility + SEO ── */}
       <span className="sr-only" role="img" aria-label={_t || _sl.replace(/-/g, ' ')}>
         {_t
           ? `${_t} — featured cover image${_isGif ? " (animated)" : ""}`

@@ -8,10 +8,11 @@ import { useSaveData as _uSD } from "@/hooks/useSaveData";
 import { CLOUDINARY_CONFIG as _CC } from "@/lib/supabase";
 import { setCookieHash, mirrorQuery } from "@/lib/enterpriseStorage";
 import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
-import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
 import { detectBestFormat } from "@/lib/imageFormat";
 
 const VIBRANT_COLORS = ["#facc15", "#f87171", "#60a5fa", "#4ade80", "#c084fc", "#f472b6", "#fb923c", "#2dd4bf"];
+
+type ImageFormat = "webp" | "avif";
 
 interface ArticleCardProps {
   article: any;
@@ -25,7 +26,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
   const [_iL, _siL] = _uS(false);
   const [_blobUrl, _sBU] = _uS<string | null>(null);
 
-  // --- TAMBAHAN: State untuk menyimpan warna acak saat pertama dimuat ---
   const [_rC, _sRC] = _uS(() => VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)]);
 
   _uE(() => {
@@ -63,20 +63,37 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           return;
         }
         if (navigator.onLine && !_isLow) {
-          const fmt = await detectBestFormat();
+          const fmtStr = await detectBestFormat();
+          const fmt = (fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
           const res = await fetch(_dU || _hQ, { mode: 'cors' });
           const blob = await res.blob();
-          const optimized = await wasmTranscodeImage(blob, fmt, 0.6);
-          await saveAssetToShared(_a.slug, optimized);
+
+          if (window.Worker) {
+            const optimized = await new Promise<Blob>((resolve, reject) => {
+              const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
+              
+              worker.onmessage = (e) => {
+                const { error, result } = e.data;
+                worker.terminate();
+                if (error) reject(new Error(error));
+                else resolve(result);
+              };
+
+              worker.onerror = (err) => {
+                worker.terminate();
+                reject(err);
+              };
+
+              worker.postMessage({ id: `card_${_a.slug}`, blob: blob, format: fmt, quality: 0.6 });
+            });
+            await saveAssetToShared(_a.slug, optimized);
+          }
         }
       } catch (e) {}
     })();
     return () => { if (_blobUrl) URL.revokeObjectURL(_blobUrl); };
   }, [_a.slug, _hQ, _isLow]);
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — BlogPosting (existing + extended)
-     ============================================================ */
   const _jL = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -128,9 +145,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
     },
   };
 
-  /* ============================================================
-     JSON-LD STRUCTURED DATA — ListItem (for use in ItemList context)
-     ============================================================ */
   const _jLListItem = {
     "@context": "https://schema.org",
     "@type": "ListItem",
@@ -161,17 +175,13 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       tabIndex={0}
       itemScope
       itemType="https://schema.org/BlogPosting"
-      // --- TAMBAHAN: Ubah warna saat mouse masuk (hover) & lempar ke CSS Variable ---
       onMouseEnter={() => _sRC(VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)])}
       style={{ "--hover-color": _rC } as React.CSSProperties}
     >
-      {/* ── JSON-LD: BlogPosting (existing, extended) ── */}
       <script type="application/ld+json">{JSON.stringify(_jL)}</script>
 
-      {/* ── JSON-LD: ListItem (for article list / ItemList context) ── */}
       <script type="application/ld+json">{JSON.stringify(_jLListItem)}</script>
 
-      {/* ── Microdata: article-level meta ── */}
       <meta itemProp="headline" content={_t} />
       <meta itemProp="name" content={_t} />
       <meta
@@ -200,7 +210,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
         content={`ReadAction:${_a.views ?? 0}`}
       />
 
-      {/* ── SEO HIDDEN: full article node for crawlers ── */}
       <div
         aria-hidden="true"
         style={{
@@ -212,7 +221,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           whiteSpace: "nowrap",
         }}
       >
-        {/* Article canonical link */}
         <a
           href={`https://www.brawnly.online/article/${_a.slug}`}
           itemProp="url"
@@ -222,7 +230,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           {_t}
         </a>
 
-        {/* Author */}
         <span
           itemScope
           itemType="https://schema.org/Person"
@@ -241,7 +248,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           </a>
         </span>
 
-        {/* Publisher */}
         <span
           itemScope
           itemType="https://schema.org/Organization"
@@ -261,7 +267,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           </span>
         </span>
 
-        {/* Cover image */}
         {_hQ && (
           <figure
             itemScope
@@ -281,7 +286,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           </figure>
         )}
 
-        {/* View count / interaction counter */}
         <span
           itemScope
           itemType="https://schema.org/InteractionCounter"
@@ -297,24 +301,20 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           />
         </span>
 
-        {/* Category */}
         {_a.category && (
           <span itemProp="articleSection">{_a.category}</span>
         )}
 
-        {/* Tags / keywords */}
         {_a.tags && (
           <span itemProp="keywords">
             {Array.isArray(_a.tags) ? _a.tags.join(", ") : _a.tags}
           </span>
         )}
 
-        {/* Excerpt / description */}
         {(_a.excerpt || _a.description) && (
           <p itemProp="description">{_a.excerpt || _a.description}</p>
         )}
 
-        {/* isPartOf blog */}
         <span
           itemScope
           itemType="https://schema.org/Blog"
@@ -332,13 +332,11 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
         </span>
       </div>
 
-      {/* ── Visible card content (all existing logic preserved) ── */}
       <_L
         to={`/article/${_a.slug}`}
         className="flex flex-row items-center gap-4 md:gap-8 outline-none relative z-10"
         aria-label={`Read article: ${_t}${_a.category ? ` — ${_a.category}` : ""}`}
       >
-        {/* Thumbnail */}
         <div className="relative flex-shrink-0 w-[110px] h-[110px] md:w-[200px] md:h-[130px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 rounded-xl border-2 border-transparent group-hover:border-[var(--hover-color)] transition-all duration-500 shadow-sm">
           <div className="absolute top-2 left-2 z-20 flex gap-1">
             {_oF && (
@@ -374,9 +372,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           )}
         </div>
 
-        {/* Text content */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Category */}
           <span
             className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 text-[#00a354] group-hover:text-[var(--hover-color)] transition-colors duration-300 flex items-center gap-2"
             itemProp="articleSection"
@@ -389,7 +385,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             )}
           </span>
 
-          {/* Title */}
           <_m.h2
             className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300"
             initial={{ x: 0 }}
@@ -399,7 +394,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             {_t}
           </_m.h2>
 
-          {/* Author + views */}
           <div className="flex items-center gap-2">
             <img
               src={_gOI(_mA, 40)}
@@ -428,7 +422,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
         </div>
       </_L>
 
-      {/* Decorative blur — aria-hidden */}
       <div
         className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-32 h-32 bg-[var(--hover-color)] opacity-5 rounded-full blur-3xl group-hover:opacity-10 transition-all duration-500"
         aria-hidden="true"

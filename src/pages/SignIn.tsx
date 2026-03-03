@@ -20,7 +20,6 @@ const SignInPage = () => {
   const [isRecognized, setIsRecognized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // PROTEKSI: Jika user sudah terautentikasi, jangan biarkan di halaman ini
     if (!loading && user) {
       navigate("/articles");
       return;

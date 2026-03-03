@@ -101,7 +101,7 @@
     </script>
 
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
-    <link rel="preconnect" href="https://*.supabase.co" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
     
     <link rel="dns-prefetch" href="https://www.instagram.com" />
     <link rel="dns-prefetch" href="https://platform.twitter.com" />
@@ -120,12 +120,14 @@
     <link rel="apple-touch-icon" href="/assets/Brawnly-17aDfvayqUvay.gif" />
 
     <style>
+      :root { font-display: swap; }
       .noscript-msg { padding: 20px; text-align: center; background: #000; color: #fff; }
       .seo-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
-      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background-color: white; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: white; min-height: 100vh; text-rendering: optimizeSpeed; }
       .dark body { background-color: black; color: white; }
-      #root { min-height: 100vh; opacity: 0; animation: fadeIn 0.2s ease forwards; }
-      @keyframes fadeIn { to { opacity: 1; } }
+      #root { min-height: 100vh; opacity: 0; animation: fadeIn 0.2s ease-in-out forwards; will-change: opacity; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      img[loading="lazy"] { aspect-ratio: attr(width) / attr(height); }
     </style>
   </head>
 
@@ -136,14 +138,13 @@
       </div>
     </noscript>
 
-    <div id="root">
-    </div>
+    <div id="root"></div>
 
     <div class="seo-hidden">
       <h1>Brawnly - Smart Fitness & Wellness Tracker</h1>
       <h2>Workout & Fitness Tracking</h2>
       <h2>Personalized Health & Wellness Journal</h2>
-      <img src="/assets/myPride.gif" alt="Brawnly Fitness Transformation" loading="lazy" />
+      <img src="/assets/myPride.gif" alt="Brawnly Fitness Transformation" width="1" height="1" loading="lazy" />
     </div>
 
     <script>
@@ -158,15 +159,14 @@
       };
     </script>
 
-    <script async>
+    <script>
       (function(){try{var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];var _0x2b=function(_0x3c){return atob(_0x3c)};var _0x4d=_0x2b(_0x1a[0])+_0x2b(_0x1a[1])+_0x2b(_0x1a[2]);var _0x5e=document.createElement('link');_0x5e.rel='preconnect';_0x5e.href=_0x4d;_0x5e.crossOrigin='anonymous';document.head.appendChild(_0x5e);var _0x6f=document.createElement('link');_0x6f.rel='dns-prefetch';_0x6f.href=_0x4d;document.head.appendChild(_0x6f)}catch(e){}})();
     </script>
 
-    <script async>
-      (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
+    <script>
+      (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){if(_0x8b!=='renderers'){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}}catch(e){}})();
       window.onerror = function(message) {
-        if (typeof message === 'string' && (message.indexOf('Hydration') !== -1 || message.indexOf('418') !== -1 || message.indexOf('423') !== -1)) {
-          console.warn('Recovering from React Error...');
+        if (typeof message === 'string' && (message.indexOf('Hydration') !== -1 || message.indexOf('418') !== -1)) {
           return true;
         }
       };

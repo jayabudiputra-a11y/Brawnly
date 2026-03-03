@@ -33,9 +33,6 @@ const rotations = [
   "rotate-3",
 ];
 
-/* ============================================================
-   PERSON / AUTHOR CONSTANTS — used across SEO nodes
-   ============================================================ */
 const PERSON_NAME = "Budi Putra Jaya";
 const SITE_URL = "https://www.brawnly.online";
 const SPLASH_URL = `${SITE_URL}/`;
@@ -49,60 +46,64 @@ export default function Splash() {
       setTextIndex((prev) => (prev + 1) % texts.length);
     }, 1400);
 
-    const script = document.createElement("script");
-    script.src =
-      "https://pl28680659.effectivegatecpm.com/c57d71c78e6c823d7af356008a2e25b5/invoke.js";
-    script.async = true;
-    script.setAttribute("data-cfasync", "false");
-    document.body.appendChild(script);
+    const initHeavyAssets = () => {
+      const script = document.createElement("script");
+      script.src = "https://pl28680659.effectivegatecpm.com/c57d71c78e6c823d7af356008a2e25b5/invoke.js";
+      script.async = true;
+      script.setAttribute("data-cfasync", "false");
+      document.body.appendChild(script);
 
-    setCookieHash("splash_session");
-    mirrorQuery({ event: "splash_view", ts: Date.now() });
+      setCookieHash("splash_session");
+      mirrorQuery({ event: "splash_view", ts: Date.now() });
 
-    const processImages = async () => {
-      const fmt = await detectBestFormat();
-      const newBlobs: Record<string, string> = {};
+      const processImages = async () => {
+        const fmt = await detectBestFormat();
+        const newBlobs: Record<string, string> = {};
 
-      for (let i = 0; i < photos.length; i++) {
-        const id = `splash_img_${i}`;
-        const cached = await getAssetFromShared(id);
+        for (let i = 0; i < photos.length; i++) {
+          const id = `splash_img_${i}`;
+          const cached = await getAssetFromShared(id);
 
-        if (cached) {
-          newBlobs[i] = URL.createObjectURL(cached);
-        } else if (navigator.onLine) {
-          try {
-            const res = await fetch(photos[i]);
-            const blob = await res.blob();
-            const optimized = await wasmTranscodeImage(blob, fmt, 0.85);
-            await saveAssetToShared(id, optimized);
-            newBlobs[i] = URL.createObjectURL(optimized);
-          } catch {
+          if (cached) {
+            newBlobs[i] = URL.createObjectURL(cached);
+          } else if (navigator.onLine) {
+            try {
+              const res = await fetch(photos[i]);
+              const blob = await res.blob();
+              
+              const optimized = await wasmTranscodeImage(blob, fmt as any, 0.85);
+              await saveAssetToShared(id, optimized);
+              newBlobs[i] = URL.createObjectURL(optimized);
+            } catch {
+              newBlobs[i] = photos[i];
+            }
+          } else {
             newBlobs[i] = photos[i];
           }
-        } else {
-          newBlobs[i] = photos[i];
         }
-      }
+        setBlobs((prev) => ({ ...prev, ...newBlobs }));
+      };
 
-      setBlobs(newBlobs);
+      processImages();
     };
 
-    processImages();
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(initHeavyAssets);
+    } else {
+      setTimeout(initHeavyAssets, 2000);
+    }
 
     return () => {
       clearInterval(textTimer);
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      const adScript = document.querySelector('script[src*="effectivegatecpm"]');
+      if (adScript) adScript.remove();
+      
       Object.values(blobs).forEach((url) => {
         if (url.startsWith("blob:")) URL.revokeObjectURL(url);
       });
     };
   }, []);
 
-  /* ============================================================
-     JSON-LD: Person — author / subject of the splash page
-     ============================================================ */
   const _jLdPerson = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -125,9 +126,6 @@ export default function Splash() {
     },
   };
 
-  /* ============================================================
-     JSON-LD: WebPage — splash / landing page
-     ============================================================ */
   const _jLdWebPage = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -163,9 +161,6 @@ export default function Splash() {
     },
   };
 
-  /* ============================================================
-     JSON-LD: ImageGallery — splash photos
-     ============================================================ */
   const _jLdGallery = {
     "@context": "https://schema.org",
     "@type": "ImageGallery",
@@ -189,9 +184,6 @@ export default function Splash() {
     },
   };
 
-  /* ============================================================
-     JSON-LD: VideoObject — splash video
-     ============================================================ */
   const _jLdVideo = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -220,9 +212,6 @@ export default function Splash() {
     },
   };
 
-  /* ============================================================
-     JSON-LD: BreadcrumbList
-     ============================================================ */
   const _jLdBreadcrumb = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -249,22 +238,12 @@ export default function Splash() {
       itemType="https://schema.org/WebPage"
       aria-label={`Splash page — ${PERSON_NAME}`}
     >
-      {/* ── JSON-LD: Person ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdPerson)}</script>
-
-      {/* ── JSON-LD: WebPage ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdWebPage)}</script>
-
-      {/* ── JSON-LD: ImageGallery ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdGallery)}</script>
-
-      {/* ── JSON-LD: VideoObject ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdVideo)}</script>
-
-      {/* ── JSON-LD: BreadcrumbList ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdBreadcrumb)}</script>
 
-      {/* ── Microdata: WebPage-level ── */}
       <meta itemProp="url" content={SPLASH_URL} />
       <meta itemProp="name" content={`${PERSON_NAME} — Brawnly`} />
       <meta
@@ -273,7 +252,6 @@ export default function Splash() {
       />
       <meta itemProp="inLanguage" content="id" />
 
-      {/* ── SEO HIDDEN: full person + media node for crawlers ── */}
       <div
         aria-hidden="true"
         style={{
@@ -285,7 +263,6 @@ export default function Splash() {
           whiteSpace: "nowrap",
         }}
       >
-        {/* Person */}
         <span itemScope itemType="https://schema.org/Person" itemProp="about">
           <span itemProp="name">{PERSON_NAME}</span>
           <span itemProp="alternateName">Putra</span>
@@ -303,7 +280,6 @@ export default function Splash() {
           />
         </span>
 
-        {/* Publisher */}
         <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
           <span itemProp="name">Brawnly</span>
           <a
@@ -316,7 +292,6 @@ export default function Splash() {
           </a>
         </span>
 
-        {/* Photo gallery — all photos described for crawlers */}
         <figure
           itemScope
           itemType="https://schema.org/ImageGallery"
@@ -337,6 +312,8 @@ export default function Splash() {
                   alt={`${PERSON_NAME} — photo ${i + 1}`}
                   itemProp="contentUrl"
                   tabIndex={-1}
+                  width="1"
+                  height="1"
                 />
                 <meta itemProp="url" content={src} />
                 <meta
@@ -360,7 +337,6 @@ export default function Splash() {
           </ol>
         </figure>
 
-        {/* Video described for crawlers */}
         <span itemScope itemType="https://schema.org/VideoObject" itemProp="video">
           <meta itemProp="name" content={`${PERSON_NAME} — self video`} />
           <meta
@@ -382,12 +358,10 @@ export default function Splash() {
           </span>
         </span>
 
-        {/* Rotating texts — described as keywords/taglines */}
         <span itemProp="keywords">
           {texts.join(", ")}
         </span>
 
-        {/* Canonical + isPartOf */}
         <link rel="canonical" href={SPLASH_URL} />
         <span itemScope itemType="https://schema.org/WebSite" itemProp="isPartOf">
           <a
@@ -402,7 +376,6 @@ export default function Splash() {
         </span>
       </div>
 
-      {/* ── Header with rotating text (existing logic preserved) ── */}
       <div className="splash-header">
         <h1
           key={textIndex}
@@ -414,7 +387,6 @@ export default function Splash() {
         </h1>
       </div>
 
-      {/* ── Media grid (existing logic preserved) ── */}
       <div
         className="splash-media-wrapper"
         itemScope
@@ -426,10 +398,8 @@ export default function Splash() {
 
         {mediaItems.map((item, index) => {
           const isVideo = item === videoSrc;
-          const imgSrc =
-            index < photos.length ? blobs[index] || photos[index] : "";
-          const isMainPhoto =
-            !isVideo && photos[index]?.includes("putra-self.jpeg");
+          const imgSrc = index < photos.length ? blobs[index] || photos[index] : "";
+          const isMainPhoto = !isVideo && photos[index]?.includes("putra-self.jpeg");
 
           return (
             <div
@@ -448,10 +418,10 @@ export default function Splash() {
                   : "https://schema.org/ImageObject"
               }
               itemProp={isVideo ? "video" : "image"}
+              style={{ willChange: 'transform, opacity' }}
             >
               {isVideo ? (
                 <>
-                  {/* Microdata for video item */}
                   <meta
                     itemProp="name"
                     content={`${PERSON_NAME} — self video`}
@@ -467,11 +437,13 @@ export default function Splash() {
                     className="splash-media"
                     aria-label={`${PERSON_NAME} — personal video`}
                     title={`${PERSON_NAME} — self video`}
+                    poster={photos[0]}
+                    width="400"
+                    height="600"
                   />
                 </>
               ) : (
                 <>
-                  {/* Microdata for image item */}
                   <meta itemProp="url" content={photos[index] || imgSrc} />
                   <meta
                     itemProp="contentUrl"
@@ -491,8 +463,10 @@ export default function Splash() {
                     className="splash-media"
                     loading={index === 0 ? "eager" : "lazy"}
                     itemProp="contentUrl"
+                    width="400"
+                    height="600"
+                    style={{ objectFit: 'cover' }}
                   />
-                  {/* sr-only figcaption for accessibility */}
                   <span className="sr-only">
                     {PERSON_NAME} — photo {index + 1}
                   </span>
@@ -503,7 +477,6 @@ export default function Splash() {
         })}
       </div>
 
-      {/* ── Ad wrapper (existing logic preserved) ── */}
       <div className="splash-ad-wrapper" aria-hidden="true">
         <div className="splash-ad-box">
           <div
