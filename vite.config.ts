@@ -2,12 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
-import injectHTML from "vite-plugin-html-inject";
-import purgecss from "vite-plugin-purgecss";
+import injectHTML from 'vite-plugin-html-inject';
 
 export default defineConfig({
   optimizeDeps: {
-    exclude: ["@jsquash/webp", "@jsquash/avif"]
+    exclude: ['@jsquash/webp', '@jsquash/avif']
   },
   plugins: [
     react({
@@ -16,34 +15,9 @@ export default defineConfig({
       },
     }),
     injectHTML(),
-    purgecss({
-      content: [
-        "./index.html",
-        "./src/**/*.{js,ts,jsx,tsx}",
-      ],
-      safelist: {
-        standard: [
-          /^dark/,
-          /^group/,
-          /^animate/,
-          /^motion/,
-          /^sr-only/,
-          /^grayscale/,
-          /^line-clamp/,
-          /^opacity/,
-          /^translate/,
-          /^scale/,
-          /^blur/,
-          /^will-change/,
-        ],
-        deep: [/dark$/, /group-hover/, /data-\[/],
-        greedy: [],
-      },
-      blocklist: [],
-    }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [],
+      includeAssets: [], 
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -167,7 +141,7 @@ export default defineConfig({
     },
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, "index.html"),
+        main: path.resolve(__dirname, 'index.html'),
       },
       output: {
         entryFileNames: "assets/js/[hash].js",
@@ -175,22 +149,17 @@ export default defineConfig({
         assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("framer-motion")) return "vendor-motion";
-            if (id.includes("@tanstack")) return "vendor-query";
-            if (id.includes("react-dom")) return "vendor-react-dom";
-            if (id.includes("react-router")) return "vendor-router";
-            if (id.includes("react")) return "vendor-react";
-            if (id.includes("supabase")) return "vendor-supabase";
-            if (id.includes("@jsquash")) return "vendor-wasm";
-            if (id.includes("lucide")) return "vendor-icons";
-            if (id.includes("react-helmet")) return "vendor-helmet";
+            if (id.includes("react")) return "react-vendor";
+            if (id.includes("react-dom")) return "react-dom-vendor";
+            if (id.includes("supabase")) return "supabase-vendor";
+            if (id.includes("@jsquash")) return "wasm-vendor";
             return "vendor";
           }
         },
       },
     },
     chunkSizeWarningLimit: 1000,
-    target: "es2020",
+    target: 'es2020',
     reportCompressedSize: false,
   },
   server: {

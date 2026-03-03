@@ -1,21 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class',
+  darkMode: 'class', // ⬅️ WAJIB untuk toggle light / dark
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  safelist: [
-  { pattern: /^animate/ },
-  { pattern: /^sr-only/ },
-  { pattern: /^grayscale/ },
-  { pattern: /^line-clamp/ },
-  { pattern: /^opacity/ },
-  { pattern: /^translate/ },
-  { pattern: /^scale/ },
-  { pattern: /^blur/ },
-  { pattern: /^will-change/ },
-],
   theme: {
     extend: {
       colors: {
