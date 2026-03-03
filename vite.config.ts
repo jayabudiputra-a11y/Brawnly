@@ -2,9 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import injectHTML from 'vite-plugin-html-inject';
 
 export default defineConfig({
-  // Mencegah Vite memproses library WASM agar path binary tetap konsisten
   optimizeDeps: {
     exclude: ['@jsquash/webp', '@jsquash/avif']
   },
@@ -14,6 +14,7 @@ export default defineConfig({
         compact: true,
       },
     }),
+    injectHTML(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [
@@ -67,9 +68,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 20,
                 maxAgeSeconds: 31536000
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
               }
             }
           },
@@ -82,13 +80,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 2592000,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-              fetchOptions: {
-                mode: 'cors',
-                credentials: 'omit',
               }
             },
           },
@@ -100,10 +91,7 @@ export default defineConfig({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 86400,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              }
             },
           },
         ],
@@ -149,6 +137,7 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("react")) return "react-vendor";
+            if (id.includes("react-dom")) return "react-dom-vendor";
             if (id.includes("supabase")) return "supabase-vendor";
             if (id.includes("@jsquash")) return "wasm-vendor";
             return "vendor";
@@ -156,14 +145,11 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 1000,
+    target: 'es2020',
+    reportCompressedSize: false,
   },
-  experimental: {
-    renderBuiltUrl(filename, { hostType }) {
-      if (hostType === 'js') {
-        return { runtime: `__deferScript(${JSON.stringify(filename)})` };
-      }
-      return { relative: true };
-    },
+  server: {
+    open: true,
   },
 });

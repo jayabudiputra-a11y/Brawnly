@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
 
-    <meta http-equiv="Permissions-Policy" content="unload=()" />
-
     <title>Brawnly - Smart Fitness &amp; Wellness Tracker</title>
     <link rel="canonical" href="https://www.brawnly.online/" id="canonical-link" />
     <meta name="description" content="Brawnly adalah Smart Fitness & Wellness Tracker terbaik. Tingkatkan performa fisik, jurnal latihan, dan pelacakan kesehatan Anda dalam satu aplikasi modern." />
@@ -21,7 +19,7 @@
     <meta property="og:url" content="https://www.brawnly.online/" />
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
-    <meta property="og:image" content="/src/assets/myPride.gif" />
+    <meta property="og:image" content="/assets/myPride.gif" />
 
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:;
@@ -84,20 +82,20 @@
         "@type": "WebApplication",
         "name": "Brawnly",
         "url": "https://www.brawnly.online",
-        "image": "/src/assets/Brawnly.gif",
-        "thumbnailUrl": "/src/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
+        "image": "/assets/Brawnly.gif",
+        "thumbnailUrl": "/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
         "description": "Smart Fitness & Wellness Tracker Application 2026",
         "applicationCategory": "HealthApplication",
         "operatingSystem": "All",
         "author": {
           "@type": "Person",
           "name": "Budi Putra Jaya",
-          "image": "/src/assets/myPride.gif",
+          "image": "/assets/myPride.gif",
           "jobTitle": "Lead Developer"
         },
         "brand": {
           "@type": "Brand",
-          "logo": "/src/assets/masculineLogo.svg"
+          "logo": "/assets/masculineLogo.svg"
         }
       }
     </script>
@@ -118,13 +116,16 @@
       (function(){try{var _0x7a=localStorage.getItem('theme')||'light';if(_0x7a==='dark'||(_0x7a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();
     </script>
 
-    <link rel="icon" type="image/svg+xml" href="/src/assets/Brawnly-favicon.svg" />
-    <link rel="apple-touch-icon" href="/src/assets/Brawnly-17aDfvayqUvay.gif" />
+    <link rel="icon" type="image/svg+xml" href="/assets/Brawnly-favicon.svg" />
+    <link rel="apple-touch-icon" href="/assets/Brawnly-17aDfvayqUvay.gif" />
 
     <style>
       .noscript-msg { padding: 20px; text-align: center; background: #000; color: #fff; }
       .seo-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
-      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background-color: white; }
+      .dark body { background-color: black; color: white; }
+      #root { min-height: 100vh; opacity: 0; animation: fadeIn 0.2s ease forwards; }
+      @keyframes fadeIn { to { opacity: 1; } }
     </style>
   </head>
 
@@ -135,22 +136,25 @@
       </div>
     </noscript>
 
-    <div id="root" suppresshydrationwarning="true">
-      <div class="seo-hidden">
-        <h1>Brawnly - Smart Fitness & Wellness Tracker</h1>
-        <h2>Workout & Fitness Tracking</h2>
-        <h2>Personalized Health & Wellness Journal</h2>
-        <img src="/src/assets/myPride.gif" alt="Brawnly Fitness Transformation" loading="lazy" />
-      </div>
+    <div id="root">
+    </div>
+
+    <div class="seo-hidden">
+      <h1>Brawnly - Smart Fitness & Wellness Tracker</h1>
+      <h2>Workout & Fitness Tracking</h2>
+      <h2>Personalized Health & Wellness Journal</h2>
+      <img src="/assets/myPride.gif" alt="Brawnly Fitness Transformation" loading="lazy" />
     </div>
 
     <script>
       window.__deferScript = function(src) {
-        const script = document.createElement('script');
-        script.src = src;
-        script.defer = true;
-        script.type = 'module';
-        document.body.appendChild(script);
+        if (src && (src.endsWith('.js') || src.includes('.js?'))) {
+          const script = document.createElement('script');
+          script.src = src;
+          script.defer = true;
+          script.type = 'module';
+          document.body.appendChild(script);
+        }
       };
     </script>
 
@@ -161,8 +165,8 @@
     <script async>
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
       window.onerror = function(message) {
-        if (typeof message === 'string' && message.indexOf('Hydration') !== -1) {
-          console.warn('Recovering from Hydration Error...');
+        if (typeof message === 'string' && (message.indexOf('Hydration') !== -1 || message.indexOf('418') !== -1 || message.indexOf('423') !== -1)) {
+          console.warn('Recovering from React Error...');
           return true;
         }
       };
@@ -170,6 +174,6 @@
 
     <script type="module" src="/src/main.tsx" defer></script>
     
-    <link rel="prefetch" href="/src/assets/myAvatar.jpg" />
+    <link rel="prefetch" href="/assets/myAvatar.jpg" />
   </body>
 </html>
