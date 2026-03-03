@@ -1,9 +1,33 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class', // ⬅️ WAJIB untuk toggle light / dark
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  safelist: [
+    { pattern: /^dark/ },
+    { pattern: /^group/ },
+    { pattern: /^group-hover/ },
+    { pattern: /^animate/ },
+    { pattern: /^motion/ },
+    { pattern: /^sr-only/ },
+    { pattern: /^grayscale/ },
+    { pattern: /^line-clamp/ },
+    { pattern: /^opacity/ },
+    { pattern: /^translate/ },
+    { pattern: /^scale/ },
+    { pattern: /^blur/ },
+    { pattern: /^will-change/ },
+    { pattern: /^data-\[/ },
+    { pattern: /^peer/ },
+    { pattern: /^aria/ },
+    { pattern: /^last/ },
+    { pattern: /^first/ },
+    { pattern: /^focus/ },
+    { pattern: /^active/ },
+    { pattern: /^disabled/ },
+    { pattern: /^placeholder/ },
   ],
   theme: {
     extend: {

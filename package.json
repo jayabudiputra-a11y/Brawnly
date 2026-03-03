@@ -67,7 +67,8 @@
     "typescript-eslint": "^8.46.4",
     "vite": "npm:rolldown-vite@7.2.5",
     "vite-plugin-html-inject": "^1.1.2",
-    "vite-plugin-prerender": "^1.0.8"
+    "vite-plugin-prerender": "^1.0.8",
+    "vite-plugin-purgecss": "^0.2.13"
   },
   "overrides": {
     "vite": "npm:rolldown-vite@7.2.5"

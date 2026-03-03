@@ -2,11 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
-import injectHTML from 'vite-plugin-html-inject';
+import injectHTML from "vite-plugin-html-inject";
+import purgecss from "vite-plugin-purgecss";
 
 export default defineConfig({
   optimizeDeps: {
-    exclude: ['@jsquash/webp', '@jsquash/avif']
+    exclude: ["@jsquash/webp", "@jsquash/avif"]
   },
   plugins: [
     react({
@@ -15,6 +16,31 @@ export default defineConfig({
       },
     }),
     injectHTML(),
+    purgecss({
+      content: [
+        "./index.html",
+        "./src/**/*.{js,ts,jsx,tsx}",
+      ],
+      safelist: {
+        standard: [
+          /^dark/,
+          /^group/,
+          /^animate/,
+          /^motion/,
+          /^sr-only/,
+          /^grayscale/,
+          /^line-clamp/,
+          /^opacity/,
+          /^translate/,
+          /^scale/,
+          /^blur/,
+          /^will-change/,
+        ],
+        deep: [/dark$/, /group-hover/, /data-\[/],
+        greedy: [],
+      },
+      blocklist: [],
+    }),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [],
@@ -141,7 +167,7 @@ export default defineConfig({
     },
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
+        main: path.resolve(__dirname, "index.html"),
       },
       output: {
         entryFileNames: "assets/js/[hash].js",
@@ -164,7 +190,7 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1000,
-    target: 'es2020',
+    target: "es2020",
     reportCompressedSize: false,
   },
   server: {
