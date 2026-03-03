@@ -17,7 +17,6 @@ export default defineConfig({
     injectHTML(),
     VitePWA({
       registerType: "autoUpdate",
-      // Dikosongkan untuk menghindari konflik duplikasi cache dengan globPatterns
       includeAssets: [], 
       manifest: {
         name: "Brawnly App",
@@ -50,12 +49,16 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,gif,webmanifest}"],
+        globPatterns: ["**/*.{js,css,html}"],
         globIgnores: [
           "**/node_modules/**/*",
           "sw.js",
           "workbox-*.js",
-          "assets/Brawnly-favicon.svg"
+          "assets/*.svg",
+          "assets/*.gif",
+          "assets/*.png",
+          "assets/*.jpg",
+          "assets/*.jpeg"
         ],
         runtimeCaching: [
           {
@@ -66,6 +69,17 @@ export default defineConfig({
               expiration: {
                 maxEntries: 20,
                 maxAgeSeconds: 31536000
+              }
+            }
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "images-cache",
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 30 * 24 * 60 * 60
               }
             }
           },
