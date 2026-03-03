@@ -50,8 +50,13 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        // Pattern ini sudah mencakup semua file di folder public/assets
         globPatterns: ["**/*.{js,css,html,ico,png,svg,gif,webmanifest}"],
+        globIgnores: [
+          "**/node_modules/**/*",
+          "sw.js",
+          "workbox-*.js",
+          "assets/Brawnly-favicon.svg"
+        ],
         runtimeCaching: [
           {
             urlPattern: /\.wasm$/,
