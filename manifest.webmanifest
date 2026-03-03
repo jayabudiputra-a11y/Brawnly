@@ -1,0 +1,29 @@
+{
+  "name": "Brawnly App",
+  "short_name": "Brawnly",
+  "description": "Smart Fitness & Wellness Intelligence",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "en",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/assets/Brawnly-favicon.svg",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/assets/masculineLogo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/Brawnly.gif",
+      "sizes": "512x512",
+      "type": "image/gif"
+    }
+  ]
+}

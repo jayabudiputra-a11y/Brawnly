@@ -18,15 +18,14 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [
-        "favicon.ico",
-        "favicon.svg",
-        "Brawnly-favicon.svg",
-        "masculineLogo.svg",
-        "Brawnly.gif",
-        "myPride.gif",
-        "Brawnly-17VaIyauwVGvanab8Vf.gif",
-        "Brawnly-17aDfvayqUvay.gif"
-      ],
+        "assets/favicon.ico",
+        "assets/favicon.svg",
+        "assets/Brawnly-favicon.svg",
+        "assets/masculineLogo.svg",
+        "assets/Brawnly.gif",
+        "assets/myPride.gif",
+        "assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
+        "assets/Brawnly-17aDfvayqUvay.gif"],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -38,18 +37,18 @@ export default defineConfig({
         start_url: "/",
         icons: [
           {
-            src: "Brawnly-favicon.svg",
+            src: "/assets/Brawnly-favicon.svg",
             sizes: "64x64 32x32 24x24 16x16",
             type: "image/svg+xml",
           },
           {
-            src: "masculineLogo.svg",
+            src: "assets/masculineLogo.svg",
             sizes: "192x192",
             type: "image/svg+xml",
             purpose: "any maskable"
           },
           {
-            src: "Brawnly.gif",
+            src: "/assets/Brawnly.gif",
             sizes: "512x512",
             type: "image/gif",
           }
