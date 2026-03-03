@@ -36,6 +36,10 @@ if (rootElement) {
         </HelmetProvider>
       </React.StrictMode>
     );
+
+    setTimeout(() => {
+      document.dispatchEvent(new Event('render-event'));
+    }, 100);
   };
 
   if (window.requestIdleCallback) {

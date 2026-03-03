@@ -5,6 +5,8 @@ import { VitePWA } from "vite-plugin-pwa";
 import injectHTML from 'vite-plugin-html-inject';
 import PrerenderSPAPlugin from 'vite-plugin-prerender';
 
+const Renderer = PrerenderSPAPlugin.PuppeteerRenderer;
+
 export default defineConfig({
   optimizeDeps: {
     exclude: ['@jsquash/webp', '@jsquash/avif']
@@ -19,7 +21,10 @@ export default defineConfig({
     PrerenderSPAPlugin({
       staticDir: path.join(__dirname, 'dist'),
       routes: ['/'],
-      renderer: new (require('vite-plugin-prerender/lib/es6-renderer'))(),
+      renderer: new Renderer({
+        renderAfterDocumentEvent: 'render-event',
+        headless: true
+      }),
     }),
     VitePWA({
       registerType: "autoUpdate",
