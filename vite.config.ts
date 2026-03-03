@@ -6,6 +6,9 @@ import injectHTML from 'vite-plugin-html-inject';
 import prerender from '@prerenderer/rollup-plugin';
 import Renderer from '@prerenderer/renderer-puppeteer';
 
+// Deteksi apakah sedang berjalan di environment Vercel
+const isVercel = process.env.VERCEL === '1';
+
 export default defineConfig({
   optimizeDeps: {
     exclude: ['@jsquash/webp', '@jsquash/avif']
@@ -17,7 +20,8 @@ export default defineConfig({
       },
     }),
     injectHTML(),
-    prerender({
+    // Hanya jalankan prerender jika TIDAK sedang di Vercel
+    !isVercel && prerender({
       routes: ['/'],
       renderer: new Renderer({
         renderAfterDocumentEvent: 'render-event',
