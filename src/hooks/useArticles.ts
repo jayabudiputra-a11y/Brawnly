@@ -11,14 +11,12 @@ const _0xrepo = [
   'published_at'
 ] as const;
 
-// OPTIMASI: Gunakan tipe 'string' agar tidak terjadi bug saat query Supabase
 const _r = (i: number) => _0xrepo[i] as string; 
 const CACHE_KEY = "brawnly_lib_cache";
 
 const _saveToSmartCache = (key: string, data: any) => {
   try {
     const payload = JSON.stringify(data);
-    // Jika ukuran mendekati batas kuota browser, bersihkan cache lama
     if (payload.length > 625000) {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -38,7 +36,6 @@ const _saveToSmartCache = (key: string, data: any) => {
   }
 };
 
-// OPTIMASI: Helper aman untuk parsing JSON
 const _getSmartCache = (key: string) => {
   try {
     const cached = localStorage.getItem(key);
@@ -61,7 +58,8 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
       try {
         let articleQuery = supabase
           .from(_r(0))
-          .select('*');
+          .select('*')
+          .not('published_at', 'is', null);
 
         if (tag) {
           articleQuery = articleQuery.contains(_r(2), [tag]);
@@ -72,8 +70,8 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
         if (articleError) {
           const { data: fallback, error: fallbackErr } = await supabase
             .from('articles')
-            .select('*, author:profiles(username, avatar_url)')
-            .eq('published', true)
+            .select('*')
+            .not('published_at', 'is', null)
             .order('published_at', { ascending: false });
 
           if (fallbackErr) throw fallbackErr;
@@ -92,10 +90,8 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
         const processedData = (rawArticles ?? []).map((article: any) => {
           const liveViews = viewsMap[article.id];
           
-          // CLEANUP & OPTIMASI KEAMANAN STRING
           const rawPath = article.featured_image_url || article.featured_image || "";
           
-          // Memastikan hanya mengambil URL yang valid (dimulai dengan http)
           const validUrls = rawPath
             .split(/[\r\n]+/)
             .map((url: string) => url.trim())
@@ -108,8 +104,8 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
             featured_image: processedCover, 
             thumbnail_url: processedCover,
             views: liveViews !== undefined ? liveViews : (article.views || 0),
-            author: article.author || { 
-              username: article.author_name || "Brawnly Editorial", 
+            author: article.author && typeof article.author === 'object' ? article.author : { 
+              username: article.author || "Brawnly Editorial", 
               avatar_url: article.author_avatar || null 
             }
           };
@@ -127,9 +123,9 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
       }
     },
     initialData: initialData,
-    staleTime: 1000 * 60 * 5, // 5 Menit
-    gcTime: 1000 * 60 * 10, // OPTIMASI: 10 menit Garbage Collection agar memori browser tidak bocor
-    refetchOnWindowFocus: false, // SANGAT PENTING: Matikan ini agar tidak re-render berat saat user pindah tab
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
     retry: 1
   });
 };
