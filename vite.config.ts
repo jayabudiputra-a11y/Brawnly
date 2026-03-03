@@ -17,7 +17,7 @@ export default defineConfig({
     injectHTML(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [], 
+      includeAssets: [],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -149,10 +149,15 @@ export default defineConfig({
         assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("react")) return "react-vendor";
-            if (id.includes("react-dom")) return "react-dom-vendor";
-            if (id.includes("supabase")) return "supabase-vendor";
-            if (id.includes("@jsquash")) return "wasm-vendor";
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("@tanstack")) return "vendor-query";
+            if (id.includes("react-dom")) return "vendor-react-dom";
+            if (id.includes("react-router")) return "vendor-router";
+            if (id.includes("react")) return "vendor-react";
+            if (id.includes("supabase")) return "vendor-supabase";
+            if (id.includes("@jsquash")) return "vendor-wasm";
+            if (id.includes("lucide")) return "vendor-icons";
+            if (id.includes("react-helmet")) return "vendor-helmet";
             return "vendor";
           }
         },

@@ -1,6 +1,5 @@
 import { Link as _L } from "react-router-dom";
 import { Eye as _E, WifiOff as _Wo, Zap as _Zp } from "lucide-react";
-import { motion as _m } from "framer-motion";
 import { useEffect as _uE, useState as _uS } from "react";
 import _mA from "@/assets/myAvatar.jpg";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
@@ -19,18 +18,6 @@ interface ArticleCardProps {
   priority?: boolean;
 }
 
-/**
- * Safely resolves the author display name from an article object.
- *
- * Supabase can return `author` in three shapes:
- *   1. string  → use directly after trim
- *   2. object  → prefer .username, fallback to .name
- *   3. null / undefined → try top-level author_name field, then defaultName
- *
- * ✅ Export and import this in StructuredData.tsx (and anywhere else) instead
- *    of calling `article.author?.trim()` directly — that crashes when author
- *    is an object.
- */
 export function resolveAuthorName(article: any, defaultName = "Brawnly Editorial"): string {
   const { author, author_name } = article ?? {};
 
@@ -61,7 +48,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
 
   const [_rC, _sRC] = _uS(() => VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)]);
 
-  // ✅ Use shared helper — handles string | object | null safely
   const _authorName = resolveAuthorName(_a);
 
   _uE(() => {
@@ -98,7 +84,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           _sBU(URL.createObjectURL(cachedBlob));
           return;
         }
-        if (navigator.onLine && !_isLow) {
+        if (navigator.onLine && !_isLow && !_p) {
           const fmtStr = await detectBestFormat();
           const fmt = (fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
           const res = await fetch(_dU || _hQ, { mode: 'cors' });
@@ -107,7 +93,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           if (window.Worker) {
             const optimized = await new Promise<Blob>((resolve, reject) => {
               const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
-              
+
               worker.onmessage = (e) => {
                 const { error, result } = e.data;
                 worker.terminate();
@@ -313,6 +299,8 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               alt={`${_t} — cover image`}
               itemProp="url"
               tabIndex={-1}
+              width={400}
+              height={260}
             />
             <meta itemProp="contentUrl" content={_hQ} />
             <meta itemProp="name" content={`${_t} — cover image`} />
@@ -391,11 +379,20 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               </div>
             )}
           </div>
+
+          {!_iL && (
+            <div className="absolute inset-0 bg-neutral-200 dark:bg-neutral-800 animate-pulse" aria-hidden="true" />
+          )}
+
           {_displayImg ? (
             <img
               src={_displayImg}
               alt={`${_t} — thumbnail`}
+              width={200}
+              height={130}
               loading={_p ? "eager" : "lazy"}
+              fetchPriority={_p ? "high" : "auto"}
+              decoding={_p ? "sync" : "async"}
               onLoad={() => _siL(true)}
               itemProp="thumbnailUrl"
               className={`w-full h-full object-cover grayscale transition-all duration-700 ease-in-out group-hover:grayscale-0 group-hover:scale-105 ${_iL ? 'opacity-100' : 'opacity-0'}`}
@@ -420,19 +417,21 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             )}
           </span>
 
-          <_m.h2
-            className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300"
-            initial={{ x: 0 }}
-            whileHover={{ x: 5, color: _rC }}
+          <h2
+            className="text-[17px] md:text-[22px] leading-[1.2] font-black uppercase tracking-tighter text-black dark:text-white line-clamp-2 mb-2 transition-all duration-300 group-hover:translate-x-1"
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = _rC; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = ""; }}
             itemProp="headline"
           >
             {_t}
-          </_m.h2>
+          </h2>
 
           <div className="flex items-center gap-2">
             <img
               src={_mA}
               alt={`Author avatar — ${_authorName}`}
+              width={16}
+              height={16}
               className="w-4 h-4 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 border border-neutral-200 dark:border-neutral-800"
             />
             <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
