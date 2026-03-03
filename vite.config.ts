@@ -3,9 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 import injectHTML from 'vite-plugin-html-inject';
-import PrerenderSPAPlugin from 'vite-plugin-prerender';
-
-const Renderer = PrerenderSPAPlugin.PuppeteerRenderer;
+import prerender from '@prerenderer/rollup-plugin';
+import Renderer from '@prerenderer/renderer-puppeteer';
 
 export default defineConfig({
   optimizeDeps: {
@@ -18,13 +17,17 @@ export default defineConfig({
       },
     }),
     injectHTML(),
-    PrerenderSPAPlugin({
-      staticDir: path.join(__dirname, 'dist'),
+    prerender({
+      // Pindahkan routes ke atas dan pastikan staticDir sesuai dengan ekspektasi plugin
       routes: ['/'],
       renderer: new Renderer({
         renderAfterDocumentEvent: 'render-event',
         headless: true
       }),
+      // Jika TypeScript masih merah, tambahkan @ts-ignore karena 
+      // plugin ini memerlukannya saat runtime untuk menentukan lokasi file dist
+      // @ts-ignore
+      staticDir: path.resolve(__dirname, 'dist'),
     }),
     VitePWA({
       registerType: "autoUpdate",

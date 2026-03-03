@@ -190,6 +190,11 @@ const _RouteTransition: React.FC<{
 function App() {
   const { pathname: _p } = _uL();
   const _prevPath = useRef(_p);
+  const [mounted, setMounted] = useState(false);
+
+  _e(() => {
+    setMounted(true);
+  }, []);
 
   _e(() => {
     if (typeof window === "undefined") return;
@@ -247,6 +252,8 @@ function App() {
     };
   }, []);
 
+  if (!mounted) return _PAGE_SHELL;
+
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <_MT
@@ -255,8 +262,6 @@ function App() {
         image={_mP}
       />
       <_IF />
-      
-      {/* Tombol Scroll-to-Top ditaruh di sini, satu kali saja */}
       <_ST />
 
       <_Sp fallback={_SPINNER}>
