@@ -2,27 +2,27 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "brawnly.online"
-        }
-      ],
-      "destination": "https://www.brawnly.online/",
-      "permanent": true
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "brawnly.online"
-        }
-      ],
-      "destination": "https://www.brawnly.online/:path*",
-      "permanent": true
+  {
+    "source": "/",
+    "has": [
+      {
+        "type": "host",
+        "value": "brawnly.online"
+      }
+    ],
+    "destination": "https://www.brawnly.online/",
+    "permanent": true
+  },
+  {
+    "source": "/:path*",
+    "has": [
+      {
+        "type": "host",
+        "value": "brawnly.online"
+      }
+    ],
+    "destination": "https://www.brawnly.online/:path*",
+    "permanent": true
     }
   ],
   "rewrites": [
