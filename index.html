@@ -102,11 +102,9 @@
       }
     </script>
 
-    <!-- Kritis: Hanya preconnect untuk domain utama -->
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="preconnect" href="https://*.supabase.co" crossorigin="anonymous" />
     
-    <!-- DNS-prefetch untuk domain lain (lebih ringan dari preconnect) -->
     <link rel="dns-prefetch" href="https://www.instagram.com" />
     <link rel="dns-prefetch" href="https://platform.twitter.com" />
     <link rel="dns-prefetch" href="https://www.youtube.com" />
@@ -116,7 +114,6 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 
-    <!-- Skrip theme (kritis - tetap di head) -->
     <script>
       (function(){try{var _0x7a=localStorage.getItem('theme')||'light';if(_0x7a==='dark'||(_0x7a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();
     </script>
@@ -127,7 +124,6 @@
     <style>
       .noscript-msg { padding: 20px; text-align: center; background: #000; color: #fff; }
       .seo-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
-      /* Critical CSS minimal untuk mencegah layout shift */
       body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
     </style>
   </head>
@@ -148,14 +144,20 @@
       </div>
     </div>
 
-    <!-- Semua skrip non-kritis dipindahkan ke sini (sebelum penutup body) -->
-    
-    <!-- Skrip untuk preconnect ke Supabase (dijalankan dengan async) -->
+    <script>
+      window.__deferScript = function(src) {
+        const script = document.createElement('script');
+        script.src = src;
+        script.defer = true;
+        script.type = 'module';
+        document.body.appendChild(script);
+      };
+    </script>
+
     <script async>
       (function(){try{var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];var _0x2b=function(_0x3c){return atob(_0x3c)};var _0x4d=_0x2b(_0x1a[0])+_0x2b(_0x1a[1])+_0x2b(_0x1a[2]);var _0x5e=document.createElement('link');_0x5e.rel='preconnect';_0x5e.href=_0x4d;_0x5e.crossOrigin='anonymous';document.head.appendChild(_0x5e);var _0x6f=document.createElement('link');_0x6f.rel='dns-prefetch';_0x6f.href=_0x4d;document.head.appendChild(_0x6f)}catch(e){}})();
     </script>
 
-    <!-- Skrip anti-devtools dan error handler (dijalankan async) -->
     <script async>
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}catch(e){}})();
       window.onerror = function(message) {
@@ -166,10 +168,8 @@
       };
     </script>
 
-    <!-- Skrip utama React dengan defer (tidak blokir parsing) -->
     <script type="module" src="/src/main.tsx" defer></script>
     
-    <!-- Prefetch gambar (tetap) -->
     <link rel="prefetch" href="/src/assets/myAvatar.jpg" />
   </body>
 </html>

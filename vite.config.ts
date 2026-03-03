@@ -139,6 +139,9 @@ export default defineConfig({
       },
     },
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+      },
       output: {
         entryFileNames: "assets/js/[hash].js",
         chunkFileNames: "assets/js/[hash].js",
@@ -154,5 +157,13 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 2000,
+  },
+  experimental: {
+    renderBuiltUrl(filename, { hostType }) {
+      if (hostType === 'js') {
+        return { runtime: `__deferScript(${JSON.stringify(filename)})` };
+      }
+      return { relative: true };
+    },
   },
 });
