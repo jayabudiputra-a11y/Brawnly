@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ArticleList from "@/components/features/ArticleList";
 import { supabase } from "@/lib/supabase";
-import { useLocation } from "react-router-dom"; // Import useLocation untuk deteksi hash
+import { useLocation } from "react-router-dom";
 
 import centralGif from "@/assets/Brawnly-17aDfvayqUvay.gif";
 import leftGif from "@/assets/Brawnly-17VaIyauwVGvanab8Vf.gif";
@@ -15,15 +15,191 @@ import {
   warmupEnterpriseStorage
 } from "@/lib/enterpriseStorage";
 import { loadSnap, saveSnap, type SnapArticle } from "@/lib/storageSnap";
-
 import { syncArticles } from "@/lib/supabaseSync";
-
 import { registerSW } from "@/pwa/swRegister";
 import { openDB } from "@/lib/idbQueue";
 import { detectBestFormat } from "@/lib/imageFormat";
 
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const SITE_URL = "https://www.brawnly.online";
+const SITE_NAME = "Brawnly";
+const AUTHOR_NAME = "Budi Putra Jaya";
+const PAGE_DESCRIPTION =
+  "Brawnly — LGBTQ+ Fitness Inspiration, Muscle Worship, Mindset & Wellness. Exclusive editorial content curated for the Brawnly community.";
+const HERO_HEADLINE = "The Sexiest Men — Photos Handpicked.";
+const HERO_SUBLINE =
+  "An exclusive editorial look at the aesthetic standards of 2026, curated specifically for the Brawnly community by this gay man.";
+
+/* ============================================================
+   STATIC JSON-LD — serialised once outside component
+   ============================================================ */
+
+const _jLdWebSite = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  "url": SITE_URL,
+  "name": SITE_NAME,
+  "description": PAGE_DESCRIPTION,
+  "inLanguage": "id",
+  "publisher": {
+    "@type": "Organization",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${SITE_URL}/masculineLogo.svg`,
+      "name": `${SITE_NAME} logo`,
+    },
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": `${SITE_URL}/articles?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+});
+
+const _jLdOrganization = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": SITE_NAME,
+  "url": SITE_URL,
+  "logo": {
+    "@type": "ImageObject",
+    "url": `${SITE_URL}/masculineLogo.svg`,
+    "name": `${SITE_NAME} logo`,
+    "width": 32,
+    "height": 32,
+  },
+  "description": PAGE_DESCRIPTION,
+  "foundingDate": "2026",
+  "foundingLocation": {
+    "@type": "Place",
+    "name": "Medan, Indonesia",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Medan",
+      "addressCountry": "ID",
+    },
+  },
+  "sameAs": [SITE_URL],
+  "knowsAbout": [
+    "LGBTQ+",
+    "Fitness",
+    "Muscle Worship",
+    "Mindset",
+    "Wellness",
+    "Physical Performance",
+  ],
+});
+
+const _jLdPerson = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": AUTHOR_NAME,
+  "url": SITE_URL,
+  "jobTitle": "Editor & Founder",
+  "worksFor": {
+    "@type": "Organization",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Medan",
+    "addressCountry": "ID",
+  },
+  "knowsAbout": ["LGBTQ+", "Fitness", "Muscle Worship", "Mindset", "Wellness"],
+  "sameAs": [SITE_URL],
+});
+
+const _jLdWebPage = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": SITE_URL,
+  "url": SITE_URL,
+  "name": `${SITE_NAME} — LGBTQ+ Fitness & Editorial`,
+  "description": PAGE_DESCRIPTION,
+  "inLanguage": "id",
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    "name": SITE_NAME,
+    "url": SITE_URL,
+  },
+  "about": {
+    "@type": "Organization",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+  },
+  "author": {
+    "@type": "Person",
+    "name": AUTHOR_NAME,
+    "url": SITE_URL,
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+  },
+  "speakable": {
+    "@type": "SpeakableSpecification",
+    "cssSelector": ["h1", "h2", ".hero-subline"],
+  },
+  "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL },
+    ],
+  },
+});
+
+const _jLdBreadcrumb = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL },
+  ],
+});
+
+// Hero editorial cover story
+const _jLdCoverStory = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": HERO_HEADLINE,
+  "description": HERO_SUBLINE,
+  "url": SITE_URL,
+  "articleSection": "Cover Story",
+  "author": {
+    "@type": "Person",
+    "name": AUTHOR_NAME,
+    "url": SITE_URL,
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${SITE_URL}/masculineLogo.svg`,
+    },
+  },
+  "datePublished": "2026-01-01",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": SITE_NAME,
+    "url": SITE_URL,
+  },
+  "keywords": "LGBTQ+, Fitness, Muscle Worship, Mindset, Wellness, Brawnly",
+});
+
 const Home = () => {
-  const location = useLocation(); // Hook lokasi
+  const location = useLocation();
   const [articles, setArticles] = useState<any[]>(() => {
     const localData = getArticlesSnap();
     return localData.length > 0 ? localData : loadSnap();
@@ -37,7 +213,7 @@ const Home = () => {
       if (element) {
         setTimeout(() => {
           element.scrollIntoView({ behavior: "smooth" });
-        }, 100); // Delay sedikit agar render selesai
+        }, 100);
       }
     }
   }, [location]);
@@ -71,7 +247,7 @@ const Home = () => {
               .eq("published", true)
               .order("published_at", { ascending: false })
               .limit(20);
-            
+
             if (error) throw error;
             return data || [];
           };
@@ -110,6 +286,41 @@ const Home = () => {
     return () => { _mounted = false; };
   }, []);
 
+  // Dynamic JSON-LD: feed article list (live articles state)
+  const _jLdFeedList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": `${SITE_NAME} Latest Articles`,
+    "description": "Latest published articles and editorial content from Brawnly.",
+    "url": `${SITE_URL}/#feed-section`,
+    "numberOfItems": articles.length,
+    "itemListElement": articles.slice(0, 15).map((a: any, i: number) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "url": `${SITE_URL}/article/${a.slug}`,
+      "name": a.title,
+      "item": {
+        "@type": "BlogPosting",
+        "url": `${SITE_URL}/article/${a.slug}`,
+        "headline": a.title,
+        "description": a.excerpt || a.description || undefined,
+        "image": a.featured_image || a.featured_image_url || undefined,
+        "datePublished": a.published_at || a.created_at || undefined,
+        "dateModified": a.updated_at || a.published_at || undefined,
+        "articleSection": a.category || "Brawnly Selection",
+        "author": {
+          "@type": "Person",
+          "name": a.author?.username || AUTHOR_NAME,
+        },
+        "interactionStatistic": {
+          "@type": "InteractionCounter",
+          "interactionType": "https://schema.org/ReadAction",
+          "userInteractionCount": a.views ?? 0,
+        },
+      },
+    })),
+  };
+
   const _s = {
     main: "min-h-screen bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans transition-colors duration-500",
     hero: "pt-12 pb-6 border-b-4 border-black dark:border-white mb-2",
@@ -128,73 +339,421 @@ const Home = () => {
 
   const pProps = { fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>;
 
-   return (
-    <main className={_s.main}>
-      <section className={_s.hero}>
+  return (
+    <main
+      className={_s.main}
+      itemScope
+      itemType="https://schema.org/WebPage"
+      aria-label={`${SITE_NAME} homepage`}
+    >
+      {/* ── JSON-LD: WebSite + SearchAction ── */}
+      <script type="application/ld+json">{_jLdWebSite}</script>
+
+      {/* ── JSON-LD: Organization ── */}
+      <script type="application/ld+json">{_jLdOrganization}</script>
+
+      {/* ── JSON-LD: Person (author) ── */}
+      <script type="application/ld+json">{_jLdPerson}</script>
+
+      {/* ── JSON-LD: WebPage ── */}
+      <script type="application/ld+json">{_jLdWebPage}</script>
+
+      {/* ── JSON-LD: BreadcrumbList ── */}
+      <script type="application/ld+json">{_jLdBreadcrumb}</script>
+
+      {/* ── JSON-LD: Cover Story Article ── */}
+      <script type="application/ld+json">{_jLdCoverStory}</script>
+
+      {/* ── JSON-LD: Feed ItemList (dynamic, live articles) ── */}
+      <script type="application/ld+json">{JSON.stringify(_jLdFeedList)}</script>
+
+      {/* ── Microdata: page-level ── */}
+      <meta itemProp="url" content={SITE_URL} />
+      <meta itemProp="name" content={`${SITE_NAME} — LGBTQ+ Fitness & Editorial`} />
+      <meta itemProp="description" content={PAGE_DESCRIPTION} />
+      <meta itemProp="inLanguage" content="id" />
+
+      {/* ── SEO HIDDEN: full site identity + hero + feed for crawlers ── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {/* Organization */}
+        <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
+          <span itemProp="name">{SITE_NAME}</span>
+          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+            {SITE_NAME}
+          </a>
+          <span itemProp="description">{PAGE_DESCRIPTION}</span>
+          <span itemProp="foundingDate">2026</span>
+          <span
+            itemScope
+            itemType="https://schema.org/ImageObject"
+            itemProp="logo"
+          >
+            <meta itemProp="url" content={`${SITE_URL}/masculineLogo.svg`} />
+            <meta itemProp="name" content={`${SITE_NAME} logo`} />
+          </span>
+          <span
+            itemScope
+            itemType="https://schema.org/PostalAddress"
+            itemProp="address"
+          >
+            <span itemProp="addressLocality">Medan</span>
+            <span itemProp="addressCountry">ID</span>
+          </span>
+          <meta itemProp="knowsAbout" content="LGBTQ+" />
+          <meta itemProp="knowsAbout" content="Fitness" />
+          <meta itemProp="knowsAbout" content="Muscle Worship" />
+          <meta itemProp="knowsAbout" content="Mindset" />
+          <meta itemProp="knowsAbout" content="Wellness" />
+        </span>
+
+        {/* Person / author */}
+        <span itemScope itemType="https://schema.org/Person" itemProp="author">
+          <span itemProp="name">{AUTHOR_NAME}</span>
+          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+            {AUTHOR_NAME}
+          </a>
+          <meta itemProp="jobTitle" content="Editor & Founder" />
+          <span
+            itemScope
+            itemType="https://schema.org/PostalAddress"
+            itemProp="address"
+          >
+            <span itemProp="addressLocality">Medan</span>
+            <span itemProp="addressCountry">ID</span>
+          </span>
+        </span>
+
+        {/* WebSite */}
+        <span itemScope itemType="https://schema.org/WebSite" itemProp="isPartOf">
+          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+            {SITE_NAME}
+          </a>
+          <span itemProp="name">{SITE_NAME}</span>
+          <span itemProp="description">{PAGE_DESCRIPTION}</span>
+        </span>
+
+        {/* Hero cover story — described for crawlers */}
+        <article itemScope itemType="https://schema.org/Article">
+          <h1 itemProp="headline">{HERO_HEADLINE}</h1>
+          <p itemProp="description">{HERO_SUBLINE}</p>
+          <meta itemProp="articleSection" content="Cover Story" />
+          <meta itemProp="keywords" content="LGBTQ+, Fitness, Muscle Worship, Mindset, Wellness, Brawnly" />
+          <span itemScope itemType="https://schema.org/Person" itemProp="author">
+            <span itemProp="name">{AUTHOR_NAME}</span>
+          </span>
+          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+            Cover Story — {SITE_NAME}
+          </a>
+          {/* Hero GIFs as ImageObjects */}
+          <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
+            <meta itemProp="name" content={`${SITE_NAME} — Central hero image`} />
+            <meta itemProp="encodingFormat" content="image/gif" />
+            <meta itemProp="description" content="Hero editorial visual — Brawnly Cover Story 2026" />
+          </span>
+        </article>
+
+        {/* Sidebar: Trending Now */}
+        <aside aria-label="Trending Now">
+          <span itemProp="keywords" content="Trending" />
+          <p>How Brawnly is Redefining Wellness in 2026.</p>
+          <span itemScope itemType="https://schema.org/ImageObject">
+            <meta itemProp="name" content={`${SITE_NAME} — Trending sidebar visual`} />
+            <meta itemProp="encodingFormat" content="image/gif" />
+          </span>
+        </aside>
+
+        {/* Sidebar: Must Read */}
+        <aside aria-label="Must Read">
+          <p>Exclusive: The Art of Fitness and Masculinity.</p>
+          <span itemScope itemType="https://schema.org/ImageObject">
+            <meta itemProp="name" content={`${SITE_NAME} — Must Read sidebar visual`} />
+            <meta itemProp="encodingFormat" content="image/gif" />
+          </span>
+        </aside>
+
+        {/* BreadcrumbList */}
+        <span itemScope itemType="https://schema.org/BreadcrumbList">
+          <span
+            itemScope
+            itemType="https://schema.org/ListItem"
+            itemProp="itemListElement"
+          >
+            <meta itemProp="position" content="1" />
+            <a href={SITE_URL} itemProp="item" tabIndex={-1} rel="noopener noreferrer">
+              <span itemProp="name">Home</span>
+            </a>
+          </span>
+        </span>
+
+        {/* Feed section — hidden article list for crawlers */}
+        <section aria-label="Hidden SEO article feed">
+          <h2>Latest Articles</h2>
+          <ol itemScope itemType="https://schema.org/ItemList">
+            <meta itemProp="name" content={`${SITE_NAME} Latest Articles`} />
+            <meta itemProp="numberOfItems" content={String(articles.length)} />
+            {articles.map((a: any, i: number) => (
+              <li
+                key={`seo-home-${a.id || a.slug || i}`}
+                itemScope
+                itemType="https://schema.org/BlogPosting"
+                itemProp="itemListElement"
+              >
+                <meta itemProp="position" content={String(i + 1)} />
+                <a
+                  href={`${SITE_URL}/article/${a.slug}`}
+                  itemProp="url"
+                  tabIndex={-1}
+                  rel="noopener noreferrer"
+                >
+                  {a.title}
+                </a>
+                <meta itemProp="headline" content={a.title} />
+                {(a.excerpt || a.description) && (
+                  <meta itemProp="description" content={a.excerpt || a.description} />
+                )}
+                {(a.featured_image || a.featured_image_url) && (
+                  <meta itemProp="image" content={a.featured_image || a.featured_image_url} />
+                )}
+                {(a.published_at || a.created_at) && (
+                  <meta itemProp="datePublished" content={a.published_at || a.created_at} />
+                )}
+                {a.category && (
+                  <meta itemProp="articleSection" content={a.category} />
+                )}
+                <span
+                  itemScope
+                  itemType="https://schema.org/Person"
+                  itemProp="author"
+                >
+                  <span itemProp="name">{a.author?.username || AUTHOR_NAME}</span>
+                </span>
+                <span
+                  itemScope
+                  itemType="https://schema.org/InteractionCounter"
+                  itemProp="interactionStatistic"
+                >
+                  <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
+                  <meta itemProp="userInteractionCount" content={String(a.views ?? 0)} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          HERO SECTION (all existing logic preserved)
+          ══════════════════════════════════════════════ */}
+      <section
+        className={_s.hero}
+        aria-label="Brawnly Cover Story hero"
+        itemScope
+        itemType="https://schema.org/Article"
+      >
+        {/* Hero article microdata */}
+        <meta itemProp="headline" content={HERO_HEADLINE} />
+        <meta itemProp="description" content={HERO_SUBLINE} />
+        <meta itemProp="articleSection" content="Cover Story" />
+        <meta itemProp="url" content={SITE_URL} />
+        <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
+          <meta itemProp="name" content={AUTHOR_NAME} />
+        </span>
+
         <div className={_s.inner}>
           <div className={_s.topGrid}>
-            <div className={_s.sideArt}>
-              <span className={_s.category}>Trending Now</span>
-              <img src={leftGif} alt="L" className={_s.gifSide} {...pProps} />
-              <img src={prideMustache} alt="m" className={_s.mustache} />
-              <p className="text-xs font-bold mt-4 leading-snug">
+
+            {/* ── Left sidebar: Trending Now ── */}
+            <aside
+              className={_s.sideArt}
+              aria-label="Trending Now"
+              itemScope
+              itemType="https://schema.org/WPSideBar"
+            >
+              <span
+                className={_s.category}
+                aria-label="Category: Trending Now"
+              >
+                Trending Now
+              </span>
+              <img
+                src={leftGif}
+                alt={`${SITE_NAME} — trending visual (animated)`}
+                className={_s.gifSide}
+                {...pProps}
+                itemScope
+                itemType="https://schema.org/ImageObject"
+              />
+              <img
+                src={prideMustache}
+                alt={`${SITE_NAME} pride mustache icon`}
+                className={_s.mustache}
+              />
+              <p
+                className="text-xs font-bold mt-4 leading-snug"
+                itemProp="description"
+              >
                 How Brawnly is Redefining Wellness in 2026.
               </p>
-            </div>
+            </aside>
 
-            <div className={_s.mainCenter}>
-              <span className={_s.category}>Cover Story</span>
-              <h1 className={_s.headline}>
-                The Sexiest Men <br/>
+            {/* ── Main center: Cover Story ── */}
+            <div
+              className={_s.mainCenter}
+              itemScope
+              itemType="https://schema.org/Article"
+            >
+              <meta itemProp="articleSection" content="Cover Story" />
+              <meta itemProp="headline" content={HERO_HEADLINE} />
+
+              <span
+                className={_s.category}
+                aria-label="Category: Cover Story"
+              >
+                Cover Story
+              </span>
+
+              <h1
+                className={_s.headline}
+                itemProp="headline"
+              >
+                The Sexiest Men <br />
                 <span className="text-neutral-300 dark:text-neutral-700">
                   Photos Handpicked.
                 </span>
               </h1>
 
               <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-                <div className="relative">
-                  <img src={centralGif} alt="Main" className={_s.gifCentral} {...pProps} />
-                  <img src={prideMustache} alt="m" className="h-8 w-auto mt-4 mx-auto md:mx-0" />
+                <div
+                  className="relative"
+                  itemScope
+                  itemType="https://schema.org/ImageObject"
+                  itemProp="image"
+                >
+                  <meta itemProp="name" content={`${SITE_NAME} — Cover Story hero image`} />
+                  <meta itemProp="description" content="Hero editorial visual — Brawnly Cover Story 2026" />
+                  <meta itemProp="encodingFormat" content="image/gif" />
+                  <img
+                    src={centralGif}
+                    alt={`${SITE_NAME} — Cover Story hero image (animated)`}
+                    className={_s.gifCentral}
+                    {...pProps}
+                    itemProp="contentUrl"
+                  />
+                  <img
+                    src={prideMustache}
+                    alt={`${SITE_NAME} pride icon`}
+                    className="h-8 w-auto mt-4 mx-auto md:mx-0"
+                    aria-hidden="true"
+                  />
                 </div>
 
                 <div className="flex-1">
-                  <p className={_s.subline}>
+                  <p
+                    className={`${_s.subline} hero-subline`}
+                    itemProp="description"
+                  >
                     An exclusive editorial look at the aesthetic standards of 2026,
                     curated specifically for the Brawnly community by this gay man.
                   </p>
-                  <span className={_s.author}>
+                  <span
+                    className={_s.author}
+                    itemProp="author"
+                  >
                     By Brawnly Owner
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className={_s.sideArt}>
-              <span className={_s.category}>Must Read</span>
-              <img src={rightGif} alt="R" className={_s.gifSide} {...pProps} />
-              <img src={prideMustache} alt="m" className={_s.mustache} />
-              <p className="text-xs font-bold mt-4 leading-snug">
+            {/* ── Right sidebar: Must Read ── */}
+            <aside
+              className={_s.sideArt}
+              aria-label="Must Read"
+              itemScope
+              itemType="https://schema.org/WPSideBar"
+            >
+              <span
+                className={_s.category}
+                aria-label="Category: Must Read"
+              >
+                Must Read
+              </span>
+              <img
+                src={rightGif}
+                alt={`${SITE_NAME} — must read visual (animated)`}
+                className={_s.gifSide}
+                {...pProps}
+                itemScope
+                itemType="https://schema.org/ImageObject"
+              />
+              <img
+                src={prideMustache}
+                alt={`${SITE_NAME} pride mustache icon`}
+                className={_s.mustache}
+              />
+              <p
+                className="text-xs font-bold mt-4 leading-snug"
+                itemProp="description"
+              >
                 Exclusive: The Art of Fitness and Masculinity.
               </p>
-            </div>
+            </aside>
+
           </div>
         </div>
       </section>
 
-      {/* FIX: ID ditambahkan di sini */}
-      <section id="feed-section" className="py-12">
+      {/* ══════════════════════════════════════════════
+          FEED SECTION (all existing logic preserved)
+          ══════════════════════════════════════════════ */}
+      <section
+        id="feed-section"
+        className="py-12"
+        aria-label="Latest articles feed"
+        itemScope
+        itemType="https://schema.org/ItemList"
+      >
+        {/* Feed section microdata */}
+        <meta itemProp="name" content={`${SITE_NAME} Latest Articles`} />
+        <meta itemProp="description" content="Latest published articles and editorial content from Brawnly." />
+        <meta itemProp="numberOfItems" content={String(articles.length)} />
+        <meta itemProp="url" content={`${SITE_URL}/#feed-section`} />
+
         <div className={_s.inner}>
-          <div className="flex items-baseline justify-between border-b-8 border-black dark:border-white mb-10 pb-2">
-            <h2 className="text-4xl font-black uppercase tracking-tighter italic">
+          <header
+            className="flex items-baseline justify-between border-b-8 border-black dark:border-white mb-10 pb-2"
+            aria-label="Feed section header"
+          >
+            <h2
+              className="text-4xl font-black uppercase tracking-tighter italic"
+              itemProp="name"
+            >
               Feed
             </h2>
-            <span className="text-xs font-black uppercase tracking-widest text-neutral-400">
+            <span
+              className="text-xs font-black uppercase tracking-widest text-neutral-400"
+              aria-label="Section subtitle: Latest Updates"
+            >
               Latest Updates
             </span>
-          </div>
+          </header>
 
-          <div className="min-h-[1000px]">
-            {/* Logic: Mengirim data snapshot ke list jika list mendukung initialData */}
+          <div
+            className="min-h-[1000px]"
+            role="region"
+            aria-label="Article feed"
+            aria-live="polite"
+          >
             <ArticleList selectedTag={null} searchTerm="" />
           </div>
         </div>

@@ -171,6 +171,37 @@ function safeBlobRevoke(url: string | null) {
 }
 
 /* ============================================================
+   SEO HIDDEN NODE — INSTAGRAM WIDGET
+   ============================================================ */
+
+function InstagramSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      {/* Social presence structured data for crawlers */}
+      <span itemScope itemType="https://schema.org/Person">
+        <span itemProp="sameAs" content={INSTAGRAM_URL} />
+        <span itemProp="sameAs" content={INSTAGRAM_POST_PERMALINK} />
+        <a
+          href={INSTAGRAM_URL}
+          itemProp="url"
+          rel="noopener noreferrer"
+          tabIndex={-1}
+        >
+          Follow on Instagram — @{INSTAGRAM_USERNAME}
+        </a>
+        <span itemProp="name" content={INSTAGRAM_USERNAME} />
+        <span itemProp="description" content={`Instagram profile of ${INSTAGRAM_USERNAME} — visual stories, posts, and reels.`} />
+      </span>
+      <meta name="instagram:profile" content={INSTAGRAM_USERNAME} />
+      <link rel="author" href={INSTAGRAM_URL} />
+    </div>
+  );
+}
+
+/* ============================================================
    INSTAGRAM WIDGET
    ============================================================ */
 
@@ -221,7 +252,17 @@ function InstagramWidget() {
   }, [isMounted]);
 
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]">
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
+      itemScope
+      itemType="https://schema.org/SocialMediaPosting"
+    >
+      {/* SEO: Instagram widget structured data */}
+      <InstagramSEONode />
+      <meta itemProp="url" content={INSTAGRAM_POST_PERMALINK} />
+      <meta itemProp="author" content={INSTAGRAM_USERNAME} />
+      <meta itemProp="interactionStatistic" content="Instagram post embed" />
+
       <div className="h-1.5 w-full bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]" />
 
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
@@ -231,6 +272,8 @@ function InstagramWidget() {
               viewBox="0 0 24 24"
               className="w-4 h-4 fill-white"
               xmlns="http://www.w3.org/2000/svg"
+              aria-label="Instagram"
+              role="img"
             >
               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
             </svg>
@@ -249,6 +292,7 @@ function InstagramWidget() {
           href={INSTAGRAM_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label={`Follow ${INSTAGRAM_USERNAME} on Instagram`}
           className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-gradient-to-r from-[#ee2a7b] to-[#6228d7] text-white shadow-sm hover:from-[#6228d7] hover:to-[#ee2a7b] transition-all duration-300 flex-shrink-0"
         >
           Follow
@@ -266,12 +310,37 @@ function InstagramWidget() {
           href={INSTAGRAM_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="View all posts on Instagram"
           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#ee2a7b] hover:text-[#6228d7] transition-colors duration-300"
         >
           <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
           View all posts on Instagram
         </a>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SEO HIDDEN NODE — YOUTUBE WIDGET
+   ============================================================ */
+
+function YouTubeSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      <span itemScope itemType="https://schema.org/VideoChannel">
+        <a href={YOUTUBE_CHANNEL_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          YouTube Channel — @{YOUTUBE_CHANNEL_HANDLE}
+        </a>
+        <span itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
+        <span itemProp="description" content={`Watch videos and shorts on YouTube channel @${YOUTUBE_CHANNEL_HANDLE}. Subscribe for the latest content from Brawnly.`} />
+        <span itemProp="sameAs" content={YOUTUBE_CHANNEL_URL} />
+      </span>
+      <meta name="youtube:channel" content={YOUTUBE_CHANNEL_HANDLE} />
+      <meta name="youtube:channel:url" content={YOUTUBE_CHANNEL_URL} />
     </div>
   );
 }
@@ -299,8 +368,16 @@ function YouTubeWidget() {
       href={YOUTUBE_CHANNEL_URL}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={`Visit YouTube channel @${YOUTUBE_CHANNEL_HANDLE}`}
       className="group block"
+      itemScope
+      itemType="https://schema.org/VideoChannel"
     >
+      {/* SEO: YouTube channel structured data */}
+      <YouTubeSEONode />
+      <meta itemProp="url" content={YOUTUBE_CHANNEL_URL} />
+      <meta itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
+
       <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] transition-all duration-300 group-hover:shadow-2xl group-hover:scale-[1.02]">
         <div className="h-1.5 w-full bg-[#FF0000]" />
 
@@ -308,7 +385,7 @@ function YouTubeWidget() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#FF0000] flex items-center justify-center shadow-md flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="YouTube" role="img">
                   <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </div>
@@ -324,6 +401,7 @@ function YouTubeWidget() {
 
             <button
               onClick={_handleSubscribe}
+              aria-label={_subbed ? "Already subscribed to YouTube channel" : `Subscribe to @${YOUTUBE_CHANNEL_HANDLE} on YouTube`}
               className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 flex-shrink-0 ${
                 _subbed
                   ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
@@ -358,6 +436,36 @@ function YouTubeWidget() {
 }
 
 /* ============================================================
+   SEO HIDDEN NODE — TUMBLR WIDGET
+   ============================================================ */
+
+function TumblrSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      <span itemScope itemType="https://schema.org/Blog">
+        <a href={TUMBLR_BLOG_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Tumblr Blog — deulo
+        </a>
+        <span itemProp="name" content="deulo" />
+        <span itemProp="author" content="deulo" />
+        <span itemProp="description" content="Tumblr blog by deulo — posts, reblogs, and creative content." />
+        <span itemProp="sameAs" content={TUMBLR_BLOG_URL} />
+      </span>
+      <span itemScope itemType="https://schema.org/BlogPosting">
+        <a href={TUMBLR_POST_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          View Tumblr post — deulo
+        </a>
+      </span>
+      <meta name="tumblr:blog" content="deulo" />
+      <meta name="tumblr:blog:url" content={TUMBLR_BLOG_URL} />
+    </div>
+  );
+}
+
+/* ============================================================
    TUMBLR WIDGET
    ============================================================ */
 
@@ -383,13 +491,22 @@ function TumblrWidget() {
   }, []);
 
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative">
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative"
+      itemScope
+      itemType="https://schema.org/BlogPosting"
+    >
+      {/* SEO: Tumblr widget structured data */}
+      <TumblrSEONode />
+      <meta itemProp="url" content={TUMBLR_POST_URL} />
+      <meta itemProp="author" content="deulo" />
+
       <div className="h-1.5 w-full bg-[#35465D]" />
 
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#35465D] flex items-center justify-center shadow-md flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-label="Tumblr" role="img">
               <path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.747H5.116V6.648c3.63-1.313 4.512-4.596 4.71-6.469C9.84.051 9.941 0 9.999 0h3.517v6.114h4.801v3.633h-4.82v7.47c.016 1.001.375 2.371 2.207 2.371h.09c.631-.02 1.486-.205 1.936-.419l1.156 3.425c-.436.636-2.4 1.374-4.306 1.406z" />
             </svg>
           </div>
@@ -407,6 +524,7 @@ function TumblrWidget() {
           href={TUMBLR_BLOG_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Follow deulo on Tumblr"
           className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#35465D] text-white shadow-sm hover:opacity-80 transition-opacity flex-shrink-0"
         >
           Follow
@@ -430,6 +548,7 @@ function TumblrWidget() {
             ref={_iframeRef}
             src={TUMBLR_EMBED_HREF}
             className="w-full border-0 rounded-lg"
+            title="Tumblr post embed by deulo"
             style={{
               height: _iframeHeight,
               maxHeight: 600,
@@ -437,7 +556,6 @@ function TumblrWidget() {
             }}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
-            title="Tumblr post embed"
           />
         ) : (
           <div
@@ -452,12 +570,45 @@ function TumblrWidget() {
           href={TUMBLR_BLOG_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="View all posts on Tumblr by deulo"
           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#35465D] dark:text-[#6fa3d8] hover:opacity-70 transition-opacity duration-300"
         >
           <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
           View all posts on Tumblr
         </a>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SEO HIDDEN NODE — SUBSTACK WIDGET
+   ============================================================ */
+
+function SubstackSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      <span itemScope itemType="https://schema.org/NewsArticle">
+        <a href={SUBSTACK_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          {SUBSTACK_POST_TITLE}
+        </a>
+        <span itemProp="headline" content={SUBSTACK_POST_TITLE} />
+        <span itemProp="description" content={SUBSTACK_POST_DESC} />
+        <span itemProp="author" content="deulo" />
+        <span itemProp="publisher" content="Substack — deulo" />
+        <span itemProp="sameAs" content={SUBSTACK_ROOT_URL} />
+      </span>
+      <span itemScope itemType="https://schema.org/Blog">
+        <a href={SUBSTACK_ROOT_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Read all posts on Substack — deulo
+        </a>
+        <span itemProp="name" content="deulo on Substack" />
+      </span>
+      <meta name="substack:publication" content="deulo" />
+      <meta name="substack:post:title" content={SUBSTACK_POST_TITLE} />
     </div>
   );
 }
@@ -492,13 +643,23 @@ function SubstackWidget() {
   }, [isMounted]);
 
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]">
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
+      itemScope
+      itemType="https://schema.org/NewsArticle"
+    >
+      {/* SEO: Substack widget structured data */}
+      <SubstackSEONode />
+      <meta itemProp="url" content={SUBSTACK_URL} />
+      <meta itemProp="headline" content={SUBSTACK_POST_TITLE} />
+      <meta itemProp="description" content={SUBSTACK_POST_DESC} />
+
       <div className="h-1.5 w-full bg-gradient-to-r from-[#FF6719] to-[#FF8C00]" />
 
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6719] to-[#FF8C00] flex items-center justify-center shadow-md flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="Substack" role="img">
               <path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812V24L12 18.11 22.54 24V10.812H1.46zM22.54 0H1.46v2.836h21.08V0z" />
             </svg>
           </div>
@@ -516,6 +677,7 @@ function SubstackWidget() {
           href={SUBSTACK_ROOT_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Subscribe to deulo on Substack"
           className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF6719] to-[#FF8C00] text-white shadow-sm hover:opacity-80 transition-opacity flex-shrink-0"
         >
           Subscribe
@@ -533,6 +695,7 @@ function SubstackWidget() {
           href={SUBSTACK_ROOT_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Read all posts on Substack by deulo"
           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#FF6719] hover:text-[#FF8C00] transition-colors duration-300"
         >
           <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
@@ -544,19 +707,61 @@ function SubstackWidget() {
 }
 
 /* ============================================================
+   SEO HIDDEN NODE — PINTEREST WIDGET
+   ============================================================ */
+
+function PinterestSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      <span itemScope itemType="https://schema.org/Person">
+        <a href={PINTEREST_PROFILE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Pinterest — mustbeloveonthebrain
+        </a>
+        <span itemProp="name" content="mustbeloveonthebrain" />
+        <span itemProp="sameAs" content={PINTEREST_PROFILE_URL} />
+        <span itemProp="description" content="Discover pins and boards by mustbeloveonthebrain on Pinterest — curated visual content." />
+      </span>
+      <span itemScope itemType="https://schema.org/ImageObject">
+        <a href={PINTEREST_PIN_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Pinned — View Pin ①
+        </a>
+      </span>
+      <span itemScope itemType="https://schema.org/ImageObject">
+        <a href={PINTEREST_PIN_URL_2} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Pinned — View Pin ②
+        </a>
+      </span>
+      <meta name="pinterest:profile" content="mustbeloveonthebrain" />
+    </div>
+  );
+}
+
+/* ============================================================
    PINTEREST WIDGET
    ============================================================ */
 
 function PinterestWidget() {
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] transition-all duration-300 hover:shadow-2xl">
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] transition-all duration-300 hover:shadow-2xl"
+      itemScope
+      itemType="https://schema.org/Person"
+    >
+      {/* SEO: Pinterest widget structured data */}
+      <PinterestSEONode />
+      <meta itemProp="sameAs" content={PINTEREST_PROFILE_URL} />
+      <meta itemProp="name" content="mustbeloveonthebrain" />
+
       <div className="h-1.5 w-full bg-[#E60023]" />
 
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#E60023] flex items-center justify-center shadow-md flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="Pinterest" role="img">
                 <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
               </svg>
             </div>
@@ -574,6 +779,7 @@ function PinterestWidget() {
             href={PINTEREST_PROFILE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="Follow mustbeloveonthebrain on Pinterest"
             className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#E60023] text-white shadow-sm hover:bg-red-800 transition-colors duration-300 flex-shrink-0"
           >
             Follow
@@ -593,9 +799,10 @@ function PinterestWidget() {
             href={PINTEREST_PIN_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="View Pinterest Pin 1 by mustbeloveonthebrain"
             className="flex items-center gap-2 text-[10px] font-bold text-[#E60023] hover:underline truncate"
           >
-            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0">
+            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0" aria-hidden="true">
               <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
             </svg>
             Pinned — View Pin ①
@@ -604,9 +811,10 @@ function PinterestWidget() {
             href={PINTEREST_PIN_URL_2}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="View Pinterest Pin 2 by mustbeloveonthebrain"
             className="flex items-center gap-2 text-[10px] font-bold text-[#E60023] hover:underline truncate"
           >
-            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0">
+            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0" aria-hidden="true">
               <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
             </svg>
             Pinned — View Pin ②
@@ -619,6 +827,7 @@ function PinterestWidget() {
             href={PINTEREST_PROFILE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="View full profile on Pinterest"
           >
             View profile on Pinterest
           </a>
@@ -629,18 +838,58 @@ function PinterestWidget() {
 }
 
 /* ============================================================
+   SEO HIDDEN NODE — CLASH ROYALE WIDGET
+   ============================================================ */
+
+function ClashRoyaleSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+    >
+      <span itemScope itemType="https://schema.org/Person">
+        <span itemProp="name" content={CR_PLAYER_NAME} />
+        <span itemProp="identifier" content={CR_PLAYER_TAG} />
+        <span itemProp="description" content={`Clash Royale player ${CR_PLAYER_NAME} — Tag: #${CR_PLAYER_TAG}, ID: ${CR_PLAYER_ID}. Level 53, 109K+ Gold. View battles, deck stats, and trophies on RoyaleAPI.`} />
+        <a href={CR_ROYALEAPI_PROFILE} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          View Clash Royale profile — {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
+        </a>
+        <a href={CR_ROYALEAPI_BATTLES} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          View Clash Royale battles — {CR_PLAYER_NAME}
+        </a>
+        <a href={CR_ADD_FRIEND_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
+          Add {CR_PLAYER_NAME} as friend in Clash Royale
+        </a>
+      </span>
+      <meta name="clashroyale:player:tag" content={CR_PLAYER_TAG} />
+      <meta name="clashroyale:player:name" content={CR_PLAYER_NAME} />
+      <meta name="clashroyale:player:id" content={CR_PLAYER_ID} />
+    </div>
+  );
+}
+
+/* ============================================================
    CLASH ROYALE WIDGET
    ============================================================ */
 
 function ClashRoyaleWidget() {
   return (
-    <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]">
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
+      itemScope
+      itemType="https://schema.org/Person"
+    >
+      {/* SEO: Clash Royale widget structured data */}
+      <ClashRoyaleSEONode />
+      <meta itemProp="name" content={CR_PLAYER_NAME} />
+      <meta itemProp="identifier" content={CR_PLAYER_TAG} />
+
       <div className="h-1.5 w-full bg-gradient-to-r from-[#0070DD] via-[#00C3FF] to-[#0070DD]" />
 
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0070DD] to-[#004A99] flex items-center justify-center shadow-md flex-shrink-0">
-            <_Sw size={16} className="text-white" />
+            <_Sw size={16} className="text-white" aria-hidden="true" />
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
@@ -656,13 +905,14 @@ function ClashRoyaleWidget() {
           href={CR_ADD_FRIEND_URL}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label={`Add ${CR_PLAYER_NAME} as friend in Clash Royale`}
           onClick={(e) => {
             e.stopPropagation();
             toast.success("Opening Clash Royale — Add Friend…");
           }}
           className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white shadow-sm hover:from-[#00C3FF] hover:to-[#0070DD] transition-all duration-300 flex-shrink-0 flex items-center gap-1.5"
         >
-          <_Up size={10} /> Add Friend
+          <_Up size={10} aria-hidden="true" /> Add Friend
         </a>
       </div>
 
@@ -670,7 +920,7 @@ function ClashRoyaleWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-sm border border-[#CC8800]">
-              <span className="text-[14px] font-black text-white drop-shadow-sm">👑</span>
+              <span className="text-[14px] font-black text-white drop-shadow-sm" aria-hidden="true">👑</span>
             </div>
             <div>
               <p className="text-[12px] font-black text-black dark:text-white leading-tight">
@@ -697,7 +947,7 @@ function ClashRoyaleWidget() {
           className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] flex flex-col items-center justify-center p-10 text-center gap-5"
           style={{ minHeight: 320 }}
         >
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden="true">
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
             <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
           </div>
@@ -705,10 +955,10 @@ function ClashRoyaleWidget() {
           <div className="relative z-10 flex flex-col items-center gap-5">
             <div className="relative">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
-                <_Sw size={36} className="text-white drop-shadow-lg" />
+                <_Sw size={36} className="text-white drop-shadow-lg" aria-hidden="true" />
               </div>
               <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
-                <span className="text-[12px]">👑</span>
+                <span className="text-[12px]" aria-hidden="true">👑</span>
               </div>
             </div>
 
@@ -730,17 +980,19 @@ function ClashRoyaleWidget() {
                 href={CR_ROYALEAPI_BATTLES}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`View battle log for ${CR_PLAYER_NAME} on RoyaleAPI`}
                 className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
-                <_Sw size={14} /> View Battles
+                <_Sw size={14} aria-hidden="true" /> View Battles
               </a>
               <a
                 href={CR_ADD_FRIEND_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`Add ${CR_PLAYER_NAME} as friend in Clash Royale`}
                 className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
-                <_Up size={14} /> Add Friend
+                <_Up size={14} aria-hidden="true" /> Add Friend
               </a>
             </div>
           </div>
@@ -753,6 +1005,7 @@ function ClashRoyaleWidget() {
             href={CR_ROYALEAPI_BATTLES}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="View full battle log on RoyaleAPI"
             className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#0070DD] hover:text-[#00C3FF] transition-colors duration-300"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
@@ -762,18 +1015,20 @@ function ClashRoyaleWidget() {
             href={CR_ADD_FRIEND_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label={`Add ${CR_PLAYER_NAME} as friend in-game on Clash Royale`}
             className="flex items-center gap-2 text-[10px] font-bold text-[#FFD700] hover:text-[#FFA500] transition-colors duration-300"
           >
-            <_Up size={11} />
+            <_Up size={11} aria-hidden="true" />
             Add {CR_PLAYER_NAME} as friend in-game
           </a>
           <a
             href={CR_ROYALEAPI_PROFILE}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label={`View full Clash Royale profile for #${CR_PLAYER_TAG}`}
             className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors duration-300"
           >
-            <_El size={11} />
+            <_El size={11} aria-hidden="true" />
             View full profile — #{CR_PLAYER_TAG}
           </a>
         </div>
@@ -837,11 +1092,27 @@ function CommentItem({
       className={`flex gap-4 md:gap-6 relative ${
         isReply ? "ml-10 md:ml-16 mt-6" : ""
       }`}
+      itemScope
+      itemType="https://schema.org/Comment"
     >
+      {/* SEO: Comment structured data */}
+      <meta itemProp="identifier" content={String(comment.id)} />
+      <meta itemProp="text" content={comment.content} />
+      <meta itemProp="datePublished" content={comment.created_at} />
+      <span
+        itemProp="author"
+        itemScope
+        itemType="https://schema.org/Person"
+        style={{ display: "none" }}
+      >
+        <span itemProp="name">{comment.user_name}</span>
+      </span>
+
       {isReply && (
         <_Cr
           className="absolute -left-10 top-2 text-neutral-300 dark:text-neutral-800"
           size={20}
+          aria-hidden="true"
         />
       )}
 
@@ -855,12 +1126,12 @@ function CommentItem({
             <img
               src={avatar}
               className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-              alt=""
+              alt={`${comment.user_name} avatar`}
               onError={() => _setAvatarError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-neutral-400 font-black tracking-tighter italic">
-              <_Us size={isReply ? 16 : 24} />
+              <_Us size={isReply ? 16 : 24} aria-hidden="true" />
             </div>
           )}
         </div>
@@ -872,6 +1143,7 @@ function CommentItem({
             className={`font-black uppercase italic ${
               isReply ? "text-[11px]" : "text-[13px]"
             } flex items-center gap-2 text-black dark:text-white`}
+            itemProp="author"
           >
             {comment.user_name}
             {comment.id.toString().startsWith("temp-") && (
@@ -880,15 +1152,20 @@ function CommentItem({
               </span>
             )}
           </h4>
-          <span className="text-[10px] font-bold opacity-40 uppercase">
+          <time
+            dateTime={comment.created_at}
+            className="text-[10px] font-bold opacity-40 uppercase"
+            itemProp="datePublished"
+          >
             <FormattedDate dateString={comment.created_at} />
-          </span>
+          </time>
         </div>
 
         <div
           className={`${
             isReply ? "text-[15px]" : "text-[18px]"
           } leading-relaxed font-serif text-neutral-800 dark:text-neutral-200 break-words mb-3`}
+          itemProp="text"
         >
           {comment.content}
         </div>
@@ -896,9 +1173,10 @@ function CommentItem({
         {!isReply && onReply && (
           <button
             onClick={onReply}
+            aria-label={`Reply to ${comment.user_name}`}
             className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 text-emerald-600 hover:text-emerald-400 transition-colors"
           >
-            <_Rp size={12} /> Reply
+            <_Rp size={12} aria-hidden="true" /> Reply
           </button>
         )}
       </div>
@@ -1027,12 +1305,24 @@ function CommentSection({ articleId }: { articleId: string }) {
   };
 
   return (
-    <section className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0">
+    <section
+      className="max-w-[840px] mx-auto py-16 border-t-2 border-neutral-100 dark:border-neutral-900 px-4 md:px-0"
+      aria-label="Discussion section"
+      itemScope
+      itemType="https://schema.org/DiscussionForumPosting"
+    >
+      {/* SEO: Discussion section structured data */}
+      <meta itemProp="discussionUrl" content={`#discussion-${articleId}`} />
+      <meta itemProp="interactionCount" content={`CommentAction:${_localComments.length}`} />
+
       <div className="flex items-center gap-4 mb-12">
-        <div className="p-3 bg-red-600 text-white rounded-full">
+        <div className="p-3 bg-red-600 text-white rounded-full" aria-hidden="true">
           <_Ms size={20} />
         </div>
-        <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
+        <h2
+          id={`discussion-${articleId}`}
+          className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white"
+        >
           Discussion ({_localComments.length})
         </h2>
       </div>
@@ -1045,19 +1335,21 @@ function CommentSection({ articleId }: { articleId: string }) {
             _onAddComment(_txt, _replyTo);
           }}
           className="mb-16"
+          aria-label="Write a comment"
         >
           <div className="relative overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-2xl">
             {_replyTo && (
               <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                  <_Rp size={12} /> Replying_To: {_replyTo.slice(0, 8)}
+                  <_Rp size={12} aria-hidden="true" /> Replying_To: {_replyTo.slice(0, 8)}
                 </span>
                 <button
                   type="button"
                   onClick={() => _sReplyTo(null)}
+                  aria-label="Cancel reply"
                   className="hover:scale-110 transition-transform"
                 >
-                  <_X size={14} />
+                  <_X size={14} aria-hidden="true" />
                 </button>
               </div>
             )}
@@ -1085,12 +1377,13 @@ function CommentSection({ articleId }: { articleId: string }) {
               <button
                 type="submit"
                 disabled={_sub || !_txt.trim()}
+                aria-label="Submit comment"
                 className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30"
               >
                 {_sub ? (
-                  <_L2 className="animate-spin" size={14} />
+                  <_L2 className="animate-spin" size={14} aria-hidden="true" />
                 ) : (
-                  <_Sd size={14} />
+                  <_Sd size={14} aria-hidden="true" />
                 )}{" "}
                 Commit
               </button>
@@ -1104,6 +1397,7 @@ function CommentSection({ articleId }: { articleId: string }) {
           </p>
           <button
             onClick={() => _nav("/signin")}
+            aria-label="Sign up to comment on Brawnly"
             className="px-10 py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg"
           >
             Sign Up Now
@@ -1111,7 +1405,7 @@ function CommentSection({ articleId }: { articleId: string }) {
         </div>
       )}
 
-      <div className="space-y-12">
+      <div className="space-y-12" role="list" aria-label="Comments">
         <_AP mode="popLayout">
           {_rootComments.map((_c) => (
             <_m.div
@@ -1120,6 +1414,7 @@ function CommentSection({ articleId }: { articleId: string }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="group"
+              role="listitem"
             >
               <CommentItem
                 comment={_c}
@@ -1129,7 +1424,7 @@ function CommentSection({ articleId }: { articleId: string }) {
                 }}
               />
 
-              <div className="space-y-6">
+              <div className="space-y-6" role="list" aria-label={`Replies to ${_c.user_name}`}>
                 {_replies
                   .filter((r) => r.parent_id === _c.id)
                   .map((r) => (
@@ -1410,6 +1705,186 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
+  /* ============================================================
+     DYNAMIC JSON-LD STRUCTURED DATA — injected into <Helmet>
+     Covers: Article, BreadcrumbList, WebPage, VideoObject, ImageGallery
+     ============================================================ */
+  const _jsonLdArticle = _pD && _art
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": _pD.title,
+        "description": _pD.excerpt,
+        "image": _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
+        "author": {
+          "@type": "Person",
+          "name": _art.author || "Brawnly",
+          "url": "https://www.brawnly.online",
+          "sameAs": [
+            INSTAGRAM_URL,
+            YOUTUBE_CHANNEL_URL,
+            SUBSTACK_ROOT_URL,
+            TUMBLR_BLOG_URL,
+            PINTEREST_PROFILE_URL,
+          ],
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Brawnly",
+          "url": "https://www.brawnly.online",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.brawnly.online/favicon.ico",
+          },
+        },
+        "datePublished": _art.published_at,
+        "dateModified": _art.updated_at || _art.published_at,
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": `https://www.brawnly.online/article/${_slV}`,
+        },
+        "url": `https://www.brawnly.online/article/${_slV}`,
+        "interactionStatistic": [
+          {
+            "@type": "InteractionCounter",
+            "interactionType": "https://schema.org/ReadAction",
+            "userInteractionCount": _realtimeViews,
+          },
+        ],
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Brawnly",
+          "url": "https://www.brawnly.online",
+        },
+      })
+    : null;
+
+  const _jsonLdBreadcrumb = _pD
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.brawnly.online",
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Articles",
+            "item": "https://www.brawnly.online/articles",
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": _pD.title,
+            "item": `https://www.brawnly.online/article/${_slV}`,
+          },
+        ],
+      })
+    : null;
+
+  const _jsonLdWebPage = _pD && _art
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": `https://www.brawnly.online/article/${_slV}`,
+        "url": `https://www.brawnly.online/article/${_slV}`,
+        "name": `${_pD.title} | Brawnly`,
+        "description": _pD.excerpt,
+        "inLanguage": "id",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Brawnly",
+          "url": "https://www.brawnly.online",
+        },
+        "primaryImageOfPage": {
+          "@type": "ImageObject",
+          "url": _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
+        },
+        "datePublished": _art.published_at,
+        "author": {
+          "@type": "Person",
+          "name": _art.author || "Brawnly",
+        },
+      })
+    : null;
+
+  const _jsonLdYoutubeShorts = _youtubeShorts.length > 0 && _pD
+    ? JSON.stringify(
+        _youtubeShorts
+          .map((url: string, idx: number) => {
+            const embedUrl = _getEmbedUrl(url);
+            if (!embedUrl) return null;
+            return {
+              "@context": "https://schema.org",
+              "@type": "VideoObject",
+              "name": `${_pD.title} — Video ${idx + 1}`,
+              "description": _pD.excerpt,
+              "embedUrl": embedUrl,
+              "thumbnailUrl": _rawImgSource ? _gOI(_rawImgSource, 600) : undefined,
+              "uploadDate": _art?.published_at,
+              "author": {
+                "@type": "Person",
+                "name": _art?.author || "Brawnly",
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "Brawnly",
+                "url": "https://www.brawnly.online",
+              },
+            };
+          })
+          .filter(Boolean)
+      )
+    : null;
+
+  const _jsonLdGallery = _galleryImages.length > 0 && _pD
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "ImageGallery",
+        "name": `Gallery — ${_pD.title}`,
+        "description": `Image gallery for the article: ${_pD.title}`,
+        "associatedArticle": {
+          "@type": "Article",
+          "url": `https://www.brawnly.online/article/${_slV}`,
+          "headline": _pD.title,
+        },
+        "image": _galleryImages.map((img: string) => ({
+          "@type": "ImageObject",
+          "url": _fC(img),
+        })),
+      })
+    : null;
+
+  const _jsonLdSocialLinks = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Brawnly / deulo",
+    "url": "https://www.brawnly.online",
+    "sameAs": [
+      INSTAGRAM_URL,
+      YOUTUBE_CHANNEL_URL,
+      SUBSTACK_ROOT_URL,
+      SUBSTACK_URL,
+      TUMBLR_BLOG_URL,
+      TUMBLR_POST_URL,
+      PINTEREST_PROFILE_URL,
+      CR_ROYALEAPI_PROFILE,
+    ],
+    "knowsAbout": [
+      "Brawnly",
+      "Technology",
+      "Fitness",
+      "WiFi DensePose",
+      "Clash Royale",
+      "Open Source",
+      "Social Media",
+    ],
+  });
+
   if (!isHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
@@ -1428,34 +1903,271 @@ export default function ArticleDetail() {
   if (!_pD || !_art) return null;
 
   return (
-    <main className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative overflow-x-hidden">
+    <main
+      className="bg-white dark:bg-[#0a0a0a] min-h-screen pb-24 text-black dark:text-white transition-all duration-500 relative overflow-x-hidden"
+      itemScope
+      itemType="https://schema.org/Article"
+    >
       <_Hm>
         <title>{_pD.title} | Brawnly</title>
-        <meta
-          property="og:image"
-          content={_gOI(_rawImgSource || "", 1200)}
-        />
+        <meta name="description" content={_pD.excerpt} />
+
+        {/* ── Open Graph ── */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={`${_pD.title} | Brawnly`} />
+        <meta property="og:description" content={_pD.excerpt} />
+        <meta property="og:url" content={`https://www.brawnly.online/article/${_slV}`} />
+        <meta property="og:site_name" content="Brawnly" />
+        <meta property="og:locale" content="id_ID" />
+        {_rawImgSource && (
+          <meta property="og:image" content={_gOI(_rawImgSource, 1200)} />
+        )}
+        {_rawImgSource && (
+          <meta property="og:image:width" content="1200" />
+        )}
+        {_rawImgSource && (
+          <meta property="og:image:height" content="630" />
+        )}
+        {_art.published_at && (
+          <meta property="article:published_time" content={_art.published_at} />
+        )}
+        {_art.updated_at && (
+          <meta property="article:modified_time" content={_art.updated_at} />
+        )}
+        <meta property="article:author" content={_art.author || "Brawnly"} />
+        <meta property="article:section" content="Technology" />
+
+        {/* ── Twitter / X Card ── */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${_pD.title} | Brawnly`} />
+        <meta name="twitter:description" content={_pD.excerpt} />
+        {_rawImgSource && (
+          <meta name="twitter:image" content={_gOI(_rawImgSource, 1200)} />
+        )}
+        <meta name="twitter:site" content="@brawnly" />
+        <meta name="twitter:creator" content="@brawnly" />
+
+        {/* ── Canonical & Indexing ── */}
         <link rel="canonical" href={`https://www.brawnly.online/article/${_slV}`} />
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+        {/* ── Author & Publisher ── */}
+        <meta name="author" content={_art.author || "Brawnly"} />
+        <link rel="author" href="https://www.brawnly.online" />
+        <meta name="publisher" content="Brawnly" />
+
+        {/* ── Social Profiles ── */}
+        <link rel="me" href={INSTAGRAM_URL} />
+        <link rel="me" href={YOUTUBE_CHANNEL_URL} />
+        <link rel="me" href={SUBSTACK_ROOT_URL} />
+        <link rel="me" href={TUMBLR_BLOG_URL} />
+        <link rel="me" href={PINTEREST_PROFILE_URL} />
+
+        {/* ── JSON-LD Structured Data: Article ── */}
+        {_jsonLdArticle && (
+          <script type="application/ld+json">{_jsonLdArticle}</script>
+        )}
+
+        {/* ── JSON-LD Structured Data: BreadcrumbList ── */}
+        {_jsonLdBreadcrumb && (
+          <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
+        )}
+
+        {/* ── JSON-LD Structured Data: WebPage ── */}
+        {_jsonLdWebPage && (
+          <script type="application/ld+json">{_jsonLdWebPage}</script>
+        )}
+
+        {/* ── JSON-LD Structured Data: VideoObject (YouTube Shorts) ── */}
+        {_jsonLdYoutubeShorts && (
+          <script type="application/ld+json">{_jsonLdYoutubeShorts}</script>
+        )}
+
+        {/* ── JSON-LD Structured Data: ImageGallery ── */}
+        {_jsonLdGallery && (
+          <script type="application/ld+json">{_jsonLdGallery}</script>
+        )}
+
+        {/* ── JSON-LD Structured Data: Social Presence ── */}
+        <script type="application/ld+json">{_jsonLdSocialLinks}</script>
       </_Hm>
 
-      {/* SEMANTIC HTML UNTUK LLM/SEO */}
-      <article className="sr-only">
-        <h1>{_pD.title}</h1>
-        <p>{_pD.excerpt}</p>
-        <address className="author">By {_art.author || "Brawnly"}</address>
-        <time dateTime={_art.published_at}>{_art.published_at}</time>
+      {/* ── SEMANTIC HTML UNTUK LLM/SEO ── */}
+      <article
+        className="sr-only"
+        itemScope
+        itemType="https://schema.org/Article"
+        aria-hidden="true"
+      >
+        <h1 itemProp="headline">{_pD.title}</h1>
+        <p itemProp="description">{_pD.excerpt}</p>
+        <address
+          className="author"
+          itemScope
+          itemType="https://schema.org/Person"
+        >
+          By{" "}
+          <span itemProp="name">{_art.author || "Brawnly"}</span>
+          <a
+            itemProp="url"
+            href="https://www.brawnly.online"
+            rel="author"
+            tabIndex={-1}
+          >
+            Brawnly
+          </a>
+        </address>
+        <time
+          dateTime={_art.published_at}
+          itemProp="datePublished"
+        >
+          {_art.published_at}
+        </time>
+        {(_art as any).updated_at && (
+          <time
+            dateTime={(_art as any).updated_at}
+            itemProp="dateModified"
+          >
+            {(_art as any).updated_at}
+          </time>
+        )}
+
+        {/* ── Hidden full text for crawlers — paragraphs ── */}
+        <div itemProp="articleBody">
+          {_parsedParagraphs.map((block, i) => {
+            if (block.type === "text") {
+              return (
+                <p
+                  key={`seo-para-${i}`}
+                  dangerouslySetInnerHTML={{
+                    __html: block.html,
+                  }}
+                />
+              );
+            }
+            return (
+              <a
+                key={`seo-tweet-${i}`}
+                href={block.url}
+                rel="noopener noreferrer"
+                tabIndex={-1}
+              >
+                Embedded Tweet: {block.url}
+              </a>
+            );
+          })}
+        </div>
+
+        {/* ── Hidden social links for crawlers ── */}
+        <nav aria-label="Social profiles" itemProp="sameAs">
+          <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
+            Instagram: @{INSTAGRAM_USERNAME}
+          </a>
+          <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>
+            YouTube: @{YOUTUBE_CHANNEL_HANDLE}
+          </a>
+          <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>
+            Substack: deulo
+          </a>
+          <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>
+            Tumblr: deulo
+          </a>
+          <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>
+            Pinterest: mustbeloveonthebrain
+          </a>
+          <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>
+            Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
+          </a>
+        </nav>
+
+        {/* ── Hidden YouTube Shorts links for crawlers ── */}
+        {_youtubeShorts.length > 0 && (
+          <section aria-label="Embedded YouTube videos">
+            {_youtubeShorts.map((url: string, idx: number) => {
+              const embedUrl = _getEmbedUrl(url);
+              return (
+                <a
+                  key={`seo-yt-${idx}`}
+                  href={url}
+                  rel="noopener noreferrer"
+                  tabIndex={-1}
+                >
+                  Watch YouTube Short {idx + 1}: {url}
+                </a>
+              );
+            })}
+          </section>
+        )}
+
+        {/* ── Hidden Tweet links for crawlers ── */}
+        {_allTweetUrls.length > 0 && (
+          <section aria-label="Embedded tweets">
+            {_allTweetUrls.map((url, idx) => (
+              <a
+                key={`seo-tw-${idx}`}
+                href={url}
+                rel="noopener noreferrer"
+                tabIndex={-1}
+              >
+                Embedded Tweet {idx + 1}: {url}
+              </a>
+            ))}
+          </section>
+        )}
+
+        {/* ── Hidden gallery links for crawlers ── */}
+        {_galleryImages.length > 0 && (
+          <section aria-label="Article image gallery">
+            {_galleryImages.map((img: string, idx: number) => (
+              <figure key={`seo-gallery-${idx}`} itemScope itemType="https://schema.org/ImageObject">
+                <img
+                  src={_fC(img)}
+                  alt={`${_pD.title} — Gallery image ${idx + 1}`}
+                  loading="lazy"
+                  itemProp="url"
+                />
+                <meta itemProp="name" content={`${_pD.title} — Gallery image ${idx + 1}`} />
+              </figure>
+            ))}
+          </section>
+        )}
+
+        {/* ── Hidden Substack post info for crawlers ── */}
+        <aside
+          aria-label="Related Substack post"
+          itemScope
+          itemType="https://schema.org/NewsArticle"
+        >
+          <h2 itemProp="headline">{SUBSTACK_POST_TITLE}</h2>
+          <p itemProp="description">{SUBSTACK_POST_DESC}</p>
+          <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>
+            Read on Substack
+          </a>
+        </aside>
+
+        {/* ── Hidden view count for crawlers ── */}
+        <meta
+          itemProp="interactionStatistic"
+          content={`${_realtimeViews} reads`}
+        />
+        <span itemScope itemType="https://schema.org/InteractionCounter">
+          <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
+          <meta itemProp="userInteractionCount" content={String(_realtimeViews)} />
+        </span>
       </article>
 
       <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
         <button
           onClick={_hSv}
+          aria-label={_iS ? "Remove article from saved" : "Save this article"}
+          aria-pressed={_iS}
           className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
             _iS
               ? "bg-emerald-500 border-black text-black scale-110"
               : "bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl"
           }`}
         >
-          {_iS ? <_Ck size={20} /> : <_Bm size={20} />}
+          {_iS ? <_Ck size={20} aria-hidden="true" /> : <_Bm size={20} aria-hidden="true" />}
         </button>
 
         <button
@@ -1465,90 +2177,152 @@ export default function ArticleDetail() {
               toast.success("Node Link Copied");
             }
           }}
+          aria-label="Copy link to this article"
           className="w-14 h-14 flex items-center justify-center rounded-full bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 hover:border-red-600 transition-all duration-500"
         >
-          <_Sh size={20} />
+          <_Sh size={20} aria-hidden="true" />
         </button>
       </aside>
 
       <div className="max-w-[1320px] mx-auto px-4 md:px-10">
-        <header className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white">
+        <header
+          className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white"
+          itemScope
+          itemType="https://schema.org/Article"
+        >
+          {/* SEO: Header article structured data (supplement to sr-only article above) */}
+          <meta itemProp="headline" content={_pD.title} />
+          <meta itemProp="description" content={_pD.excerpt} />
+          <meta itemProp="datePublished" content={_art.published_at} />
+          {(_art as any).updated_at && (
+            <meta itemProp="dateModified" content={(_art as any).updated_at} />
+          )}
+          <meta itemProp="author" content={_art.author || "Brawnly"} />
+          <meta itemProp="url" content={`https://www.brawnly.online/article/${_slV}`} />
+          {_rawImgSource && (
+            <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
+          )}
+
           <div className="flex justify-between items-start mb-6">
             <_L
               to="/articles"
+              aria-label="Back to all articles"
               className="text-red-700 font-black uppercase text-[11px] md:text-[13px] tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all italic"
             >
-              <_Al size={14} /> Node_Explore
+              <_Al size={14} aria-hidden="true" /> Node_Explore
             </_L>
 
             {_isOff && (
-              <span className="flex items-center gap-2 text-red-500 text-[9px] font-bold uppercase tracking-widest animate-pulse border border-red-500 px-3 py-1 rounded-full">
-                <_Wo size={12} /> OFFLINE
+              <span
+                role="status"
+                aria-live="polite"
+                className="flex items-center gap-2 text-red-500 text-[9px] font-bold uppercase tracking-widest animate-pulse border border-red-500 px-3 py-1 rounded-full"
+              >
+                <_Wo size={12} aria-hidden="true" /> OFFLINE
               </span>
             )}
           </div>
 
-          <h1 className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words" aria-hidden="true">
+          <h1
+            className="text-[36px] sm:text-[45px] md:text-[92px] leading-[0.9] md:leading-[0.82] font-black uppercase tracking-tighter mb-8 md:mb-10 italic break-words"
+            aria-hidden="true"
+          >
             {_pD.title}
           </h1>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between py-6 md:py-8 border-t-2 border-black dark:border-white gap-6">
-            <div className="flex items-center gap-4 md:gap-5">
+            <div
+              className="flex items-center gap-4 md:gap-5"
+              itemScope
+              itemType="https://schema.org/Person"
+            >
               <div className="w-12 h-12 md:w-14 md:h-14 overflow-hidden border-2 border-black grayscale shadow-lg bg-neutral-100">
                 <img
                   src={_gOI(_mA, 120)}
                   className="w-full h-full object-cover"
-                  alt="B"
+                  alt={`Author avatar — ${_art.author || "Brawnly"}`}
+                  itemProp="image"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
               </div>
               <div>
-                <span className="block text-[13px] md:text-[15px] font-black uppercase italic">
+                <span
+                  className="block text-[13px] md:text-[15px] font-black uppercase italic"
+                  itemProp="name"
+                >
                   By {_art.author || "Brawnly"}
                 </span>
-                <span className="text-[10px] md:text-[12px] uppercase opacity-80">
+                <time
+                  dateTime={_art.published_at}
+                  className="text-[10px] md:text-[12px] uppercase opacity-80"
+                  itemProp="birthDate"
+                >
                   <FormattedDate dateString={_art.published_at} />
-                </span>
+                </time>
               </div>
             </div>
 
             <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-              <span aria-label={`${_realtimeViews} kali dibaca`}>
+              <span
+                aria-label={`${_realtimeViews} kali dibaca`}
+                itemProp="interactionStatistic"
+              >
                 {_realtimeViews.toLocaleString("en-US")}
               </span>{" "}
-              <_Ey size={20} className="text-red-600" />
+              <_Ey size={20} className="text-red-600" aria-hidden="true" />
             </div>
           </div>
         </header>
 
         <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
-          <article className="flex-1 relative min-w-0">
-            <p className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic" aria-hidden="true">
+          <article className="flex-1 relative min-w-0" itemProp="articleBody">
+            <p
+              className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic"
+              aria-hidden="true"
+              itemProp="description"
+            >
               {_pD.excerpt}
             </p>
 
             <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
-              <div className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none">
+              <div
+                className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
+                aria-hidden="true"
+              >
                 <img
                   src={_muscleLeft}
-                  alt="Decorative Arm Left"
+                  alt=""
                   className="w-full drop-shadow-2xl"
                 />
               </div>
-              <div className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black">
+              <figure
+                className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
+                itemScope
+                itemType="https://schema.org/ImageObject"
+              >
+                {/* SEO: Cover image structured data */}
+                <meta itemProp="url" content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""} />
+                <meta itemProp="name" content={`Cover image — ${_pD.title}`} />
+                <meta itemProp="description" content={`Featured cover image for: ${_pD.title}`} />
                 <ArticleCoverImage
                   imageUrl={_blobUrl || _rawImgSource || ""}
                   title={_pD.title}
                   slug={_slV}
                   className="w-full aspect-video md:aspect-[21/9] object-cover"
                 />
-              </div>
-              <div className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none">
+                <figcaption className="sr-only">
+                  {_pD.title} — cover image
+                </figcaption>
+              </figure>
+              <div
+                className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
+                aria-hidden="true"
+              >
                 <img
                   src={_muscleRight}
-                  alt="Decorative Arm Right"
+                  alt=""
                   className="w-full drop-shadow-2xl"
                 />
               </div>
@@ -1560,7 +2334,14 @@ export default function ArticleDetail() {
               {_parsedParagraphs.map((block, i) => {
                 if (block.type === "tweet") {
                   return (
-                    <div key={`para-tweet-${i}`} className="my-10 md:my-14">
+                    <div
+                      key={`para-tweet-${i}`}
+                      className="my-10 md:my-14"
+                      itemScope
+                      itemType="https://schema.org/SocialMediaPosting"
+                    >
+                      <meta itemProp="url" content={block.url} />
+                      <meta itemProp="sharedContent" content={block.url} />
                       <TwitterEmbed url={block.url} align="center" />
                     </div>
                   );
@@ -1576,7 +2357,16 @@ export default function ArticleDetail() {
             </div>
 
             {_allTweetUrls.length > 0 && (
-              <section className="my-16 max-w-[840px] mx-auto">
+              <section
+                className="my-16 max-w-[840px] mx-auto"
+                aria-label="Embedded tweets"
+                itemScope
+                itemType="https://schema.org/ItemList"
+              >
+                {/* SEO: Tweet section structured data */}
+                <meta itemProp="name" content="Embedded Tweets" />
+                <meta itemProp="description" content={`Tweets embedded in article: ${_pD.title}`} />
+
                 <div className="flex items-center gap-3 mb-10 opacity-60">
                   <svg
                     viewBox="0 0 24 24"
@@ -1591,18 +2381,32 @@ export default function ArticleDetail() {
                 </div>
                 <div className="flex flex-col gap-8">
                   {_allTweetUrls.map((url, idx) => (
-                    <TwitterEmbed
+                    <div
                       key={`db-tweet-${idx}`}
-                      url={url}
-                      align="center"
-                    />
+                      itemScope
+                      itemType="https://schema.org/SocialMediaPosting"
+                      itemProp="itemListElement"
+                    >
+                      <meta itemProp="position" content={String(idx + 1)} />
+                      <meta itemProp="url" content={url} />
+                      <TwitterEmbed url={url} align="center" />
+                    </div>
                   ))}
                 </div>
               </section>
             )}
 
             {_youtubeShorts.length > 0 && (
-              <div className="my-16 max-w-[840px] mx-auto">
+              <section
+                className="my-16 max-w-[840px] mx-auto"
+                aria-label="Embedded YouTube videos"
+                itemScope
+                itemType="https://schema.org/ItemList"
+              >
+                {/* SEO: YouTube shorts section structured data */}
+                <meta itemProp="name" content="Embedded YouTube Videos" />
+                <meta itemProp="description" content={`Videos embedded in article: ${_pD.title}`} />
+
                 {_youtubeShorts.map((videoUrl: string, idx: number) => {
                   const embedUrl = _getEmbedUrl(videoUrl);
                   if (!embedUrl) return null;
@@ -1613,49 +2417,82 @@ export default function ArticleDetail() {
                     <div
                       key={`yt-${idx}`}
                       className="flex flex-col items-center justify-center mb-16"
+                      itemScope
+                      itemType="https://schema.org/VideoObject"
+                      itemProp="itemListElement"
                     >
-                      <div className="relative w-full flex justify-center">
-                        <div className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none" />
+                      {/* SEO: VideoObject structured data per video */}
+                      <meta itemProp="position" content={String(idx + 1)} />
+                      <meta itemProp="name" content={`${_pD.title} — Video ${idx + 1}`} />
+                      <meta itemProp="description" content={_pD.excerpt} />
+                      <meta itemProp="embedUrl" content={embedUrl} />
+                      <meta itemProp="contentUrl" content={videoUrl} />
+                      {_rawImgSource && (
+                        <meta itemProp="thumbnailUrl" content={_gOI(_rawImgSource, 600)} />
+                      )}
+                      {_art.published_at && (
+                        <meta itemProp="uploadDate" content={_art.published_at} />
+                      )}
 
+                      <div className="relative w-full flex justify-center">
+                        <div
+                          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
+                          aria-hidden="true"
+                        />
                         <iframe
                           width="459"
                           height="816"
                           src={autoplayUrl}
-                          title={`Shorts video ${idx + 1}`}
+                          title={`${_pD.title} — Video ${idx + 1}`}
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           referrerPolicy="strict-origin-when-cross-origin"
                           allowFullScreen
+                          loading="lazy"
                           className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
                         />
                       </div>
 
                       <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
-                        <_Pc size={16} /> Watch Short
+                        <_Pc size={16} aria-hidden="true" /> Watch Short
                       </div>
                     </div>
                   );
                 })}
-              </div>
+              </section>
             )}
 
             {_animatedImages.length > 0 && (
-              <section className="my-20 max-w-[600px] mx-auto">
+              <section
+                className="my-20 max-w-[600px] mx-auto"
+                aria-label="Animated images"
+                itemScope
+                itemType="https://schema.org/ItemList"
+              >
+                {/* SEO: Animated images section structured data */}
+                <meta itemProp="name" content="Motion Capture — Animated Images" />
+
                 <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
-                  <_Ap size={18} className="animate-spin-slow" />
+                  <_Ap size={18} className="animate-spin-slow" aria-hidden="true" />
                   <span className="text-[10px] uppercase font-black tracking-[0.3em]">
                     Motion_Capture
                   </span>
                 </div>
                 <div className="flex flex-col gap-10 items-center">
                   {_animatedImages.map((img: string, idx: number) => (
-                    <div
+                    <figure
                       key={`gif-${idx}`}
                       className="w-auto max-w-[80%] md:max-w-full relative group"
+                      itemScope
+                      itemType="https://schema.org/ImageObject"
+                      itemProp="itemListElement"
                     >
+                      <meta itemProp="position" content={String(idx + 1)} />
+                      <meta itemProp="url" content={_fC(img)} />
+                      <meta itemProp="name" content={`${_pD.title} — Animated image ${idx + 1}`} />
                       <img
                         src={_fC(img)}
-                        alt={`Motion ${idx}`}
+                        alt={`${_pD.title} — Animated image ${idx + 1}`}
                         className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
                         style={{ objectFit: "contain" }}
                         loading="lazy"
@@ -1663,19 +2500,37 @@ export default function ArticleDetail() {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
-                      <div className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white">
+                      <div
+                        className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white"
+                        aria-hidden="true"
+                      >
                         GIF
                       </div>
-                    </div>
+                      <figcaption className="sr-only">
+                        {_pD.title} — Animated image {idx + 1}
+                      </figcaption>
+                    </figure>
                   ))}
                 </div>
               </section>
             )}
 
             {_galleryImages.length > 0 && (
-              <section className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16">
+              <section
+                className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
+                aria-label="Image gallery"
+                itemScope
+                itemType="https://schema.org/ImageGallery"
+              >
+                {/* SEO: Gallery section structured data */}
+                <meta itemProp="name" content={`Gallery — ${_pD.title}`} />
+                <meta itemProp="description" content={`Image gallery for: ${_pD.title}`} />
+
                 <div className="flex items-center gap-4 mb-10">
-                  <div className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full">
+                  <div
+                    className="p-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full"
+                    aria-hidden="true"
+                  >
                     <_Ca size={18} />
                   </div>
                   <h2 className="text-2xl font-black uppercase italic tracking-tighter text-black dark:text-white">
@@ -1685,21 +2540,32 @@ export default function ArticleDetail() {
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {_galleryImages.map((img: string, idx: number) => (
-                    <div
+                    <figure
                       key={idx}
                       className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative"
+                      itemScope
+                      itemType="https://schema.org/ImageObject"
+                      itemProp="image"
                     >
+                      <meta itemProp="url" content={_fC(img)} />
+                      <meta itemProp="name" content={`${_pD.title} — Gallery ${idx + 1}`} />
                       <img
                         src={_fC(img)}
-                        alt={`Gallery node ${idx}`}
+                        alt={`${_pD.title} — Gallery image ${idx + 1}`}
                         className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
                         loading="lazy"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.opacity = "0.3";
                         }}
                       />
-                      <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                    </div>
+                      <div
+                        className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                        aria-hidden="true"
+                      />
+                      <figcaption className="sr-only">
+                        {_pD.title} — Gallery image {idx + 1}
+                      </figcaption>
+                    </figure>
                   ))}
                 </div>
 
@@ -1714,13 +2580,15 @@ export default function ArticleDetail() {
             <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
               <button
                 onClick={_hSv}
+                aria-label={_iS ? "Remove from saved" : "Save this article"}
+                aria-pressed={_iS}
                 className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
                   _iS
                     ? "bg-emerald-500 border-black text-black"
                     : "bg-white dark:bg-black border-black dark:border-white text-black dark:text-white"
                 }`}
               >
-                {_iS ? <_Ck size={16} /> : <_Bm size={16} />}
+                {_iS ? <_Ck size={16} aria-hidden="true" /> : <_Bm size={16} aria-hidden="true" />}
                 {_iS ? "Saved" : "Save"}
               </button>
 
@@ -1731,9 +2599,10 @@ export default function ArticleDetail() {
                     toast.success("Node Link Copied");
                   }
                 }}
+                aria-label="Copy permalink for this article"
                 className="flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-black uppercase text-[12px] tracking-widest shadow-md hover:invert active:scale-95 transition-all"
               >
-                <_Sh size={16} />
+                <_Sh size={16} aria-hidden="true" />
                 Permalink
               </button>
             </div>
@@ -1742,37 +2611,59 @@ export default function ArticleDetail() {
             <CommentSection articleId={_art.id} />
           </article>
 
-          <aside className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0">
+          <aside
+            className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0"
+            aria-label="Sidebar — Trending articles and social links"
+          >
             <div className="sticky top-32 space-y-8">
-              <div className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl">
+              <nav
+                className="p-8 bg-neutral-50 dark:bg-[#111] rounded-[2.5rem] border-2 border-black dark:border-white shadow-xl"
+                aria-label="Trending articles"
+                itemScope
+                itemType="https://schema.org/ItemList"
+              >
+                {/* SEO: Trending articles structured data */}
+                <meta itemProp="name" content="Trending Articles on Brawnly" />
+
                 <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" />{" "}
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" aria-hidden="true" />{" "}
                   Trending
                 </h2>
-                <div className="flex flex-col gap-10">
+                <ol className="flex flex-col gap-10">
                   {_hC.map((it: any, i: number) => (
-                    <_L
-                      to={`/article/${it.slug}`}
-                      key={it.id}
-                      className="group block"
-                    >
-                      <div className="flex gap-4">
-                        <span className="text-3xl font-black text-neutral-200 dark:text-neutral-800 group-hover:text-emerald-500 transition-colors">
-                          0{i + 1}
-                        </span>
-                        <div>
-                          <p className="text-[14px] font-black leading-tight uppercase group-hover:underline line-clamp-2 text-black dark:text-white">
-                            {it.title}
-                          </p>
-                          <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
-                            {(it.views || 0).toLocaleString("en-US")} Identity_Reads
+                    <li key={it.id} itemScope itemType="https://schema.org/Article" itemProp="itemListElement">
+                      <meta itemProp="position" content={String(i + 1)} />
+                      <meta itemProp="url" content={`https://www.brawnly.online/article/${it.slug}`} />
+                      <meta itemProp="headline" content={it.title} />
+                      <_L
+                        to={`/article/${it.slug}`}
+                        aria-label={`Read trending article: ${it.title}`}
+                        className="group block"
+                      >
+                        <div className="flex gap-4">
+                          <span
+                            className="text-3xl font-black text-neutral-200 dark:text-neutral-800 group-hover:text-emerald-500 transition-colors"
+                            aria-hidden="true"
+                          >
+                            0{i + 1}
                           </span>
+                          <div>
+                            <p
+                              className="text-[14px] font-black leading-tight uppercase group-hover:underline line-clamp-2 text-black dark:text-white"
+                              itemProp="headline"
+                            >
+                              {it.title}
+                            </p>
+                            <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
+                              {(it.views || 0).toLocaleString("en-US")} Identity_Reads
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </_L>
+                      </_L>
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ol>
+              </nav>
 
               <SocialWidgetsDesktop />
             </div>
