@@ -113,12 +113,7 @@ const Layout = () => {
 
   _e(() => {
     const _hM = (e: any) => {
-      if (!_isOnline) {
-        if (import.meta.env.DEV) {
-          console.warn("[BRAWNLY_SONIC_ENGINE]: Cannot start playback in offline mode.");
-        }
-        return;
-      }
+      if (!_isOnline) return;
       if (e.detail?.type === "PLAY_SONG" && _mL.length > 0) {
         const _idx = _mL.findIndex((s) => s.url.includes(e.detail.id));
         if (_idx !== -1) {
@@ -173,10 +168,7 @@ const Layout = () => {
   if (_sS) return <Splash />;
 
   return (
-    <div
-      className="min-h-screen flex flex-col bg-white dark:bg-black text-black dark:text-white transition-colors duration-300"
-      style={{ contain: "layout style" }}
-    >
+    <div className="min-h-screen flex flex-col bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <script type="application/ld+json">{_jL}</script>
       <Header />
 

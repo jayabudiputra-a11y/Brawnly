@@ -25,7 +25,6 @@ const _SPINNER = (
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      contain: "layout style",
     }}
   >
     <div
@@ -46,9 +45,8 @@ const _PAGE_SHELL = (
   <div
     style={{
       minHeight: "100vh",
+      width: "100%",
       background: "var(--bg, #fff)",
-      contain: "layout style paint",
-      contentVisibility: "auto",
     }}
     aria-hidden="true"
   />
@@ -59,7 +57,6 @@ const _ARTICLE_SHELL = (
     style={{
       minHeight: "100vh",
       background: "var(--bg, #fff)",
-      contain: "layout style paint",
     }}
     aria-hidden="true"
   >
@@ -193,23 +190,17 @@ const _RouteTransition: React.FC<{
 function App() {
   const { pathname: _p } = _uL();
   const _prevPath = useRef(_p);
-  const [_isPending, _startTrans] = useTransition();
 
   _e(() => {
     if (typeof window === "undefined") return;
     if (_prevPath.current !== _p) {
-      startTransition(() => {
-        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-      });
+      window.scrollTo(0, 0);
       _prevPath.current = _p;
     }
   }, [_p]);
 
   _e(() => {
     if (typeof window === "undefined") return;
-
-    const _io = new IntersectionObserver(() => {}, {});
-    _io.disconnect();
 
     const _idle = (window as any).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
 
@@ -246,6 +237,7 @@ function App() {
         :root { --bg: #fff; }
         @media (prefers-color-scheme: dark) { :root { --bg: #0a0a0a; } }
         .dark { --bg: #0a0a0a; }
+        html { scroll-behavior: auto !important; }
       `;
       document.head.appendChild(_style);
     }
@@ -256,21 +248,18 @@ function App() {
   }, []);
 
   return (
-    <div
-      className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300"
-      style={{ contain: "layout style" }}
-    >
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       <_MT
         title="Brawnly Smart Tracker"
         description="Next-gen fitness platform 2026."
         image={_mP}
       />
       <_IF />
+      
+      {/* Tombol Scroll-to-Top ditaruh di sini, satu kali saja */}
       <_ST />
 
-      <_Sp
-        fallback={_SPINNER}
-      >
+      <_Sp fallback={_SPINNER}>
         <_Rs>
           <_Rt element={<_L />}>
             <_Rt
