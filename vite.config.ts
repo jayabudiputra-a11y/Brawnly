@@ -17,15 +17,8 @@ export default defineConfig({
     injectHTML(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "assets/favicon.ico",
-        "assets/favicon.svg",
-        "assets/Brawnly-favicon.svg",
-        "assets/masculineLogo.svg",
-        "assets/Brawnly.gif",
-        "assets/myPride.gif",
-        "assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
-        "assets/Brawnly-17aDfvayqUvay.gif"],
+      // Dikosongkan untuk menghindari konflik duplikasi cache dengan globPatterns
+      includeAssets: [], 
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -42,7 +35,7 @@ export default defineConfig({
             type: "image/svg+xml",
           },
           {
-            src: "assets/masculineLogo.svg",
+            src: "/assets/masculineLogo.svg",
             sizes: "192x192",
             type: "image/svg+xml",
             purpose: "any maskable"
@@ -57,6 +50,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        // Pattern ini sudah mencakup semua file di folder public/assets
         globPatterns: ["**/*.{js,css,html,ico,png,svg,gif,webmanifest}"],
         runtimeCaching: [
           {
