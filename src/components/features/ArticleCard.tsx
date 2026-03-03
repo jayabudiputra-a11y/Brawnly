@@ -388,8 +388,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             <img
               src={_displayImg}
               alt={`${_t} — thumbnail`}
-              width={200}
-              height={130}
               loading={_p ? "eager" : "lazy"}
               fetchPriority={_p ? "high" : "auto"}
               decoding={_p ? "sync" : "async"}
@@ -430,8 +428,6 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
             <img
               src={_mA}
               alt={`Author avatar — ${_authorName}`}
-              width={16}
-              height={16}
               className="w-4 h-4 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 border border-neutral-200 dark:border-neutral-800"
             />
             <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
