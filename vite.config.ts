@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 import injectHTML from 'vite-plugin-html-inject';
+import PrerenderSPAPlugin from 'vite-plugin-prerender';
 
 export default defineConfig({
   optimizeDeps: {
@@ -15,9 +16,14 @@ export default defineConfig({
       },
     }),
     injectHTML(),
+    PrerenderSPAPlugin({
+      staticDir: path.join(__dirname, 'dist'),
+      routes: ['/'],
+      renderer: new (require('vite-plugin-prerender/lib/es6-renderer'))(),
+    }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [], 
+      includeAssets: [],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -149,10 +155,15 @@ export default defineConfig({
         assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("react")) return "react-vendor";
-            if (id.includes("react-dom")) return "react-dom-vendor";
-            if (id.includes("supabase")) return "supabase-vendor";
-            if (id.includes("@jsquash")) return "wasm-vendor";
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("@tanstack")) return "vendor-query";
+            if (id.includes("react-dom")) return "vendor-react-dom";
+            if (id.includes("react-router")) return "vendor-router";
+            if (id.includes("react")) return "vendor-react";
+            if (id.includes("supabase")) return "vendor-supabase";
+            if (id.includes("@jsquash")) return "vendor-wasm";
+            if (id.includes("lucide")) return "vendor-icons";
+            if (id.includes("react-helmet")) return "vendor-helmet";
             return "vendor";
           }
         },
