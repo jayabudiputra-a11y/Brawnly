@@ -11,7 +11,7 @@
       }
     ],
     "destination": "https://www.brawnly.online/",
-    "permanent": true
+    "statusCode": 301
   },
   {
     "source": "/:path*",
@@ -22,7 +22,7 @@
       }
     ],
     "destination": "https://www.brawnly.online/:path*",
-    "permanent": true
+    "statusCode": 301
     }
   ],
   "rewrites": [
