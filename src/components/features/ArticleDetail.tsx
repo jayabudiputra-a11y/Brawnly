@@ -1570,7 +1570,7 @@ function YouTubeShortsPlayer({
   }, [videoUrl]);
 
   const embedBase = videoId
-    ? `https://www.youtube.com/embed/${videoId}`
+    ? `https://www.youtube-nocookie.com/embed/${videoId}`
     : null;
 
   // Rebuild src when muted toggles
