@@ -30,6 +30,8 @@ import {
   Swords as _Sw,
   UserPlus as _Up,
   ExternalLink as _El,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -62,6 +64,8 @@ import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
 
+// ─── Social Media Constants ─────────────────────────────────────────────────
+
 const INSTAGRAM_USERNAME = "deul.umm";
 const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
 const INSTAGRAM_POST_PERMALINK =
@@ -69,16 +73,20 @@ const INSTAGRAM_POST_PERMALINK =
 
 const YOUTUBE_CHANNEL_URL = "https://www.youtube.com/@rudayaDIR";
 const YOUTUBE_CHANNEL_HANDLE = "rudayaDIR";
+const YOUTUBE_CHANNEL_VIDEOS_URL = `${YOUTUBE_CHANNEL_URL}/videos`;
+const YOUTUBE_SHORTS_URL = `${YOUTUBE_CHANNEL_URL}/shorts`;
 
 const SUBSTACK_URL =
   "https://deulo.substack.com/p/wifi-densepose-melacak-tubuh-manusia";
 const SUBSTACK_ROOT_URL = "https://deulo.substack.com";
+const SUBSTACK_RSS_URL = "https://deulo.substack.com/feed";
 const SUBSTACK_POST_TITLE =
   "WiFi DensePose: Melacak Tubuh Manusia Menembus Tembok, Tanpa Kamera";
 const SUBSTACK_POST_DESC =
   "Proyek open-source ini menggunakan sinyal WiFi biasa untuk mengestimasi pose tubuh secara real-time — dan hasilnya mengubah cara kita memandang privasi dan keamanan selamanya.";
 
 const TUMBLR_BLOG_URL = "https://deulo.tumblr.com/";
+const TUMBLR_RSS_URL = "https://deulo.tumblr.com/rss";
 const TUMBLR_POST_URL =
   "https://www.tumblr.com/deulo/809804750475444224/blaze-deulo";
 const TUMBLR_EMBED_HREF =
@@ -97,6 +105,221 @@ const CR_ADD_FRIEND_URL =
   "https://link.clashroyale.com/?supercell_id&p=34-325a499d-fa6d-436b-a6cd-1d592a8afdea";
 const CR_ROYALEAPI_BATTLES = `https://royaleapi.com/player/${CR_PLAYER_TAG}/battles`;
 const CR_ROYALEAPI_PROFILE = `https://royaleapi.com/player/${CR_PLAYER_TAG}`;
+
+// ─── RSS Feed Utilities ──────────────────────────────────────────────────────
+
+type RSSItem = {
+  title: string;
+  link: string;
+  pubDate: string;
+  description: string;
+  thumbnail: string;
+  videoId?: string;
+};
+
+// ── In-memory RSS cache to avoid double-fetching (React StrictMode) ──────────
+const _rssCache = new Map<string, { ts: number; items: RSSItem[] }>();
+const RSS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Expanded CORS proxy pool — tried in order until one succeeds
+// Each entry: { make: url→endpoint, extract: response→xmlText }
+type ProxyEntry = {
+  make: (u: string) => string;
+  extract?: (text: string) => string;  // optional transform for JSON wrappers
+};
+
+const CORS_PROXIES: ProxyEntry[] = [
+  // allorigins /raw — direct text response
+  { make: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+  // allorigins /get — JSON wrapper: { contents: "..." }
+  {
+    make: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    extract: (t) => {
+      try { return JSON.parse(t).contents ?? t; } catch { return t; }
+    },
+  },
+  // codetabs — direct text, works well for RSS
+  { make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  // thingproxy — broad allowlist
+  { make: (u) => `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(u)}` },
+  // cors.sh — public no-key endpoint
+  { make: (u) => `https://proxy.cors.sh/${u}` },
+  // corsproxy.io — last resort (currently 403-ing some feeds)
+  { make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+];
+
+async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
+  // Return cached result if still fresh
+  const cached = _rssCache.get(feedUrl);
+  if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
+
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const endpoint = proxy.make(feedUrl);
+      const res = await fetch(endpoint, {
+        signal: AbortSignal.timeout(9000),
+        headers: { Accept: "application/rss+xml, application/xml, text/xml, text/html, */*" },
+      });
+      if (!res.ok) continue;
+      let text = await res.text();
+      if (proxy.extract) text = proxy.extract(text);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/xml");
+      if (doc.querySelector("parsererror")) continue;
+
+      const rawItems = [...doc.querySelectorAll("item, entry")];
+      if (rawItems.length === 0) continue;
+
+      const items = rawItems.map((item) => {
+        // link can be <link>url</link> or <link href="url"/>
+        const linkEl = item.querySelector("link");
+        const link =
+          linkEl?.textContent?.trim() ||
+          linkEl?.getAttribute("href") ||
+          "";
+
+        // thumbnail: media:thumbnail, enclosure image, or derived from video
+        const mediaNs = item.querySelector("thumbnail"); // media:thumbnail
+        const enclosure = item.querySelector("enclosure");
+        const thumbnail =
+          mediaNs?.getAttribute("url") ||
+          (enclosure?.getAttribute("type")?.startsWith("image")
+            ? enclosure.getAttribute("url")
+            : "") ||
+          "";
+
+        // YouTube video ID from link or from yt:videoId
+        const ytVideoId =
+          item.querySelector("videoId")?.textContent?.trim() ||
+          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
+
+        const thumbFinal =
+          thumbnail ||
+          (ytVideoId ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg` : "");
+
+        // description: strip HTML tags
+        const rawDesc =
+          item.querySelector("description, summary")?.textContent || "";
+        const descClean = rawDesc.replace(/<[^>]+>/g, "").trim().slice(0, 160);
+
+        return {
+          title: item.querySelector("title")?.textContent?.trim() || "",
+          link,
+          pubDate:
+            item.querySelector("pubDate, published, updated")?.textContent?.trim() ||
+            "",
+          description: descClean,
+          thumbnail: thumbFinal,
+          videoId: ytVideoId,
+        };
+      });
+      _rssCache.set(feedUrl, { ts: Date.now(), items });
+      return items;
+    } catch {
+      continue;
+    }
+  }
+  return [];
+}
+
+// In-flight dedup — prevents StrictMode double-mount from spawning parallel fetches
+const _rssPending = new Map<string, Promise<RSSItem[]>>();
+
+/** Generic RSS hook */
+function useRSSFeed(url: string, count = 3) {
+  const [items, _setItems] = _s<RSSItem[]>([]);
+  const [loading, _setLoading] = _s(true);
+
+  _e(() => {
+    let cancelled = false;
+    _setLoading(true);
+
+    const doFetch = (): Promise<RSSItem[]> => {
+      if (_rssPending.has(url)) return _rssPending.get(url)!;
+      const p = fetchRSSViaProxy(url).finally(() => _rssPending.delete(url));
+      _rssPending.set(url, p);
+      return p;
+    };
+
+    doFetch()
+      .then((data) => {
+        if (!cancelled) {
+          _setItems(data.slice(0, count));
+          _setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) _setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, count]);
+
+  return { items, loading };
+}
+
+/** Resolve YouTube channel ID from handle via page scrape, then fetch RSS */
+function useYouTubeFeed(handle: string, count = 4) {
+  const [items, _setItems] = _s<RSSItem[]>([]);
+  const [loading, _setLoading] = _s(true);
+  const [channelId, _setChannelId] = _s<string | null>(null);
+
+  _e(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        // Try to resolve real UC channel ID from the @handle page
+        let resolvedId: string | null = null;
+        try {
+          const proxyUrl = CORS_PROXIES[0].make(
+            `https://www.youtube.com/@${handle}`
+          );
+          const pageRes = await fetch(proxyUrl, {
+            signal: AbortSignal.timeout(10000),
+          });
+          if (pageRes.ok) {
+            const html = await pageRes.text();
+            const match = html.match(/"channelId":"(UC[A-Za-z0-9_-]{22})"/);
+            resolvedId = match?.[1] || null;
+          }
+        } catch {
+          // ignore resolve failure
+        }
+
+        if (!cancelled && resolvedId) _setChannelId(resolvedId);
+
+        // Try RSS URLs in order: resolved channel_id → legacy user= → give up
+        const feedUrls = [
+          resolvedId
+            ? `https://www.youtube.com/feeds/videos.xml?channel_id=${resolvedId}`
+            : null,
+          `https://www.youtube.com/feeds/videos.xml?user=${handle}`,
+        ].filter(Boolean) as string[];
+
+        for (const feedUrl of feedUrls) {
+          const data = await fetchRSSViaProxy(feedUrl);
+          if (data.length > 0) {
+            if (!cancelled) _setItems(data.slice(0, count));
+            break;
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) _setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [handle, count]);
+
+  return { items, loading, channelId };
+}
+
+// ─── Paragraph Parsing ───────────────────────────────────────────────────────
 
 type ParsedBlock =
   | { type: "text"; html: string }
@@ -148,19 +371,30 @@ function fmtHtml(text: string): string {
       /\*\*(.*?)\*\*/g,
       `<strong class="font-black text-black dark:text-white">$1</strong>`
     )
-    .replace(
-      /\*(.*?)\*/g,
-      `<em class="italic text-red-700">$1</em>`
-    );
+    .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
 }
 
 function safeBlobRevoke(url: string | null) {
   if (!url || !url.startsWith("blob:")) return;
   try {
     URL.revokeObjectURL(url);
+  } catch {}
+}
+
+function formatRSSDate(dateStr: string): string {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   } catch {
+    return dateStr.slice(0, 16);
   }
 }
+
+// ─── Suspense Fallbacks ──────────────────────────────────────────────────────
 
 function SuspenseFallbackWidget() {
   return (
@@ -215,11 +449,20 @@ function SuspenseFallbackComments() {
   );
 }
 
+// ─── SEO Nodes ───────────────────────────────────────────────────────────────
+
 function InstagramSEONode() {
   return (
     <div
       aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
     >
       <span itemScope itemType="https://schema.org/Person">
         <span itemProp="sameAs" content={INSTAGRAM_URL} />
@@ -233,13 +476,221 @@ function InstagramSEONode() {
           Follow on Instagram — @{INSTAGRAM_USERNAME}
         </a>
         <span itemProp="name" content={INSTAGRAM_USERNAME} />
-        <span itemProp="description" content={`Instagram profile of ${INSTAGRAM_USERNAME} — visual stories, posts, and reels.`} />
+        <span
+          itemProp="description"
+          content={`Instagram profile of ${INSTAGRAM_USERNAME} — visual stories, posts, and reels.`}
+        />
       </span>
       <meta name="instagram:profile" content={INSTAGRAM_USERNAME} />
       <link rel="author" href={INSTAGRAM_URL} />
     </div>
   );
 }
+
+function YouTubeSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span itemScope itemType="https://schema.org/VideoChannel">
+        <span
+          data-href={YOUTUBE_CHANNEL_URL}
+          itemProp="url"
+          data-rel="noopener noreferrer"
+        >
+          YouTube Channel — @{YOUTUBE_CHANNEL_HANDLE}
+        </span>
+        <span itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
+        <span
+          itemProp="description"
+          content={`Watch videos and shorts on YouTube channel @${YOUTUBE_CHANNEL_HANDLE}. Subscribe for the latest content from Brawnly.`}
+        />
+        <span itemProp="sameAs" content={YOUTUBE_CHANNEL_URL} />
+      </span>
+      <meta name="youtube:channel" content={YOUTUBE_CHANNEL_HANDLE} />
+      <meta name="youtube:channel:url" content={YOUTUBE_CHANNEL_URL} />
+    </div>
+  );
+}
+
+function TumblrSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span itemScope itemType="https://schema.org/Blog">
+        <a
+          href={TUMBLR_BLOG_URL}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          Tumblr Blog — deulo
+        </a>
+        <span itemProp="name" content="deulo" />
+        <span itemProp="author" content="deulo" />
+        <span
+          itemProp="description"
+          content="Tumblr blog by deulo — posts, reblogs, and creative content."
+        />
+        <span itemProp="sameAs" content={TUMBLR_BLOG_URL} />
+      </span>
+      <meta name="tumblr:blog" content="deulo" />
+      <meta name="tumblr:blog:url" content={TUMBLR_BLOG_URL} />
+    </div>
+  );
+}
+
+function SubstackSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span itemScope itemType="https://schema.org/NewsArticle">
+        <a
+          href={SUBSTACK_URL}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          {SUBSTACK_POST_TITLE}
+        </a>
+        <span itemProp="headline" content={SUBSTACK_POST_TITLE} />
+        <span itemProp="description" content={SUBSTACK_POST_DESC} />
+        <span itemProp="author" content="deulo" />
+        <span itemProp="publisher" content="Substack — deulo" />
+        <span itemProp="sameAs" content={SUBSTACK_ROOT_URL} />
+      </span>
+      <span itemScope itemType="https://schema.org/Blog">
+        <a
+          href={SUBSTACK_ROOT_URL}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          Read all posts on Substack — deulo
+        </a>
+        <span itemProp="name" content="deulo on Substack" />
+      </span>
+      <meta name="substack:publication" content="deulo" />
+      <meta name="substack:post:title" content={SUBSTACK_POST_TITLE} />
+    </div>
+  );
+}
+
+function PinterestSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span itemScope itemType="https://schema.org/Person">
+        <a
+          href={PINTEREST_PROFILE_URL}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          Pinterest — mustbeloveonthebrain
+        </a>
+        <span itemProp="name" content="mustbeloveonthebrain" />
+        <span itemProp="sameAs" content={PINTEREST_PROFILE_URL} />
+        <span
+          itemProp="description"
+          content="Discover pins and boards by mustbeloveonthebrain on Pinterest — curated visual content."
+        />
+      </span>
+      <meta name="pinterest:profile" content="mustbeloveonthebrain" />
+    </div>
+  );
+}
+
+function ClashRoyaleSEONode() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        width: 1,
+        height: 1,
+        overflow: "hidden",
+        clip: "rect(0,0,0,0)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span itemScope itemType="https://schema.org/Person">
+        <span itemProp="name" content={CR_PLAYER_NAME} />
+        <span itemProp="identifier" content={CR_PLAYER_TAG} />
+        <span
+          itemProp="description"
+          content={`Clash Royale player ${CR_PLAYER_NAME} — Tag: #${CR_PLAYER_TAG}, ID: ${CR_PLAYER_ID}. Level 53, 109K+ Gold. View battles, deck stats, and trophies on RoyaleAPI.`}
+        />
+        <a
+          href={CR_ROYALEAPI_PROFILE}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          View Clash Royale profile — {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
+        </a>
+        <a
+          href={CR_ROYALEAPI_BATTLES}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          View Clash Royale battles — {CR_PLAYER_NAME}
+        </a>
+        <a
+          href={CR_ADD_FRIEND_URL}
+          itemProp="url"
+          tabIndex={-1}
+          rel="noopener noreferrer"
+        >
+          Add {CR_PLAYER_NAME} as friend in Clash Royale
+        </a>
+      </span>
+      <meta name="clashroyale:player:tag" content={CR_PLAYER_TAG} />
+      <meta name="clashroyale:player:name" content={CR_PLAYER_NAME} />
+      <meta name="clashroyale:player:id" content={CR_PLAYER_ID} />
+    </div>
+  );
+}
+
+// ─── Instagram Widget ────────────────────────────────────────────────────────
+// Instagram blocks iframe embeds (X-Frame-Options: deny).
+// We use the official oEmbed blockquote + instgrm.Embeds.process() approach.
 
 function InstagramWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -253,7 +704,7 @@ function InstagramWidget() {
   _e(() => {
     if (!isMounted || !_embedRef.current) return;
 
-    _embedRef.current.innerHTML = `<blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="${INSTAGRAM_POST_PERMALINK}" data-instgrm-version="14" style="background:#FFF;border:0;border-radius:3px;margin:1px;max-width:540px;min-width:280px;padding:0;width:calc(100% - 2px)"><div style="padding:16px"><a href="${INSTAGRAM_POST_PERMALINK}" target="_blank" rel="noopener noreferrer" style="background:#FFFFFF;line-height:0;padding:0 0;text-align:center;text-decoration:none;width:100%;display:block"><div style="display:flex;flex-direction:row;align-items:center"><div style="background-color:#F4F4F4;border-radius:50%;flex-grow:0;height:40px;margin-right:14px;width:40px"></div><div style="display:flex;flex-direction:column;flex-grow:1;justify-content:center"><div style="background-color:#F4F4F4;border-radius:4px;flex-grow:0;height:14px;margin-bottom:6px;width:100px"></div><div style="background-color:#F4F4F4;border-radius:4px;flex-grow:0;height:14px;width:60px"></div></div></div><div style="padding:19% 0"></div><div style="display:block;height:50px;margin:0 auto 12px;width:50px"><svg width="50px" height="50px" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><g transform="translate(-511.000000, -20.000000)" fill="#000000"><g><path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path></g></g></g></svg></div><div style="padding-top:8px"><div style="color:#3897f0;font-family:Arial,sans-serif;font-size:14px;font-style:normal;font-weight:550;line-height:18px">View this post on Instagram</div></div></a><p style="color:#c9c8cd;font-family:Arial,sans-serif;font-size:14px;line-height:17px;margin-bottom:0;margin-top:8;overflow:hidden;padding:8px 0 7px;text-align:center;text-overflow:ellipsis;white-space:nowrap"><a href="${INSTAGRAM_POST_PERMALINK}" target="_blank" rel="noopener noreferrer" style="color:#c9c8cd;font-family:Arial,sans-serif;font-size:14px;font-style:normal;font-weight:normal;line-height:17px;text-decoration:none">A post shared by &quot;Putra&quot; (@${INSTAGRAM_USERNAME})</a></p></div></blockquote>`;
+    _embedRef.current.innerHTML = `<blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="${INSTAGRAM_POST_PERMALINK}" data-instgrm-version="14" style="background:#FFF;border:0;border-radius:3px;margin:1px;max-width:540px;min-width:280px;padding:0;width:calc(100% - 2px)"><div style="padding:16px"><a href="${INSTAGRAM_POST_PERMALINK}" target="_blank" rel="noopener noreferrer" style="background:#FFFFFF;line-height:0;padding:0 0;text-align:center;text-decoration:none;width:100%;display:block"><div style="display:flex;flex-direction:row;align-items:center"><div style="background-color:#F4F4F4;border-radius:50%;flex-grow:0;height:40px;margin-right:14px;width:40px"></div><div style="display:flex;flex-direction:column;flex-grow:1;justify-content:center"><div style="background-color:#F4F4F4;border-radius:4px;flex-grow:0;height:14px;margin-bottom:6px;width:100px"></div><div style="background-color:#F4F4F4;border-radius:4px;flex-grow:0;height:14px;width:60px"></div></div></div></a></div></blockquote>`;
 
     const _processEmbed = () => {
       try {
@@ -266,7 +717,10 @@ function InstagramWidget() {
       return;
     }
 
-    if (_scriptLoaded.current || document.getElementById("ig-embed-script")) {
+    if (
+      _scriptLoaded.current ||
+      document.getElementById("ig-embed-script")
+    ) {
       const _waitTimer = setInterval(() => {
         if ((window as any).instgrm?.Embeds?.process) {
           clearInterval(_waitTimer);
@@ -296,7 +750,6 @@ function InstagramWidget() {
       <InstagramSEONode />
       <meta itemProp="url" content={INSTAGRAM_POST_PERMALINK} />
       <meta itemProp="author" content={INSTAGRAM_USERNAME} />
-      <meta itemProp="interactionStatistic" content="Instagram post embed" />
 
       <div className="h-1.5 w-full bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]" />
 
@@ -334,9 +787,15 @@ function InstagramWidget() {
         </a>
       </div>
 
-      <div ref={_embedRef} className="px-3 pb-2 overflow-hidden min-h-[250px]">
+      <div
+        ref={_embedRef}
+        className="px-3 pb-2 overflow-hidden min-h-[250px]"
+      >
         {!isMounted && (
-          <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 rounded-lg" style={{ height: 250 }} />
+          <div
+            className="animate-pulse bg-neutral-100 dark:bg-neutral-900 rounded-lg"
+            style={{ height: 250 }}
+          />
         )}
       </div>
 
@@ -356,31 +815,10 @@ function InstagramWidget() {
   );
 }
 
-function YouTubeSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-    >
-      <span itemScope itemType="https://schema.org/VideoChannel">
-        <span
-          data-href={YOUTUBE_CHANNEL_URL}
-          itemProp="url"
-          data-rel="noopener noreferrer"
-        >
-          YouTube Channel — @{YOUTUBE_CHANNEL_HANDLE}
-        </span>
-        <span itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
-        <span itemProp="description" content={`Watch videos and shorts on YouTube channel @${YOUTUBE_CHANNEL_HANDLE}. Subscribe for the latest content from Brawnly.`} />
-        <span itemProp="sameAs" content={YOUTUBE_CHANNEL_URL} />
-      </span>
-      <meta name="youtube:channel" content={YOUTUBE_CHANNEL_HANDLE} />
-      <meta name="youtube:channel:url" content={YOUTUBE_CHANNEL_URL} />
-    </div>
-  );
-}
+// ─── YouTube Widget — Live RSS Feed ─────────────────────────────────────────
 
 function YouTubeWidget() {
+  const { items, loading } = useYouTubeFeed(YOUTUBE_CHANNEL_HANDLE, 4);
   const [_subbed, _setSubbed] = _s(false);
   const [_plusCount, _setPlusCount] = _s(0);
 
@@ -394,66 +832,129 @@ function YouTubeWidget() {
     toast.success("+1 Subscriber! Opening YouTube…");
   };
 
-  const _handleWidgetClick = () => {
-    window.open(YOUTUBE_CHANNEL_URL, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div
-      role="link"
-      tabIndex={0}
-      aria-label={`Visit YouTube channel @${YOUTUBE_CHANNEL_HANDLE}`}
-      className="group block cursor-pointer"
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
       itemScope
       itemType="https://schema.org/VideoChannel"
-      onClick={_handleWidgetClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") _handleWidgetClick();
-      }}
     >
       <YouTubeSEONode />
       <meta itemProp="url" content={YOUTUBE_CHANNEL_URL} />
       <meta itemProp="name" content={YOUTUBE_CHANNEL_HANDLE} />
 
-      <div className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] transition-all duration-300 group-hover:shadow-2xl group-hover:scale-[1.02]">
-        <div className="h-1.5 w-full bg-[#FF0000]" />
+      <div className="h-1.5 w-full bg-[#FF0000]" />
 
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#FF0000] flex items-center justify-center shadow-md flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="YouTube" role="img">
-                  <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
-                  YouTube
-                </p>
-                <p className="text-[13px] font-black uppercase italic tracking-tight text-black dark:text-white leading-none">
-                  @{YOUTUBE_CHANNEL_HANDLE}
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={_handleSubscribe}
-              aria-label={_subbed ? "Already subscribed to YouTube channel" : `Subscribe to @${YOUTUBE_CHANNEL_HANDLE} on YouTube`}
-              className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 flex-shrink-0 ${
-                _subbed
-                  ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
-                  : "bg-[#FF0000] text-white hover:bg-red-700 shadow-sm"
-              }`}
+      <div className="px-6 pt-5 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#FF0000] flex items-center justify-center shadow-md flex-shrink-0">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-5 h-5 fill-white"
+              aria-label="YouTube"
+              role="img"
             >
-              {_subbed ? "Subscribed ✓" : "Subscribe"}
-              {_plusCount > 0 && (
-                <span className="ml-1 bg-white text-[#FF0000] rounded-full px-1.5 py-0.5 text-[8px] font-black animate-bounce">
-                  +{_plusCount}
-                </span>
-              )}
-            </button>
+              <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+            </svg>
           </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
+              YouTube
+            </p>
+            <p className="text-[13px] font-black uppercase italic tracking-tight text-black dark:text-white leading-none">
+              @{YOUTUBE_CHANNEL_HANDLE}
+            </p>
+          </div>
+        </div>
 
+        <button
+          onClick={_handleSubscribe}
+          aria-label={
+            _subbed
+              ? "Already subscribed to YouTube channel"
+              : `Subscribe to @${YOUTUBE_CHANNEL_HANDLE} on YouTube`
+          }
+          className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 flex-shrink-0 ${
+            _subbed
+              ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
+              : "bg-[#FF0000] text-white hover:bg-red-700 shadow-sm"
+          }`}
+        >
+          {_subbed ? "Subscribed ✓" : "Subscribe"}
+          {_plusCount > 0 && (
+            <span className="ml-1 bg-white text-[#FF0000] rounded-full px-1.5 py-0.5 text-[8px] font-black animate-bounce">
+              +{_plusCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Live feed section */}
+      <div className="px-4 pb-2">
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex gap-3 animate-pulse"
+              >
+                <div className="w-20 h-14 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex-shrink-0" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-full" />
+                  <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-3">
+            {items.map((item, i) => (
+              <a
+                key={`yt-feed-${i}`}
+                href={item.link || YOUTUBE_CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Watch: ${item.title}`}
+                className="flex gap-3 group hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-xl p-2 -mx-2 transition-colors duration-200"
+                itemScope
+                itemType="https://schema.org/VideoObject"
+              >
+                <meta itemProp="url" content={item.link} />
+                <meta itemProp="name" content={item.title} />
+                {/* Thumbnail */}
+                <div className="w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-900 relative">
+                  {item.thumbnail ? (
+                    <img
+                      src={item.thumbnail}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#FF0000]/10">
+                      <_Pc size={20} className="text-[#FF0000]" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+                    <_Pc size={16} className="text-white" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black uppercase leading-tight line-clamp-2 text-black dark:text-white group-hover:text-[#FF0000] transition-colors">
+                    {item.title}
+                  </p>
+                  {item.pubDate && (
+                    <p className="text-[9px] font-bold text-neutral-400 mt-1 uppercase tracking-wider">
+                      {formatRSSDate(item.pubDate)}
+                    </p>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
           <p className="text-[12px] font-serif italic text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-neutral-100 dark:border-neutral-800 pt-4">
             Watch videos & shorts on{" "}
             <span className="font-black not-italic text-black dark:text-white">
@@ -461,72 +962,47 @@ function YouTubeWidget() {
             </span>{" "}
             ✦
           </p>
+        )}
+      </div>
 
-          <div className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#FF0000] group-hover:text-red-700 transition-colors duration-300">
-            <_Pc size={13} />
-            Visit channel on YouTube
-          </div>
-        </div>
+      <div className="px-6 pb-5 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex flex-col gap-2">
+        <a
+          href={YOUTUBE_CHANNEL_VIDEOS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit YouTube channel videos"
+          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#FF0000] hover:text-red-700 transition-colors duration-300"
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+          All videos on YouTube
+        </a>
+        <a
+          href={YOUTUBE_SHORTS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit YouTube Shorts"
+          className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 hover:text-[#FF0000] transition-colors duration-300"
+        >
+          <_Pc size={11} aria-hidden="true" /> Shorts ↗
+        </a>
       </div>
     </div>
   );
 }
 
-function TumblrSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-    >
-      <span itemScope itemType="https://schema.org/Blog">
-        <a href={TUMBLR_BLOG_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Tumblr Blog — deulo
-        </a>
-        <span itemProp="name" content="deulo" />
-        <span itemProp="author" content="deulo" />
-        <span itemProp="description" content="Tumblr blog by deulo — posts, reblogs, and creative content." />
-        <span itemProp="sameAs" content={TUMBLR_BLOG_URL} />
-      </span>
-      <span itemScope itemType="https://schema.org/BlogPosting">
-        <a href={TUMBLR_POST_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          View Tumblr post — deulo
-        </a>
-      </span>
-      <meta name="tumblr:blog" content="deulo" />
-      <meta name="tumblr:blog:url" content={TUMBLR_BLOG_URL} />
-    </div>
-  );
-}
+// ─── Tumblr Widget — Live RSS Feed ───────────────────────────────────────────
 
 function TumblrWidget() {
-  const _iframeRef = _uR<HTMLIFrameElement>(null);
-  const [_iframeHeight, _setIframeHeight] = _s(350);
-  const [isMounted, setIsMounted] = _s(false);
-  const [_isInteracting, _setIsInteracting] = _s(false);
-
-  _e(() => {
-    setIsMounted(true);
-    const _handleMessage = (event: MessageEvent) => {
-      if (event.origin !== "https://embed.tumblr.com") return;
-      try {
-        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data && data.height && typeof data.height === "number") {
-          _setIframeHeight(data.height + 20);
-        }
-      } catch (_) {}
-    };
-    window.addEventListener("message", _handleMessage);
-    return () => window.removeEventListener("message", _handleMessage);
-  }, []);
+  const { items, loading } = useRSSFeed(TUMBLR_RSS_URL, 3);
 
   return (
     <div
       className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative"
       itemScope
-      itemType="https://schema.org/BlogPosting"
+      itemType="https://schema.org/Blog"
     >
       <TumblrSEONode />
-      <meta itemProp="url" content={TUMBLR_POST_URL} />
+      <meta itemProp="url" content={TUMBLR_BLOG_URL} />
       <meta itemProp="author" content="deulo" />
 
       <div className="h-1.5 w-full bg-[#35465D]" />
@@ -534,7 +1010,12 @@ function TumblrWidget() {
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#35465D] flex items-center justify-center shadow-md flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-label="Tumblr" role="img">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-4 h-4 fill-white"
+              aria-label="Tumblr"
+              role="img"
+            >
               <path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.747H5.116V6.648c3.63-1.313 4.512-4.596 4.71-6.469C9.84.051 9.941 0 9.999 0h3.517v6.114h4.801v3.633h-4.82v7.47c.016 1.001.375 2.371 2.207 2.371h.09c.631-.02 1.486-.205 1.936-.419l1.156 3.425c-.436.636-2.4 1.374-4.306 1.406z" />
             </svg>
           </div>
@@ -559,37 +1040,56 @@ function TumblrWidget() {
         </a>
       </div>
 
-      <div
-        className="px-3 pb-2 overflow-hidden relative"
-        data-embed-type="tumblr"
-        onMouseLeave={() => _setIsInteracting(false)}
-      >
-        {!_isInteracting && (
-          <div
-            className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-            onClick={() => _setIsInteracting(true)}
-            onTouchStart={() => _setIsInteracting(true)}
-          />
-        )}
-        {isMounted ? (
-          <iframe
-            ref={_iframeRef}
-            src={TUMBLR_EMBED_HREF}
-            className="w-full border-0 rounded-lg"
-            title="Tumblr post embed by deulo"
-            style={{
-              height: _iframeHeight,
-              maxHeight: 600,
-              pointerEvents: _isInteracting ? "auto" : "none",
-            }}
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+      {/* Live feed */}
+      <div className="px-4 pb-2">
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-full mb-1" />
+                <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded w-2/3" />
+              </div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-4">
+            {items.map((item, i) => (
+              <a
+                key={`tumblr-feed-${i}`}
+                href={item.link || TUMBLR_BLOG_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Read: ${item.title || "Tumblr post"}`}
+                className="block group hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-xl p-3 -mx-3 transition-colors duration-200 border-b border-neutral-100 dark:border-neutral-800 last:border-0"
+                itemScope
+                itemType="https://schema.org/BlogPosting"
+              >
+                <meta itemProp="url" content={item.link} />
+                <p className="text-[12px] font-black uppercase leading-tight line-clamp-2 text-black dark:text-white group-hover:text-[#35465D] dark:group-hover:text-[#6fa3d8] transition-colors mb-1">
+                  {item.title || "Untitled post"}
+                </p>
+                {item.description && (
+                  <p className="text-[10px] font-serif italic text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
+                {item.pubDate && (
+                  <p className="text-[9px] font-bold text-neutral-400 mt-1 uppercase tracking-wider">
+                    {formatRSSDate(item.pubDate)}
+                  </p>
+                )}
+              </a>
+            ))}
+          </div>
         ) : (
-          <div
-            style={{ height: 350 }}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-lg"
-          />
+          /* Fallback to original embed if RSS fails */
+          <p className="text-[12px] font-serif italic text-neutral-600 dark:text-neutral-400 py-4">
+            Posts from{" "}
+            <span className="font-black not-italic text-black dark:text-white">
+              deulo
+            </span>{" "}
+            on Tumblr ✦
+          </p>
         )}
       </div>
 
@@ -609,76 +1109,31 @@ function TumblrWidget() {
   );
 }
 
-function SubstackSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-    >
-      <span itemScope itemType="https://schema.org/NewsArticle">
-        <a href={SUBSTACK_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          {SUBSTACK_POST_TITLE}
-        </a>
-        <span itemProp="headline" content={SUBSTACK_POST_TITLE} />
-        <span itemProp="description" content={SUBSTACK_POST_DESC} />
-        <span itemProp="author" content="deulo" />
-        <span itemProp="publisher" content="Substack — deulo" />
-        <span itemProp="sameAs" content={SUBSTACK_ROOT_URL} />
-      </span>
-      <span itemScope itemType="https://schema.org/Blog">
-        <a href={SUBSTACK_ROOT_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Read all posts on Substack — deulo
-        </a>
-        <span itemProp="name" content="deulo on Substack" />
-      </span>
-      <meta name="substack:publication" content="deulo" />
-      <meta name="substack:post:title" content={SUBSTACK_POST_TITLE} />
-    </div>
-  );
-}
+// ─── Substack Widget — Live RSS Feed ─────────────────────────────────────────
 
 function SubstackWidget() {
-  const _embedRef = _uR<HTMLDivElement>(null);
-  const _scriptLoaded = _uR(false);
-  const [isMounted, setIsMounted] = _s(false);
-
-  _e(() => {
-    setIsMounted(true);
-  }, []);
-
-  _e(() => {
-    if (!isMounted || !_embedRef.current) return;
-
-    _embedRef.current.innerHTML = `<div class="substack-post-embed" style="min-height:80px"><p lang="en">${SUBSTACK_POST_TITLE} by deulo</p><p>${SUBSTACK_POST_DESC}</p><a data-post-link href="${SUBSTACK_URL}">Read on Substack</a></div>`;
-
-    if (_scriptLoaded.current || document.getElementById("substack-embed-script")) return;
-
-    _scriptLoaded.current = true;
-    const script = document.createElement("script");
-    script.id = "substack-embed-script";
-    script.src = "https://substack.com/embedjs/embed.js";
-    script.async = true;
-    script.setAttribute("charset", "utf-8");
-    document.body.appendChild(script);
-  }, [isMounted]);
+  const { items, loading } = useRSSFeed(SUBSTACK_RSS_URL, 3);
 
   return (
     <div
       className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
       itemScope
-      itemType="https://schema.org/NewsArticle"
+      itemType="https://schema.org/Blog"
     >
       <SubstackSEONode />
-      <meta itemProp="url" content={SUBSTACK_URL} />
-      <meta itemProp="headline" content={SUBSTACK_POST_TITLE} />
-      <meta itemProp="description" content={SUBSTACK_POST_DESC} />
+      <meta itemProp="url" content={SUBSTACK_ROOT_URL} />
 
       <div className="h-1.5 w-full bg-gradient-to-r from-[#FF6719] to-[#FF8C00]" />
 
       <div className="px-6 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6719] to-[#FF8C00] flex items-center justify-center shadow-md flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="Substack" role="img">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-5 h-5 fill-white"
+              aria-label="Substack"
+              role="img"
+            >
               <path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812V24L12 18.11 22.54 24V10.812H1.46zM22.54 0H1.46v2.836h21.08V0z" />
             </svg>
           </div>
@@ -703,9 +1158,66 @@ function SubstackWidget() {
         </a>
       </div>
 
-      <div ref={_embedRef} className="px-4 pb-2 min-h-[80px]">
-        {!isMounted && (
-          <div className="animate-pulse bg-neutral-100 dark:bg-neutral-900 h-20 w-full rounded" />
+      {/* Live feed */}
+      <div className="px-4 pb-2">
+        {loading ? (
+          <div className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-full mb-1" />
+                <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded w-3/4 mb-1" />
+                <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-4">
+            {items.map((item, i) => (
+              <a
+                key={`sub-feed-${i}`}
+                href={item.link || SUBSTACK_ROOT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Read: ${item.title}`}
+                className="block group hover:bg-orange-50 dark:hover:bg-neutral-900 rounded-xl p-3 -mx-3 transition-colors duration-200 border-b border-neutral-100 dark:border-neutral-800 last:border-0"
+                itemScope
+                itemType="https://schema.org/NewsArticle"
+              >
+                <meta itemProp="url" content={item.link} />
+                <meta itemProp="headline" content={item.title} />
+                <p className="text-[12px] font-black uppercase leading-tight line-clamp-2 text-black dark:text-white group-hover:text-[#FF6719] transition-colors mb-1">
+                  {item.title}
+                </p>
+                {item.description && (
+                  <p className="text-[10px] font-serif italic text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
+                {item.pubDate && (
+                  <p className="text-[9px] font-bold text-neutral-400 mt-1 uppercase tracking-wider">
+                    {formatRSSDate(item.pubDate)}
+                  </p>
+                )}
+              </a>
+            ))}
+          </div>
+        ) : (
+          /* Fallback to static post if RSS unavailable */
+          <div className="border-b border-neutral-100 dark:border-neutral-800 pb-3 mb-2">
+            <a
+              href={SUBSTACK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block group"
+            >
+              <p className="text-[12px] font-black uppercase leading-tight line-clamp-2 text-black dark:text-white group-hover:text-[#FF6719] transition-colors mb-1">
+                {SUBSTACK_POST_TITLE}
+              </p>
+              <p className="text-[10px] font-serif italic text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                {SUBSTACK_POST_DESC}
+              </p>
+            </a>
+          </div>
         )}
       </div>
 
@@ -725,34 +1237,7 @@ function SubstackWidget() {
   );
 }
 
-function PinterestSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-    >
-      <span itemScope itemType="https://schema.org/Person">
-        <a href={PINTEREST_PROFILE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Pinterest — mustbeloveonthebrain
-        </a>
-        <span itemProp="name" content="mustbeloveonthebrain" />
-        <span itemProp="sameAs" content={PINTEREST_PROFILE_URL} />
-        <span itemProp="description" content="Discover pins and boards by mustbeloveonthebrain on Pinterest — curated visual content." />
-      </span>
-      <span itemScope itemType="https://schema.org/ImageObject">
-        <a href={PINTEREST_PIN_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Pinned — View Pin ①
-        </a>
-      </span>
-      <span itemScope itemType="https://schema.org/ImageObject">
-        <a href={PINTEREST_PIN_URL_2} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Pinned — View Pin ②
-        </a>
-      </span>
-      <meta name="pinterest:profile" content="mustbeloveonthebrain" />
-    </div>
-  );
-}
+// ─── Pinterest Widget ─────────────────────────────────────────────────────────
 
 function PinterestWidget() {
   return (
@@ -771,7 +1256,12 @@ function PinterestWidget() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#E60023] flex items-center justify-center shadow-md flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-label="Pinterest" role="img">
+              <svg
+                viewBox="0 0 24 24"
+                className="w-5 h-5 fill-white"
+                aria-label="Pinterest"
+                role="img"
+              >
                 <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
               </svg>
             </div>
@@ -812,7 +1302,11 @@ function PinterestWidget() {
             aria-label="View Pinterest Pin 1 by mustbeloveonthebrain"
             className="flex items-center gap-2 text-[10px] font-bold text-[#E60023] hover:underline truncate"
           >
-            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-3 h-3 fill-current flex-shrink-0"
+              aria-hidden="true"
+            >
               <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
             </svg>
             Pinned — View Pin ①
@@ -824,7 +1318,11 @@ function PinterestWidget() {
             aria-label="View Pinterest Pin 2 by mustbeloveonthebrain"
             className="flex items-center gap-2 text-[10px] font-bold text-[#E60023] hover:underline truncate"
           >
-            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-3 h-3 fill-current flex-shrink-0"
+              aria-hidden="true"
+            >
               <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
             </svg>
             Pinned — View Pin ②
@@ -847,32 +1345,7 @@ function PinterestWidget() {
   );
 }
 
-function ClashRoyaleSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-    >
-      <span itemScope itemType="https://schema.org/Person">
-        <span itemProp="name" content={CR_PLAYER_NAME} />
-        <span itemProp="identifier" content={CR_PLAYER_TAG} />
-        <span itemProp="description" content={`Clash Royale player ${CR_PLAYER_NAME} — Tag: #${CR_PLAYER_TAG}, ID: ${CR_PLAYER_ID}. Level 53, 109K+ Gold. View battles, deck stats, and trophies on RoyaleAPI.`} />
-        <a href={CR_ROYALEAPI_PROFILE} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          View Clash Royale profile — {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
-        </a>
-        <a href={CR_ROYALEAPI_BATTLES} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          View Clash Royale battles — {CR_PLAYER_NAME}
-        </a>
-        <a href={CR_ADD_FRIEND_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Add {CR_PLAYER_NAME} as friend in Clash Royale
-        </a>
-      </span>
-      <meta name="clashroyale:player:tag" content={CR_PLAYER_TAG} />
-      <meta name="clashroyale:player:name" content={CR_PLAYER_NAME} />
-      <meta name="clashroyale:player:id" content={CR_PLAYER_ID} />
-    </div>
-  );
-}
+// ─── Clash Royale Widget ──────────────────────────────────────────────────────
 
 function ClashRoyaleWidget() {
   return (
@@ -921,7 +1394,9 @@ function ClashRoyaleWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-sm border border-[#CC8800]">
-              <span className="text-[14px] font-black text-white drop-shadow-sm" aria-hidden="true">👑</span>
+              <span className="text-[14px] font-black text-white drop-shadow-sm" aria-hidden="true">
+                👑
+              </span>
             </div>
             <div>
               <p className="text-[12px] font-black text-black dark:text-white leading-tight">
@@ -948,7 +1423,10 @@ function ClashRoyaleWidget() {
           className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] flex flex-col items-center justify-center p-10 text-center gap-5"
           style={{ minHeight: 320 }}
         >
-          <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden="true">
+          <div
+            className="absolute inset-0 opacity-10 pointer-events-none"
+            aria-hidden="true"
+          >
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
             <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
           </div>
@@ -956,10 +1434,16 @@ function ClashRoyaleWidget() {
           <div className="relative z-10 flex flex-col items-center gap-5">
             <div className="relative">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
-                <_Sw size={36} className="text-white drop-shadow-lg" aria-hidden="true" />
+                <_Sw
+                  size={36}
+                  className="text-white drop-shadow-lg"
+                  aria-hidden="true"
+                />
               </div>
               <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
-                <span className="text-[12px]" aria-hidden="true">👑</span>
+                <span className="text-[12px]" aria-hidden="true">
+                  👑
+                </span>
               </div>
             </div>
 
@@ -1038,6 +1522,8 @@ function ClashRoyaleWidget() {
   );
 }
 
+// ─── Social Widget Layouts ────────────────────────────────────────────────────
+
 function SocialWidgetsDesktop() {
   return (
     <div className="flex flex-col gap-6">
@@ -1082,6 +1568,185 @@ function SocialWidgetsMobileBottom() {
     </div>
   );
 }
+
+// ─── YouTube Shorts Player — no black bars + click-to-unmute ─────────────────
+
+function YouTubeShortsPlayer({
+  videoUrl,
+  title,
+  index,
+  thumbUrl,
+}: {
+  videoUrl: string;
+  title: string;
+  index: number;
+  thumbUrl?: string;
+}) {
+  const iframeRef = _uR<HTMLIFrameElement>(null);
+  const [muted, _setMuted] = _s(true);
+  const [playerReady, _setPlayerReady] = _s(false);
+
+  // Extract video ID from any YouTube URL format
+  const videoId = _uM(() => {
+    try {
+      return (
+        videoUrl.match(
+          /(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/
+        )?.[1] || null
+      );
+    } catch {
+      return null;
+    }
+  }, [videoUrl]);
+
+  const embedBase = videoId
+    ? `https://www.youtube.com/embed/${videoId}`
+    : null;
+
+  // Rebuild src when muted toggles
+  const iframeSrc = _uM(() => {
+    if (!embedBase) return "";
+    const params = new URLSearchParams({
+      autoplay: "1",
+      mute: muted ? "1" : "0",
+      loop: "1",
+      playlist: videoId || "",
+      rel: "0",
+      modestbranding: "1",
+      playsinline: "1",
+      enablejsapi: "1",
+      origin: typeof window !== "undefined" ? window.location.origin : "",
+    });
+    return `${embedBase}?${params.toString()}`;
+  }, [embedBase, videoId, muted]);
+
+  // Listen for YouTube player ready event via postMessage
+  _e(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.data) return;
+      try {
+        const d =
+          typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        if (d?.event === "onReady") _setPlayerReady(true);
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const handleUnmute = () => {
+    // Try postMessage first (no reload), fall back to src change
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "unMute", args: [] }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            event: "command",
+            func: "setVolume",
+            args: [100],
+          }),
+          "*"
+        );
+        _setMuted(false);
+        return;
+      } catch {}
+    }
+    // Fallback: toggle muted state → triggers iframe src reload
+    _setMuted(false);
+  };
+
+  if (!embedBase || !videoId) return null;
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center mb-16"
+      itemScope
+      itemType="https://schema.org/VideoObject"
+    >
+      <meta itemProp="position" content={String(index + 1)} />
+      <meta itemProp="name" content={title} />
+      <meta itemProp="embedUrl" content={embedBase} />
+      <meta itemProp="contentUrl" content={videoUrl} />
+      {thumbUrl && <meta itemProp="thumbnailUrl" content={thumbUrl} />}
+
+      <div className="relative w-full flex justify-center">
+        {/* Glow effect */}
+        <div
+          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
+          aria-hidden="true"
+        />
+
+        {/*
+          ── Shorts container: exact 9:16 aspect ratio
+          Negative inset on inner div crops YouTube player chrome (title bar ~56px top,
+          controls/branding ~64px bottom) so the video fills edge-to-edge.
+        */}
+        <div
+          className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
+          style={{
+            width: "min(340px, 80vw)",
+            aspectRatio: "9 / 16",
+          }}
+        >
+          {/* Inner wrapper stretched to crop player chrome top + bottom */}
+          <div
+            style={{
+              position: "absolute",
+              top: "-58px",
+              left: "-2px",
+              right: "-2px",
+              bottom: "-64px",
+            }}
+          >
+            <iframe
+              ref={iframeRef}
+              key={`yt-shorts-${videoId}-${muted ? "m" : "u"}`}
+              src={iframeSrc}
+              title={`${title} — Video ${index + 1}`}
+              style={{ width: "100%", height: "100%", border: 0 }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+              loading="lazy"
+            />
+          </div>
+
+          {/* Mute overlay — tap to unmute */}
+          {muted && (
+            <button
+              onClick={handleUnmute}
+              aria-label="Tap to unmute video"
+              className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
+            >
+              <VolumeX size={12} aria-hidden="true" />
+              Unmute
+            </button>
+          )}
+
+          {/* Unmuted indicator */}
+          {!muted && (
+            <div
+              className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
+              aria-hidden="true"
+            >
+              <Volume2 size={12} />
+              Live
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
+        <_Pc size={16} aria-hidden="true" /> Watch Short
+      </div>
+    </div>
+  );
+}
+
+// ─── Comment Components ───────────────────────────────────────────────────────
 
 function CommentItem({
   comment,
@@ -1221,8 +1886,7 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
-      } catch (err) {
-      }
+      } catch (err) {}
     }
   };
 
@@ -1267,11 +1931,7 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
 
     try {
       await setCookieHash(_u.id);
-      mirrorQuery({
-        type: "COMMENT_POST",
-        articleId,
-        ts: Date.now(),
-      });
+      mirrorQuery({ type: "COMMENT_POST", articleId, ts: Date.now() });
 
       if (!navigator.onLine) {
         await enqueue({ type: "ADD_COMMENT", payload });
@@ -1314,11 +1974,20 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
       itemScope
       itemType="https://schema.org/DiscussionForumPosting"
     >
-      <meta itemProp="discussionUrl" content={`#discussion-${articleId}`} />
-      <meta itemProp="interactionCount" content={`CommentAction:${_localComments.length}`} />
+      <meta
+        itemProp="discussionUrl"
+        content={`#discussion-${articleId}`}
+      />
+      <meta
+        itemProp="interactionCount"
+        content={`CommentAction:${_localComments.length}`}
+      />
 
       <div className="flex items-center gap-4 mb-12">
-        <div className="p-3 bg-red-600 text-white rounded-full" aria-hidden="true">
+        <div
+          className="p-3 bg-red-600 text-white rounded-full"
+          aria-hidden="true"
+        >
           <_Ms size={20} />
         </div>
         <h2
@@ -1343,7 +2012,8 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
             {_replyTo && (
               <div className="bg-emerald-500 text-black px-4 py-2 flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                  <_Rp size={12} aria-hidden="true" /> Replying_To: {_replyTo.slice(0, 8)}
+                  <_Rp size={12} aria-hidden="true" /> Replying_To:{" "}
+                  {_replyTo.slice(0, 8)}
                 </span>
                 <button
                   type="button"
@@ -1383,7 +2053,11 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
                 className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30"
               >
                 {_sub ? (
-                  <_L2 className="animate-spin" size={14} aria-hidden="true" />
+                  <_L2
+                    className="animate-spin"
+                    size={14}
+                    aria-hidden="true"
+                  />
                 ) : (
                   <_Sd size={14} aria-hidden="true" />
                 )}{" "}
@@ -1426,7 +2100,11 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
                 }}
               />
 
-              <div className="space-y-6" role="list" aria-label={`Replies to ${_c.user_name}`}>
+              <div
+                className="space-y-6"
+                role="list"
+                aria-label={`Replies to ${_c.user_name}`}
+              >
                 {_replies
                   .filter((r) => r.parent_id === _c.id)
                   .map((r) => (
@@ -1434,10 +2112,7 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
                       key={r.id}
                       comment={r}
                       isReply
-                      avatar={_getRenderAvatar(
-                        r.user_avatar_url,
-                        r.user_id
-                      )}
+                      avatar={_getRenderAvatar(r.user_avatar_url, r.user_id)}
                     />
                   ))}
               </div>
@@ -1469,6 +2144,8 @@ function CommentSection({ articleId }: { articleId: string }) {
   );
 }
 
+// ─── Main ArticleDetail Component ────────────────────────────────────────────
+
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
@@ -1490,7 +2167,8 @@ export default function ArticleDetail() {
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
   const _allMedia = _uM(() => {
-    const sourceStr = _art?.featured_image_url || _art?.featured_image;
+    const sourceStr =
+      _art?.featured_image_url || _art?.featured_image;
     if (!sourceStr) return [];
     return sourceStr.split(/[\r\n]+/).filter(Boolean);
   }, [_art?.featured_image_url, _art?.featured_image]);
@@ -1561,30 +2239,21 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
-  const _getEmbedUrl = (url: string) => {
-    try {
-      const match = url.match(/(?:shorts\/|v=|youtu\.be\/)([\w-]{11})/);
-      const videoId = match ? match[1] : null;
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
-    } catch (e) {
-      return null;
-    }
-  };
-
   const _parsedParagraphs = _uM<ParsedBlock[]>(
     () => (_pD ? parseParagraphs(_pD.paragraphs) : []),
     [_pD]
   );
 
+  // ── Hydration-safe init ──
   _e(() => {
     setIsHydrated(true);
-    if (typeof localStorage !== "undefined") {
+    try {
       const saved = localStorage.getItem(`brawnly_saved_${_slV}`);
       _siS(saved === "true");
-    }
-    if (typeof navigator !== "undefined") {
+    } catch {}
+    try {
       _sOff(!navigator.onLine);
-    }
+    } catch {}
   }, [_slV]);
 
   _e(() => {
@@ -1630,8 +2299,7 @@ export default function ArticleDetail() {
         try {
           const placeholder = await _wCP(b);
           if (_active) _setBlurUrl(placeholder);
-        } catch {
-        }
+        } catch {}
 
         const _fmt = await _dBF();
         let final: string;
@@ -1695,13 +2363,15 @@ export default function ArticleDetail() {
   const _hSv = () => {
     const _nS = !_iS;
     _siS(_nS);
-    if (_nS) {
-      localStorage.setItem(`brawnly_saved_${_slV}`, "true");
-      toast.success("Identity Saved");
-    } else {
-      localStorage.removeItem(`brawnly_saved_${_slV}`);
-      toast.info("Removed");
-    }
+    try {
+      if (_nS) {
+        localStorage.setItem(`brawnly_saved_${_slV}`, "true");
+        toast.success("Identity Saved");
+      } else {
+        localStorage.removeItem(`brawnly_saved_${_slV}`);
+        toast.info("Removed");
+      }
+    } catch {}
   };
 
   const { viewCount: _realtimeViews } = _uAV({
@@ -1710,162 +2380,118 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
-  const _jsonLdArticle = _pD && _art
-    ? JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": _pD.title,
-        "description": _pD.excerpt,
-        "image": _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
-        "author": {
-          "@type": "Person",
-          "name": _art.author || "Brawnly",
-          "url": "https://www.brawnly.online",
-          "sameAs": [
-            INSTAGRAM_URL,
-            YOUTUBE_CHANNEL_URL,
-            SUBSTACK_ROOT_URL,
-            TUMBLR_BLOG_URL,
-            PINTEREST_PROFILE_URL,
+  // ── JSON-LD ──
+  const _jsonLdArticle =
+    _pD && _art
+      ? JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: _pD.title,
+          description: _pD.excerpt,
+          image: _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
+          author: {
+            "@type": "Person",
+            name: _art.author || "Brawnly",
+            url: "https://www.brawnly.online",
+            sameAs: [
+              INSTAGRAM_URL,
+              YOUTUBE_CHANNEL_URL,
+              SUBSTACK_ROOT_URL,
+              TUMBLR_BLOG_URL,
+              PINTEREST_PROFILE_URL,
+            ],
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Brawnly",
+            url: "https://www.brawnly.online",
+            logo: {
+              "@type": "ImageObject",
+              url: "https://www.brawnly.online/favicon.ico",
+            },
+          },
+          datePublished: _art.published_at,
+          dateModified: _art.updated_at || _art.published_at,
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `https://www.brawnly.online/article/${_slV}`,
+          },
+          url: `https://www.brawnly.online/article/${_slV}`,
+          interactionStatistic: [
+            {
+              "@type": "InteractionCounter",
+              interactionType: "https://schema.org/ReadAction",
+              userInteractionCount: _realtimeViews,
+            },
           ],
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "Brawnly",
-          "url": "https://www.brawnly.online",
-          "logo": {
-            "@type": "ImageObject",
-            "url": "https://www.brawnly.online/favicon.ico",
+          isPartOf: {
+            "@type": "WebSite",
+            name: "Brawnly",
+            url: "https://www.brawnly.online",
           },
-        },
-        "datePublished": _art.published_at,
-        "dateModified": _art.updated_at || _art.published_at,
-        "mainEntityOfPage": {
-          "@type": "WebPage",
-          "@id": `https://www.brawnly.online/article/${_slV}`,
-        },
-        "url": `https://www.brawnly.online/article/${_slV}`,
-        "interactionStatistic": [
-          {
-            "@type": "InteractionCounter",
-            "interactionType": "https://schema.org/ReadAction",
-            "userInteractionCount": _realtimeViews,
-          },
-        ],
-        "isPartOf": {
-          "@type": "WebSite",
-          "name": "Brawnly",
-          "url": "https://www.brawnly.online",
-        },
-      })
-    : null;
+        })
+      : null;
 
   const _jsonLdBreadcrumb = _pD
     ? JSON.stringify({
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
-        "itemListElement": [
+        itemListElement: [
           {
             "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://www.brawnly.online",
+            position: 1,
+            name: "Home",
+            item: "https://www.brawnly.online",
           },
           {
             "@type": "ListItem",
-            "position": 2,
-            "name": "Articles",
-            "item": "https://www.brawnly.online/articles",
+            position: 2,
+            name: "Articles",
+            item: "https://www.brawnly.online/articles",
           },
           {
             "@type": "ListItem",
-            "position": 3,
-            "name": _pD.title,
-            "item": `https://www.brawnly.online/article/${_slV}`,
+            position: 3,
+            name: _pD.title,
+            item: `https://www.brawnly.online/article/${_slV}`,
           },
         ],
       })
     : null;
 
-  const _jsonLdWebPage = _pD && _art
-    ? JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        "@id": `https://www.brawnly.online/article/${_slV}`,
-        "url": `https://www.brawnly.online/article/${_slV}`,
-        "name": `${_pD.title} | Brawnly`,
-        "description": _pD.excerpt,
-        "inLanguage": "id",
-        "isPartOf": {
-          "@type": "WebSite",
-          "name": "Brawnly",
-          "url": "https://www.brawnly.online",
-        },
-        "primaryImageOfPage": {
-          "@type": "ImageObject",
-          "url": _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
-        },
-        "datePublished": _art.published_at,
-        "author": {
-          "@type": "Person",
-          "name": _art.author || "Brawnly",
-        },
-      })
-    : null;
-
-  const _jsonLdYoutubeShorts = _youtubeShorts.length > 0 && _pD
-    ? JSON.stringify(
-        _youtubeShorts
-          .map((url: string, idx: number) => {
-            const embedUrl = _getEmbedUrl(url);
-            if (!embedUrl) return null;
-            return {
-              "@context": "https://schema.org",
-              "@type": "VideoObject",
-              "name": `${_pD.title} — Video ${idx + 1}`,
-              "description": _pD.excerpt,
-              "embedUrl": embedUrl,
-              "thumbnailUrl": _rawImgSource ? _gOI(_rawImgSource, 600) : undefined,
-              "uploadDate": _art?.published_at,
-              "author": {
-                "@type": "Person",
-                "name": _art?.author || "Brawnly",
-              },
-              "publisher": {
-                "@type": "Organization",
-                "name": "Brawnly",
-                "url": "https://www.brawnly.online",
-              },
-            };
-          })
-          .filter(Boolean)
-      )
-    : null;
-
-  const _jsonLdGallery = _galleryImages.length > 0 && _pD
-    ? JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "ImageGallery",
-        "name": `Gallery — ${_pD.title}`,
-        "description": `Image gallery for the article: ${_pD.title}`,
-        "associatedArticle": {
-          "@type": "Article",
-          "url": `https://www.brawnly.online/article/${_slV}`,
-          "headline": _pD.title,
-        },
-        "image": _galleryImages.map((img: string) => ({
-          "@type": "ImageObject",
-          "url": _fC(img),
-        })),
-      })
-    : null;
+  const _jsonLdWebPage =
+    _pD && _art
+      ? JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "@id": `https://www.brawnly.online/article/${_slV}`,
+          url: `https://www.brawnly.online/article/${_slV}`,
+          name: `${_pD.title} | Brawnly`,
+          description: _pD.excerpt,
+          inLanguage: "id",
+          isPartOf: {
+            "@type": "WebSite",
+            name: "Brawnly",
+            url: "https://www.brawnly.online",
+          },
+          primaryImageOfPage: {
+            "@type": "ImageObject",
+            url: _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
+          },
+          datePublished: _art.published_at,
+          author: {
+            "@type": "Person",
+            name: _art.author || "Brawnly",
+          },
+        })
+      : null;
 
   const _jsonLdSocialLinks = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": "Brawnly / deulo",
-    "url": "https://www.brawnly.online",
-    "sameAs": [
+    name: "Brawnly / deulo",
+    url: "https://www.brawnly.online",
+    sameAs: [
       INSTAGRAM_URL,
       YOUTUBE_CHANNEL_URL,
       SUBSTACK_ROOT_URL,
@@ -1875,7 +2501,7 @@ export default function ArticleDetail() {
       PINTEREST_PROFILE_URL,
       CR_ROYALEAPI_PROFILE,
     ],
-    "knowsAbout": [
+    knowsAbout: [
       "Brawnly",
       "Technology",
       "Fitness",
@@ -1915,13 +2541,22 @@ export default function ArticleDetail() {
           <meta name="description" content={_pD.excerpt} />
 
           <meta property="og:type" content="article" />
-          <meta property="og:title" content={`${_pD.title} | Brawnly`} />
+          <meta
+            property="og:title"
+            content={`${_pD.title} | Brawnly`}
+          />
           <meta property="og:description" content={_pD.excerpt} />
-          <meta property="og:url" content={`https://www.brawnly.online/article/${_slV}`} />
+          <meta
+            property="og:url"
+            content={`https://www.brawnly.online/article/${_slV}`}
+          />
           <meta property="og:site_name" content="Brawnly" />
           <meta property="og:locale" content="id_ID" />
           {_rawImgSource && (
-            <meta property="og:image" content={_gOI(_rawImgSource, 1200)} />
+            <meta
+              property="og:image"
+              content={_gOI(_rawImgSource, 1200)}
+            />
           )}
           {_rawImgSource && (
             <meta property="og:image:width" content="1200" />
@@ -1930,26 +2565,46 @@ export default function ArticleDetail() {
             <meta property="og:image:height" content="630" />
           )}
           {_art.published_at && (
-            <meta property="article:published_time" content={_art.published_at} />
+            <meta
+              property="article:published_time"
+              content={_art.published_at}
+            />
           )}
           {_art.updated_at && (
-            <meta property="article:modified_time" content={_art.updated_at} />
+            <meta
+              property="article:modified_time"
+              content={_art.updated_at}
+            />
           )}
-          <meta property="article:author" content={_art.author || "Brawnly"} />
+          <meta
+            property="article:author"
+            content={_art.author || "Brawnly"}
+          />
           <meta property="article:section" content="Technology" />
 
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content={`${_pD.title} | Brawnly`} />
+          <meta
+            name="twitter:title"
+            content={`${_pD.title} | Brawnly`}
+          />
           <meta name="twitter:description" content={_pD.excerpt} />
           {_rawImgSource && (
-            <meta name="twitter:image" content={_gOI(_rawImgSource, 1200)} />
+            <meta
+              name="twitter:image"
+              content={_gOI(_rawImgSource, 1200)}
+            />
           )}
           <meta name="twitter:site" content="@brawnly" />
           <meta name="twitter:creator" content="@brawnly" />
 
-          <link rel="canonical" href={`https://www.brawnly.online/article/${_slV}`} />
-          <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-
+          <link
+            rel="canonical"
+            href={`https://www.brawnly.online/article/${_slV}`}
+          />
+          <meta
+            name="robots"
+            content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+          />
           <meta name="author" content={_art.author || "Brawnly"} />
           <link rel="author" href="https://www.brawnly.online" />
           <meta name="publisher" content="Brawnly" />
@@ -1964,20 +2619,17 @@ export default function ArticleDetail() {
             <script type="application/ld+json">{_jsonLdArticle}</script>
           )}
           {_jsonLdBreadcrumb && (
-            <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
+            <script type="application/ld+json">
+              {_jsonLdBreadcrumb}
+            </script>
           )}
           {_jsonLdWebPage && (
             <script type="application/ld+json">{_jsonLdWebPage}</script>
           )}
-          {_jsonLdYoutubeShorts && (
-            <script type="application/ld+json">{_jsonLdYoutubeShorts}</script>
-          )}
-          {_jsonLdGallery && (
-            <script type="application/ld+json">{_jsonLdGallery}</script>
-          )}
           <script type="application/ld+json">{_jsonLdSocialLinks}</script>
         </_Hm>
 
+        {/* Hidden SEO article body */}
         <article
           className="sr-only"
           itemScope
@@ -1991,8 +2643,7 @@ export default function ArticleDetail() {
             itemScope
             itemType="https://schema.org/Person"
           >
-            By{" "}
-            <span itemProp="name">{_art.author || "Brawnly"}</span>
+            By <span itemProp="name">{_art.author || "Brawnly"}</span>
             <a
               itemProp="url"
               href="https://www.brawnly.online"
@@ -2006,83 +2657,90 @@ export default function ArticleDetail() {
             {_art.published_at}
           </time>
           {(_art as any).updated_at && (
-            <time dateTime={(_art as any).updated_at} itemProp="dateModified">
+            <time
+              dateTime={(_art as any).updated_at}
+              itemProp="dateModified"
+            >
               {(_art as any).updated_at}
             </time>
           )}
-
           <div itemProp="articleBody">
             {_parsedParagraphs.map((block, i) => {
               if (block.type === "text") {
                 return (
-                  <p key={`seo-para-${i}`} dangerouslySetInnerHTML={{ __html: block.html }} />
+                  <p
+                    key={`seo-para-${i}`}
+                    dangerouslySetInnerHTML={{ __html: block.html }}
+                  />
                 );
               }
               return (
-                <a key={`seo-tweet-${i}`} href={block.url} rel="noopener noreferrer" tabIndex={-1}>
+                <a
+                  key={`seo-tweet-${i}`}
+                  href={block.url}
+                  rel="noopener noreferrer"
+                  tabIndex={-1}
+                >
                   Embedded Tweet: {block.url}
                 </a>
               );
             })}
           </div>
-
           <nav aria-label="Social profiles" itemProp="sameAs">
-            <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>Instagram: @{INSTAGRAM_USERNAME}</a>
-            <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>YouTube: @{YOUTUBE_CHANNEL_HANDLE}</a>
-            <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>Substack: deulo</a>
-            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>Tumblr: deulo</a>
-            <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>Pinterest: mustbeloveonthebrain</a>
-            <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}</a>
+            <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
+              Instagram: @{INSTAGRAM_USERNAME}
+            </a>
+            <a
+              href={YOUTUBE_CHANNEL_URL}
+              rel="noopener noreferrer"
+              tabIndex={-1}
+            >
+              YouTube: @{YOUTUBE_CHANNEL_HANDLE}
+            </a>
+            <a
+              href={SUBSTACK_ROOT_URL}
+              rel="noopener noreferrer"
+              tabIndex={-1}
+            >
+              Substack: deulo
+            </a>
+            <a
+              href={TUMBLR_BLOG_URL}
+              rel="noopener noreferrer"
+              tabIndex={-1}
+            >
+              Tumblr: deulo
+            </a>
+            <a
+              href={PINTEREST_PROFILE_URL}
+              rel="noopener noreferrer"
+              tabIndex={-1}
+            >
+              Pinterest: mustbeloveonthebrain
+            </a>
+            <a
+              href={CR_ROYALEAPI_PROFILE}
+              rel="noopener noreferrer"
+              tabIndex={-1}
+            >
+              Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
+            </a>
           </nav>
-
-          {_youtubeShorts.length > 0 && (
-            <section aria-label="Embedded YouTube videos">
-              {_youtubeShorts.map((url: string, idx: number) => (
-                <a key={`seo-yt-${idx}`} href={url} rel="noopener noreferrer" tabIndex={-1}>
-                  Watch YouTube Short {idx + 1}: {url}
-                </a>
-              ))}
-            </section>
-          )}
-
-          {_allTweetUrls.length > 0 && (
-            <section aria-label="Embedded tweets">
-              {_allTweetUrls.map((url, idx) => (
-                <a key={`seo-tw-${idx}`} href={url} rel="noopener noreferrer" tabIndex={-1}>
-                  Embedded Tweet {idx + 1}: {url}
-                </a>
-              ))}
-            </section>
-          )}
-
-          {_galleryImages.length > 0 && (
-            <section aria-label="Article image gallery">
-              {_galleryImages.map((img: string, idx: number) => (
-                <figure key={`seo-gallery-${idx}`} itemScope itemType="https://schema.org/ImageObject">
-                  <img src={_fC(img)} alt={`${_pD.title} — Gallery image ${idx + 1}`} loading="lazy" itemProp="url" />
-                  <meta itemProp="name" content={`${_pD.title} — Gallery image ${idx + 1}`} />
-                </figure>
-              ))}
-            </section>
-          )}
-
-          <aside aria-label="Related Substack post" itemScope itemType="https://schema.org/NewsArticle">
-            <h2 itemProp="headline">{SUBSTACK_POST_TITLE}</h2>
-            <p itemProp="description">{SUBSTACK_POST_DESC}</p>
-            <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>Read on Substack</a>
-          </aside>
-
-          <meta itemProp="interactionStatistic" content={`${_realtimeViews} reads`} />
-          <span itemScope itemType="https://schema.org/InteractionCounter">
-            <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
-            <meta itemProp="userInteractionCount" content={String(_realtimeViews)} />
-          </span>
+          <meta
+            itemProp="interactionStatistic"
+            content={`${_realtimeViews} reads`}
+          />
         </article>
 
+        {/* Fixed side buttons (desktop) */}
         <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
           <button
             onClick={_hSv}
-            aria-label={_iS ? "Remove article from saved" : "Save this article"}
+            aria-label={
+              _iS
+                ? "Remove article from saved"
+                : "Save this article"
+            }
             aria-pressed={_iS}
             className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
               _iS
@@ -2090,7 +2748,11 @@ export default function ArticleDetail() {
                 : "bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 shadow-xl"
             }`}
           >
-            {_iS ? <_Ck size={20} aria-hidden="true" /> : <_Bm size={20} aria-hidden="true" />}
+            {_iS ? (
+              <_Ck size={20} aria-hidden="true" />
+            ) : (
+              <_Bm size={20} aria-hidden="true" />
+            )}
           </button>
 
           <button
@@ -2108,6 +2770,7 @@ export default function ArticleDetail() {
         </aside>
 
         <div className="max-w-[1320px] mx-auto px-4 md:px-10">
+          {/* Article header */}
           <header
             className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white"
             itemScope
@@ -2117,12 +2780,24 @@ export default function ArticleDetail() {
             <meta itemProp="description" content={_pD.excerpt} />
             <meta itemProp="datePublished" content={_art.published_at} />
             {(_art as any).updated_at && (
-              <meta itemProp="dateModified" content={(_art as any).updated_at} />
+              <meta
+                itemProp="dateModified"
+                content={(_art as any).updated_at}
+              />
             )}
-            <meta itemProp="author" content={_art.author || "Brawnly"} />
-            <meta itemProp="url" content={`https://www.brawnly.online/article/${_slV}`} />
+            <meta
+              itemProp="author"
+              content={_art.author || "Brawnly"}
+            />
+            <meta
+              itemProp="url"
+              content={`https://www.brawnly.online/article/${_slV}`}
+            />
             {_rawImgSource && (
-              <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
+              <meta
+                itemProp="image"
+                content={_gOI(_rawImgSource, 1200)}
+              />
             )}
 
             <div className="flex justify-between items-start mb-6">
@@ -2165,7 +2840,8 @@ export default function ArticleDetail() {
                     alt={`Author avatar — ${_art.author || "Brawnly"}`}
                     itemProp="image"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
+                      (e.target as HTMLImageElement).style.display =
+                        "none";
                     }}
                   />
                 </div>
@@ -2187,16 +2863,26 @@ export default function ArticleDetail() {
               </div>
 
               <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-                <span aria-label={`${_realtimeViews} kali dibaca`} itemProp="interactionStatistic">
+                <span
+                  aria-label={`${_realtimeViews} kali dibaca`}
+                  itemProp="interactionStatistic"
+                >
                   {_realtimeViews.toLocaleString("en-US")}
                 </span>{" "}
-                <_Ey size={20} className="text-red-600" aria-hidden="true" />
+                <_Ey
+                  size={20}
+                  className="text-red-600"
+                  aria-hidden="true"
+                />
               </div>
             </div>
           </header>
 
           <div className="flex flex-col lg:flex-row gap-12 md:gap-16">
-            <article className="flex-1 relative min-w-0" itemProp="articleBody">
+            <article
+              className="flex-1 relative min-w-0"
+              itemProp="articleBody"
+            >
               <p
                 className="text-[20px] md:text-[32px] leading-[1.2] md:leading-[1.1] font-extrabold mb-10 md:mb-14 tracking-tight text-neutral-900 dark:text-neutral-100 italic"
                 aria-hidden="true"
@@ -2205,46 +2891,67 @@ export default function ArticleDetail() {
                 {_pD.excerpt}
               </p>
 
+              {/* Cover image with muscle decorations */}
               <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
                 <div
                   className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
                   aria-hidden="true"
                 >
-                  <img src={_muscleLeft} alt="" className="w-full drop-shadow-2xl" />
+                  <img
+                    src={_muscleLeft}
+                    alt=""
+                    className="w-full drop-shadow-2xl"
+                  />
                 </div>
                 <figure
                   className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
                   itemScope
                   itemType="https://schema.org/ImageObject"
                 >
-                  <meta itemProp="url" content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""} />
-                  <meta itemProp="name" content={`Cover image — ${_pD.title}`} />
-                  <meta itemProp="description" content={`Featured cover image for: ${_pD.title}`} />
+                  <meta
+                    itemProp="url"
+                    content={
+                      _rawImgSource ? _gOI(_rawImgSource, 1200) : ""
+                    }
+                  />
+                  <meta
+                    itemProp="name"
+                    content={`Cover image — ${_pD.title}`}
+                  />
                   <ArticleCoverImage
                     imageUrl={_blobUrl || _rawImgSource || ""}
                     title={_pD.title}
                     slug={_slV}
                     className="w-full aspect-video md:aspect-[21/9] object-cover"
                   />
-                  <figcaption className="sr-only">{_pD.title} — cover image</figcaption>
+                  <figcaption className="sr-only">
+                    {_pD.title} — cover image
+                  </figcaption>
                 </figure>
                 <div
                   className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
                   aria-hidden="true"
                 >
-                  <img src={_muscleRight} alt="" className="w-full drop-shadow-2xl" />
+                  <img
+                    src={_muscleRight}
+                    alt=""
+                    className="w-full drop-shadow-2xl"
+                  />
                 </div>
               </div>
 
-              <Suspense fallback={
-                <div className="lg:hidden flex flex-col gap-6 my-10 max-w-[840px] mx-auto">
-                  <SuspenseFallbackWidget />
-                  <SuspenseFallbackWidget />
-                </div>
-              }>
+              <Suspense
+                fallback={
+                  <div className="lg:hidden flex flex-col gap-6 my-10 max-w-[840px] mx-auto">
+                    <SuspenseFallbackWidget />
+                    <SuspenseFallbackWidget />
+                  </div>
+                }
+              >
                 <SocialWidgetsMobileTop />
               </Suspense>
 
+              {/* Article body */}
               <div className="max-w-[840px] mx-auto">
                 {_parsedParagraphs.map((block, i) => {
                   if (block.type === "tweet") {
@@ -2256,10 +2963,11 @@ export default function ArticleDetail() {
                         itemType="https://schema.org/SocialMediaPosting"
                       >
                         <meta itemProp="url" content={block.url} />
-                        <meta itemProp="sharedContent" content={block.url} />
-                        <Suspense fallback={
-                          <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
-                        }>
+                        <Suspense
+                          fallback={
+                            <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
+                          }
+                        >
                           <TwitterEmbed url={block.url} align="center" />
                         </Suspense>
                       </div>
@@ -2275,6 +2983,7 @@ export default function ArticleDetail() {
                 })}
               </div>
 
+              {/* Embedded tweets from DB */}
               {_allTweetUrls.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -2283,13 +2992,17 @@ export default function ArticleDetail() {
                   itemType="https://schema.org/ItemList"
                 >
                   <meta itemProp="name" content="Embedded Tweets" />
-                  <meta itemProp="description" content={`Tweets embedded in article: ${_pD.title}`} />
-
                   <div className="flex items-center gap-3 mb-10 opacity-60">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-current text-black dark:text-white">
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="w-5 h-5 fill-current text-black dark:text-white"
+                    >
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
-                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">Embedded_Tweets</span>
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
+                      Embedded_Tweets
+                    </span>
                   </div>
                   <div className="flex flex-col gap-8">
                     {_allTweetUrls.map((url, idx) => (
@@ -2299,11 +3012,16 @@ export default function ArticleDetail() {
                         itemType="https://schema.org/SocialMediaPosting"
                         itemProp="itemListElement"
                       >
-                        <meta itemProp="position" content={String(idx + 1)} />
+                        <meta
+                          itemProp="position"
+                          content={String(idx + 1)}
+                        />
                         <meta itemProp="url" content={url} />
-                        <Suspense fallback={
-                          <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
-                        }>
+                        <Suspense
+                          fallback={
+                            <div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />
+                          }
+                        >
                           <TwitterEmbed url={url} align="center" />
                         </Suspense>
                       </div>
@@ -2312,69 +3030,37 @@ export default function ArticleDetail() {
                 </section>
               )}
 
+              {/* ── YouTube Shorts — fixed aspect ratio + click-to-unmute ── */}
               {_youtubeShorts.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
-                  aria-label="Embedded YouTube videos"
+                  aria-label="Embedded YouTube Shorts"
                   itemScope
                   itemType="https://schema.org/ItemList"
                 >
-                  <meta itemProp="name" content="Embedded YouTube Videos" />
-                  <meta itemProp="description" content={`Videos embedded in article: ${_pD.title}`} />
-
-                  {_youtubeShorts.map((videoUrl: string, idx: number) => {
-                    const embedUrl = _getEmbedUrl(videoUrl);
-                    if (!embedUrl) return null;
-                    const autoplayUrl = `${embedUrl}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
-
-                    return (
-                      <div
-                        key={`yt-${idx}`}
-                        className="flex flex-col items-center justify-center mb-16"
-                        itemScope
-                        itemType="https://schema.org/VideoObject"
-                        itemProp="itemListElement"
-                      >
-                        <meta itemProp="position" content={String(idx + 1)} />
-                        <meta itemProp="name" content={`${_pD.title} — Video ${idx + 1}`} />
-                        <meta itemProp="description" content={_pD.excerpt} />
-                        <meta itemProp="embedUrl" content={embedUrl} />
-                        <meta itemProp="contentUrl" content={videoUrl} />
-                        {_rawImgSource && (
-                          <meta itemProp="thumbnailUrl" content={_gOI(_rawImgSource, 600)} />
-                        )}
-                        {_art.published_at && (
-                          <meta itemProp="uploadDate" content={_art.published_at} />
-                        )}
-
-                        <div className="relative w-full flex justify-center">
-                          <div
-                            className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
-                            aria-hidden="true"
-                          />
-                          <iframe
-                            width="459"
-                            height="816"
-                            src={autoplayUrl}
-                            title={`${_pD.title} — Video ${idx + 1}`}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            allowFullScreen
-                            loading="lazy"
-                            className="relative z-10 max-w-full rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
-                          />
-                        </div>
-
-                        <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
-                          <_Pc size={16} aria-hidden="true" /> Watch Short
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <meta
+                    itemProp="name"
+                    content="Embedded YouTube Shorts"
+                  />
+                  {_youtubeShorts.map(
+                    (videoUrl: string, idx: number) => (
+                      <YouTubeShortsPlayer
+                        key={`yt-short-${idx}`}
+                        videoUrl={videoUrl}
+                        title={_pD.title}
+                        index={idx}
+                        thumbUrl={
+                          _rawImgSource
+                            ? _gOI(_rawImgSource, 600)
+                            : undefined
+                        }
+                      />
+                    )
+                  )}
                 </section>
               )}
 
+              {/* Animated images */}
               {_animatedImages.length > 0 && (
                 <section
                   className="my-20 max-w-[600px] mx-auto"
@@ -2382,51 +3068,72 @@ export default function ArticleDetail() {
                   itemScope
                   itemType="https://schema.org/ItemList"
                 >
-                  <meta itemProp="name" content="Motion Capture — Animated Images" />
-
+                  <meta
+                    itemProp="name"
+                    content="Motion Capture — Animated Images"
+                  />
                   <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
-                    <_Ap size={18} className="animate-spin-slow" aria-hidden="true" />
-                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">Motion_Capture</span>
+                    <_Ap
+                      size={18}
+                      className="animate-spin-slow"
+                      aria-hidden="true"
+                    />
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
+                      Motion_Capture
+                    </span>
                   </div>
                   <div className="flex flex-col gap-10 items-center">
-                    {_animatedImages.map((img: string, idx: number) => (
-                      <figure
-                        key={`gif-${idx}`}
-                        className="w-auto max-w-[80%] md:max-w-full relative group"
-                        itemScope
-                        itemType="https://schema.org/ImageObject"
-                        itemProp="itemListElement"
-                        // ─── FIX: contain isolates paint dari elemen lain
-                        style={{ contain: "layout" }}
-                      >
-                        <meta itemProp="position" content={String(idx + 1)} />
-                        <meta itemProp="url" content={_fC(img)} />
-                        <meta itemProp="name" content={`${_pD.title} — Animated image ${idx + 1}`} />
-                        <img
-                          src={_fC(img)}
-                          alt={`${_pD.title} — Animated image ${idx + 1}`}
-                          className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
-                          style={{ objectFit: "contain" }}
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                        <div
-                          className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white"
-                          aria-hidden="true"
+                    {_animatedImages.map(
+                      (img: string, idx: number) => (
+                        <figure
+                          key={`gif-${idx}`}
+                          className="w-auto max-w-[80%] md:max-w-full relative group"
+                          itemScope
+                          itemType="https://schema.org/ImageObject"
+                          itemProp="itemListElement"
+                          style={{ contain: "layout" }}
                         >
-                          GIF
-                        </div>
-                        <figcaption className="sr-only">
-                          {_pD.title} — Animated image {idx + 1}
-                        </figcaption>
-                      </figure>
-                    ))}
+                          <meta
+                            itemProp="position"
+                            content={String(idx + 1)}
+                          />
+                          <meta
+                            itemProp="url"
+                            content={_fC(img)}
+                          />
+                          <meta
+                            itemProp="name"
+                            content={`${_pD.title} — Animated image ${idx + 1}`}
+                          />
+                          <img
+                            src={_fC(img)}
+                            alt={`${_pD.title} — Animated image ${idx + 1}`}
+                            className="w-full h-auto rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800"
+                            style={{ objectFit: "contain" }}
+                            loading="lazy"
+                            onError={(e) => {
+                              (
+                                e.target as HTMLImageElement
+                              ).style.display = "none";
+                            }}
+                          />
+                          <div
+                            className="absolute -bottom-3 -right-3 bg-black text-white px-2 py-1 text-[8px] font-bold uppercase tracking-widest border border-white"
+                            aria-hidden="true"
+                          >
+                            GIF
+                          </div>
+                          <figcaption className="sr-only">
+                            {_pD.title} — Animated image {idx + 1}
+                          </figcaption>
+                        </figure>
+                      )
+                    )}
                   </div>
                 </section>
               )}
 
+              {/* Gallery */}
               {_galleryImages.length > 0 && (
                 <section
                   className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
@@ -2434,8 +3141,10 @@ export default function ArticleDetail() {
                   itemScope
                   itemType="https://schema.org/ImageGallery"
                 >
-                  <meta itemProp="name" content={`Gallery — ${_pD.title}`} />
-                  <meta itemProp="description" content={`Image gallery for: ${_pD.title}`} />
+                  <meta
+                    itemProp="name"
+                    content={`Gallery — ${_pD.title}`}
+                  />
 
                   <div className="flex items-center gap-4 mb-10">
                     <div
@@ -2449,14 +3158,6 @@ export default function ArticleDetail() {
                     </h2>
                   </div>
 
-                  {/*
-                    ─── FIX: Hapus transition-all duration-700 dan grayscale group-hover:grayscale-0
-                    dari semua gambar gallery. Efek grayscale → color pada SEMUA gambar sekaligus
-                    saat hover adalah penyebab utama scroll jank di ArticleDetail.
-                    CSS filter transitions memicu full repaint pada GPU layer.
-                    Diganti dengan hover:opacity-90 yang jauh lebih ringan.
-                    contain:layout pada figure untuk isolasi repaint per item.
-                  */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {_galleryImages.map((img: string, idx: number) => (
                       <figure
@@ -2467,24 +3168,23 @@ export default function ArticleDetail() {
                         itemProp="image"
                         style={{ contain: "layout" }}
                       >
-                        <meta itemProp="url" content={_fC(img)} />
-                        <meta itemProp="name" content={`${_pD.title} — Gallery ${idx + 1}`} />
+                        <meta
+                          itemProp="url"
+                          content={_fC(img)}
+                        />
+                        <meta
+                          itemProp="name"
+                          content={`${_pD.title} — Gallery ${idx + 1}`}
+                        />
                         <img
                           src={_fC(img)}
                           alt={`${_pD.title} — Gallery image ${idx + 1}`}
-                          /*
-                            ─── FIX UTAMA di ArticleDetail:
-                            Sebelumnya: "grayscale group-hover:grayscale-0 transition-all duration-700"
-                            Ini menerapkan CSS filter transition ke SETIAP gambar di grid saat
-                            salah satu di-hover — menyebabkan paint storm dan scroll freeze.
-
-                            Sekarang: hanya hover:opacity-90 — efek ringan, tidak ada filter,
-                            tidak ada group-hover yang memengaruhi elemen sibling.
-                          */
                           className="w-full h-full object-cover hover:opacity-90 transition-opacity duration-200 aspect-square md:aspect-[4/5]"
                           loading="lazy"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.opacity = "0.3";
+                            (
+                              e.target as HTMLImageElement
+                            ).style.opacity = "0.3";
                           }}
                         />
                         <figcaption className="sr-only">
@@ -2495,12 +3195,14 @@ export default function ArticleDetail() {
                   </div>
 
                   <div className="mt-10">
-                    <Suspense fallback={
-                      <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
-                        <SuspenseFallbackWidget />
-                        <SuspenseFallbackWidget />
-                      </div>
-                    }>
+                    <Suspense
+                      fallback={
+                        <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
+                          <SuspenseFallbackWidget />
+                          <SuspenseFallbackWidget />
+                        </div>
+                      }
+                    >
                       <SocialWidgetsMobileBottom />
                     </Suspense>
                   </div>
@@ -2508,20 +3210,27 @@ export default function ArticleDetail() {
               )}
 
               {_galleryImages.length === 0 && (
-                <Suspense fallback={
-                  <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
-                    <SuspenseFallbackWidget />
-                    <SuspenseFallbackWidget />
-                  </div>
-                }>
+                <Suspense
+                  fallback={
+                    <div className="lg:hidden flex flex-col gap-6 mt-10 max-w-[840px] mx-auto">
+                      <SuspenseFallbackWidget />
+                      <SuspenseFallbackWidget />
+                    </div>
+                  }
+                >
                   <SocialWidgetsMobileBottom />
                 </Suspense>
               )}
 
+              {/* Mobile save/share bar */}
               <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
                 <button
                   onClick={_hSv}
-                  aria-label={_iS ? "Remove from saved" : "Save this article"}
+                  aria-label={
+                    _iS
+                      ? "Remove from saved"
+                      : "Save this article"
+                  }
                   aria-pressed={_iS}
                   className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
                     _iS
@@ -2529,14 +3238,23 @@ export default function ArticleDetail() {
                       : "bg-white dark:bg-black border-black dark:border-white text-black dark:text-white"
                   }`}
                 >
-                  {_iS ? <_Ck size={16} aria-hidden="true" /> : <_Bm size={16} aria-hidden="true" />}
+                  {_iS ? (
+                    <_Ck size={16} aria-hidden="true" />
+                  ) : (
+                    <_Bm size={16} aria-hidden="true" />
+                  )}
                   {_iS ? "Saved" : "Save"}
                 </button>
 
                 <button
                   onClick={() => {
-                    if (typeof navigator !== "undefined" && navigator.clipboard) {
-                      navigator.clipboard.writeText(window.location.href);
+                    if (
+                      typeof navigator !== "undefined" &&
+                      navigator.clipboard
+                    ) {
+                      navigator.clipboard.writeText(
+                        window.location.href
+                      );
                       toast.success("Node Link Copied");
                     }
                   }}
@@ -2551,6 +3269,7 @@ export default function ArticleDetail() {
               <CommentSection articleId={_art.id} />
             </article>
 
+            {/* Desktop sidebar */}
             <aside
               className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0"
               aria-label="Sidebar — Trending articles and social links"
@@ -2562,18 +3281,38 @@ export default function ArticleDetail() {
                   itemScope
                   itemType="https://schema.org/ItemList"
                 >
-                  <meta itemProp="name" content="Trending Articles on Brawnly" />
+                  <meta
+                    itemProp="name"
+                    content="Trending Articles on Brawnly"
+                  />
 
                   <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
-                    <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" aria-hidden="true" />{" "}
+                    <div
+                      className="w-2 h-2 bg-emerald-600 rounded-full animate-ping"
+                      aria-hidden="true"
+                    />{" "}
                     Trending
                   </h2>
                   <ol className="flex flex-col gap-10">
                     {_hC.map((it: any, i: number) => (
-                      <li key={it.id} itemScope itemType="https://schema.org/Article" itemProp="itemListElement">
-                        <meta itemProp="position" content={String(i + 1)} />
-                        <meta itemProp="url" content={`https://www.brawnly.online/article/${it.slug}`} />
-                        <meta itemProp="headline" content={it.title} />
+                      <li
+                        key={it.id}
+                        itemScope
+                        itemType="https://schema.org/Article"
+                        itemProp="itemListElement"
+                      >
+                        <meta
+                          itemProp="position"
+                          content={String(i + 1)}
+                        />
+                        <meta
+                          itemProp="url"
+                          content={`https://www.brawnly.online/article/${it.slug}`}
+                        />
+                        <meta
+                          itemProp="headline"
+                          content={it.title}
+                        />
                         <_L
                           to={`/article/${it.slug}`}
                           aria-label={`Read trending article: ${it.title}`}
@@ -2594,7 +3333,8 @@ export default function ArticleDetail() {
                                 {it.title}
                               </p>
                               <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-tighter">
-                                {(it.views || 0).toLocaleString("en-US")} Identity_Reads
+                                {(it.views || 0).toLocaleString("en-US")}{" "}
+                                Identity_Reads
                               </span>
                             </div>
                           </div>
@@ -2604,14 +3344,16 @@ export default function ArticleDetail() {
                   </ol>
                 </nav>
 
-                <Suspense fallback={
-                  <div className="flex flex-col gap-6">
-                    <SuspenseFallbackWidget />
-                    <SuspenseFallbackWidget />
-                    <SuspenseFallbackWidget />
-                    <SuspenseFallbackWidget />
-                  </div>
-                }>
+                <Suspense
+                  fallback={
+                    <div className="flex flex-col gap-6">
+                      <SuspenseFallbackWidget />
+                      <SuspenseFallbackWidget />
+                      <SuspenseFallbackWidget />
+                      <SuspenseFallbackWidget />
+                    </div>
+                  }
+                >
                   <SocialWidgetsDesktop />
                 </Suspense>
               </div>

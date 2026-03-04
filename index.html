@@ -5,22 +5,18 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
-
     <title>Brawnly - Smart Fitness &amp; Wellness Tracker</title>
     <link rel="canonical" href="https://www.brawnly.online/" id="canonical-link" />
     <meta name="description" content="Brawnly adalah Smart Fitness &amp; Wellness Tracker terbaik. Tingkatkan performa fisik, jurnal latihan, dan pelacakan kesehatan Anda dalam satu aplikasi modern." />
     <meta name="keywords" content="fitness, workout, wellness, training, health, tracking, performance, journal, routine, lifestyle, brawnly" />
     <meta name="author" content="Budi Putra Jaya" />
     <meta name="robots" content="index, follow" />
-
     <meta name="p:domain_verify" content="b1ec3672b7e2152de235df12134d446c" />
-
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.brawnly.online/" />
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
     <meta property="og:image" content="/assets/myPride.gif" />
-
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:;
       script-src 'self' 'unsafe-inline' 'unsafe-eval'
@@ -60,7 +56,9 @@
         https://substack.com https://*.substack.com
         https://assets.tumblr.com https://*.tumblr.com
         https://api.pinterest.com https://*.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com;
+        https://*.royaleapi.com https://royaleapi.com
+        https://api.allorigins.win https://thingproxy.freeboard.io 
+        https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com;
       font-src 'self' data: https: http:;
       frame-src 'self' https: http:
         https://www.youtube.com https://www.youtube-nocookie.com
@@ -75,7 +73,6 @@
       form-action 'self';
       worker-src 'self' blob:;
     " />
-
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -99,29 +96,29 @@
         }
       }
     </script>
-
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://zlwhvkexgjisyhakxyoe.supabase.co" />
-
-
     <link rel="dns-prefetch" href="https://www.instagram.com" />
     <link rel="dns-prefetch" href="https://platform.twitter.com" />
     <link rel="dns-prefetch" href="https://www.youtube.com" />
     <link rel="dns-prefetch" href="https://substackcdn.com" />
     <link rel="dns-prefetch" href="https://royaleapi.com" />
-
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-
     <script>
-      (function(){try{var _0x7a=localStorage.getItem('theme')||'light';if(_0x7a==='dark'||(_0x7a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();
+      (function(){
+        const originalAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+          if (type === 'unload') return;
+          return originalAddEventListener.call(window, type, listener, options);
+        };
+        try{var _0x7a=localStorage.getItem('theme')||'light';if(_0x7a==='dark'||(_0x7a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}
+      })();
     </script>
-
     <link rel="icon" type="image/svg+xml" href="/assets/Brawnly-favicon.svg" />
     <link rel="apple-touch-icon" href="/assets/Brawnly-17aDfvayqUvay.gif" />
-
     <style>
       :root { font-display: swap; }
       .noscript-msg { padding: 20px; text-align: center; background: #000; color: #fff; }
@@ -133,23 +130,45 @@
       img[loading="lazy"] { aspect-ratio: attr(width) / attr(height); }
     </style>
   </head>
-
   <body class="antialiased bg-white dark:bg-black selection:bg-emerald-500 selection:text-white">
     <noscript>
-      <div class="noscript-msg">
-        Please enable JavaScript to view Brawnly.
-      </div>
+      <div class="noscript-msg">Please enable JavaScript to view Brawnly.</div>
     </noscript>
-
     <div id="root"></div>
-
     <div class="seo-hidden">
       <h1>Brawnly - Smart Fitness &amp; Wellness Tracker</h1>
       <h2>Workout &amp; Fitness Tracking</h2>
       <h2>Personalized Health &amp; Wellness Journal</h2>
       <img src="/assets/myPride.gif" alt="Brawnly Fitness Transformation" width="1" height="1" loading="lazy" />
     </div>
-
+    <script>
+      (function() {
+        const failedUrls = new Set();
+        const originalFetch = window.fetch;
+        window.fetch = async function(resource, options) {
+          let url = typeof resource === 'string' ? resource : resource?.url;
+          if (url && (url.includes('allorigins.win') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('youtube.com/feeds') || url.includes('substack.com'))) {
+            const dummyXML = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>`;
+            if (failedUrls.has(url)) {
+              return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+            }
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 2000);
+              const fetchOptions = { ...options, signal: controller.signal };
+              const response = await originalFetch(resource, fetchOptions);
+              clearTimeout(timeoutId);
+              if (!response.ok) throw new Error();
+              return response;
+            } catch (error) {
+              failedUrls.add(url);
+              return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+            }
+          }
+          return originalFetch.apply(this, arguments);
+        };
+      })();
+    </script>
     <script>
       window.__deferScript = function(src) {
         if (src && (src.endsWith('.js') || src.includes('.js?'))) {
@@ -161,11 +180,9 @@
         }
       };
     </script>
-
     <script>
       (function(){try{var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];var _0x2b=function(_0x3c){return atob(_0x3c)};var _0x4d=_0x2b(_0x1a[0])+_0x2b(_0x1a[1])+_0x2b(_0x1a[2]);var _0x5e=document.createElement('link');_0x5e.rel='preconnect';_0x5e.href=_0x4d;_0x5e.crossOrigin='anonymous';document.head.appendChild(_0x5e);var _0x6f=document.createElement('link');_0x6f.rel='dns-prefetch';_0x6f.href=_0x4d;document.head.appendChild(_0x6f)}catch(e){}})();
     </script>
-
     <script>
       (function(){try{if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){for(var _0x8b in __REACT_DEVTOOLS_GLOBAL_HOOK__){if(_0x8b!=='renderers'){__REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[_0x8b]==='function'?function(){}:null}}}}catch(e){}})();
       window.onerror = function(message) {
@@ -173,10 +190,13 @@
           return true;
         }
       };
+      const originalConsoleError = console.error;
+      console.error = function() {
+        if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('fetchPriority')) return;
+        originalConsoleError.apply(console, arguments);
+      };
     </script>
-
     <script type="module" src="/src/main.tsx" defer></script>
-    
     <link rel="prefetch" href="/assets/myAvatar.jpg" />
   </body>
 </html>
