@@ -1963,23 +1963,18 @@ export default function ArticleDetail() {
           {_jsonLdArticle && (
             <script type="application/ld+json">{_jsonLdArticle}</script>
           )}
-
           {_jsonLdBreadcrumb && (
             <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
           )}
-
           {_jsonLdWebPage && (
             <script type="application/ld+json">{_jsonLdWebPage}</script>
           )}
-
           {_jsonLdYoutubeShorts && (
             <script type="application/ld+json">{_jsonLdYoutubeShorts}</script>
           )}
-
           {_jsonLdGallery && (
             <script type="application/ld+json">{_jsonLdGallery}</script>
           )}
-
           <script type="application/ld+json">{_jsonLdSocialLinks}</script>
         </_Hm>
 
@@ -2007,17 +2002,11 @@ export default function ArticleDetail() {
               Brawnly
             </a>
           </address>
-          <time
-            dateTime={_art.published_at}
-            itemProp="datePublished"
-          >
+          <time dateTime={_art.published_at} itemProp="datePublished">
             {_art.published_at}
           </time>
           {(_art as any).updated_at && (
-            <time
-              dateTime={(_art as any).updated_at}
-              itemProp="dateModified"
-            >
+            <time dateTime={(_art as any).updated_at} itemProp="dateModified">
               {(_art as any).updated_at}
             </time>
           )}
@@ -2026,21 +2015,11 @@ export default function ArticleDetail() {
             {_parsedParagraphs.map((block, i) => {
               if (block.type === "text") {
                 return (
-                  <p
-                    key={`seo-para-${i}`}
-                    dangerouslySetInnerHTML={{
-                      __html: block.html,
-                    }}
-                  />
+                  <p key={`seo-para-${i}`} dangerouslySetInnerHTML={{ __html: block.html }} />
                 );
               }
               return (
-                <a
-                  key={`seo-tweet-${i}`}
-                  href={block.url}
-                  rel="noopener noreferrer"
-                  tabIndex={-1}
-                >
+                <a key={`seo-tweet-${i}`} href={block.url} rel="noopener noreferrer" tabIndex={-1}>
                   Embedded Tweet: {block.url}
                 </a>
               );
@@ -2048,53 +2027,28 @@ export default function ArticleDetail() {
           </div>
 
           <nav aria-label="Social profiles" itemProp="sameAs">
-            <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
-              Instagram: @{INSTAGRAM_USERNAME}
-            </a>
-            <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>
-              YouTube: @{YOUTUBE_CHANNEL_HANDLE}
-            </a>
-            <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>
-              Substack: deulo
-            </a>
-            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>
-              Tumblr: deulo
-            </a>
-            <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>
-              Pinterest: mustbeloveonthebrain
-            </a>
-            <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>
-              Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
-            </a>
+            <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>Instagram: @{INSTAGRAM_USERNAME}</a>
+            <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>YouTube: @{YOUTUBE_CHANNEL_HANDLE}</a>
+            <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>Substack: deulo</a>
+            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>Tumblr: deulo</a>
+            <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>Pinterest: mustbeloveonthebrain</a>
+            <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}</a>
           </nav>
 
           {_youtubeShorts.length > 0 && (
             <section aria-label="Embedded YouTube videos">
-              {_youtubeShorts.map((url: string, idx: number) => {
-                const embedUrl = _getEmbedUrl(url);
-                return (
-                  <a
-                    key={`seo-yt-${idx}`}
-                    href={url}
-                    rel="noopener noreferrer"
-                    tabIndex={-1}
-                  >
-                    Watch YouTube Short {idx + 1}: {url}
-                  </a>
-                );
-              })}
+              {_youtubeShorts.map((url: string, idx: number) => (
+                <a key={`seo-yt-${idx}`} href={url} rel="noopener noreferrer" tabIndex={-1}>
+                  Watch YouTube Short {idx + 1}: {url}
+                </a>
+              ))}
             </section>
           )}
 
           {_allTweetUrls.length > 0 && (
             <section aria-label="Embedded tweets">
               {_allTweetUrls.map((url, idx) => (
-                <a
-                  key={`seo-tw-${idx}`}
-                  href={url}
-                  rel="noopener noreferrer"
-                  tabIndex={-1}
-                >
+                <a key={`seo-tw-${idx}`} href={url} rel="noopener noreferrer" tabIndex={-1}>
                   Embedded Tweet {idx + 1}: {url}
                 </a>
               ))}
@@ -2105,34 +2059,20 @@ export default function ArticleDetail() {
             <section aria-label="Article image gallery">
               {_galleryImages.map((img: string, idx: number) => (
                 <figure key={`seo-gallery-${idx}`} itemScope itemType="https://schema.org/ImageObject">
-                  <img
-                    src={_fC(img)}
-                    alt={`${_pD.title} — Gallery image ${idx + 1}`}
-                    loading="lazy"
-                    itemProp="url"
-                  />
+                  <img src={_fC(img)} alt={`${_pD.title} — Gallery image ${idx + 1}`} loading="lazy" itemProp="url" />
                   <meta itemProp="name" content={`${_pD.title} — Gallery image ${idx + 1}`} />
                 </figure>
               ))}
             </section>
           )}
 
-          <aside
-            aria-label="Related Substack post"
-            itemScope
-            itemType="https://schema.org/NewsArticle"
-          >
+          <aside aria-label="Related Substack post" itemScope itemType="https://schema.org/NewsArticle">
             <h2 itemProp="headline">{SUBSTACK_POST_TITLE}</h2>
             <p itemProp="description">{SUBSTACK_POST_DESC}</p>
-            <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>
-              Read on Substack
-            </a>
+            <a href={SUBSTACK_URL} itemProp="url" rel="noopener noreferrer" tabIndex={-1}>Read on Substack</a>
           </aside>
 
-          <meta
-            itemProp="interactionStatistic"
-            content={`${_realtimeViews} reads`}
-          />
+          <meta itemProp="interactionStatistic" content={`${_realtimeViews} reads`} />
           <span itemScope itemType="https://schema.org/InteractionCounter">
             <meta itemProp="interactionType" content="https://schema.org/ReadAction" />
             <meta itemProp="userInteractionCount" content={String(_realtimeViews)} />
@@ -2247,10 +2187,7 @@ export default function ArticleDetail() {
               </div>
 
               <div className="text-xl md:text-2xl font-black italic flex items-center gap-3">
-                <span
-                  aria-label={`${_realtimeViews} kali dibaca`}
-                  itemProp="interactionStatistic"
-                >
+                <span aria-label={`${_realtimeViews} kali dibaca`} itemProp="interactionStatistic">
                   {_realtimeViews.toLocaleString("en-US")}
                 </span>{" "}
                 <_Ey size={20} className="text-red-600" aria-hidden="true" />
@@ -2273,11 +2210,7 @@ export default function ArticleDetail() {
                   className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
                   aria-hidden="true"
                 >
-                  <img
-                    src={_muscleLeft}
-                    alt=""
-                    className="w-full drop-shadow-2xl"
-                  />
+                  <img src={_muscleLeft} alt="" className="w-full drop-shadow-2xl" />
                 </div>
                 <figure
                   className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
@@ -2293,19 +2226,13 @@ export default function ArticleDetail() {
                     slug={_slV}
                     className="w-full aspect-video md:aspect-[21/9] object-cover"
                   />
-                  <figcaption className="sr-only">
-                    {_pD.title} — cover image
-                  </figcaption>
+                  <figcaption className="sr-only">{_pD.title} — cover image</figcaption>
                 </figure>
                 <div
                   className="absolute right-[-15px] sm:right-[-30px] md:right-[-60px] lg:right-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
                   aria-hidden="true"
                 >
-                  <img
-                    src={_muscleRight}
-                    alt=""
-                    className="w-full drop-shadow-2xl"
-                  />
+                  <img src={_muscleRight} alt="" className="w-full drop-shadow-2xl" />
                 </div>
               </div>
 
@@ -2359,16 +2286,10 @@ export default function ArticleDetail() {
                   <meta itemProp="description" content={`Tweets embedded in article: ${_pD.title}`} />
 
                   <div className="flex items-center gap-3 mb-10 opacity-60">
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="w-5 h-5 fill-current text-black dark:text-white"
-                    >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-current text-black dark:text-white">
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
-                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
-                      Embedded_Tweets
-                    </span>
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">Embedded_Tweets</span>
                   </div>
                   <div className="flex flex-col gap-8">
                     {_allTweetUrls.map((url, idx) => (
@@ -2404,7 +2325,6 @@ export default function ArticleDetail() {
                   {_youtubeShorts.map((videoUrl: string, idx: number) => {
                     const embedUrl = _getEmbedUrl(videoUrl);
                     if (!embedUrl) return null;
-
                     const autoplayUrl = `${embedUrl}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
 
                     return (
@@ -2466,9 +2386,7 @@ export default function ArticleDetail() {
 
                   <div className="flex items-center justify-center gap-3 mb-10 opacity-70">
                     <_Ap size={18} className="animate-spin-slow" aria-hidden="true" />
-                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">
-                      Motion_Capture
-                    </span>
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em]">Motion_Capture</span>
                   </div>
                   <div className="flex flex-col gap-10 items-center">
                     {_animatedImages.map((img: string, idx: number) => (
@@ -2478,6 +2396,8 @@ export default function ArticleDetail() {
                         itemScope
                         itemType="https://schema.org/ImageObject"
                         itemProp="itemListElement"
+                        // ─── FIX: contain isolates paint dari elemen lain
+                        style={{ contain: "layout" }}
                       >
                         <meta itemProp="position" content={String(idx + 1)} />
                         <meta itemProp="url" content={_fC(img)} />
@@ -2529,29 +2449,43 @@ export default function ArticleDetail() {
                     </h2>
                   </div>
 
+                  {/*
+                    ─── FIX: Hapus transition-all duration-700 dan grayscale group-hover:grayscale-0
+                    dari semua gambar gallery. Efek grayscale → color pada SEMUA gambar sekaligus
+                    saat hover adalah penyebab utama scroll jank di ArticleDetail.
+                    CSS filter transitions memicu full repaint pada GPU layer.
+                    Diganti dengan hover:opacity-90 yang jauh lebih ringan.
+                    contain:layout pada figure untuk isolasi repaint per item.
+                  */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {_galleryImages.map((img: string, idx: number) => (
                       <figure
                         key={idx}
-                        className="overflow-hidden border-2 border-black dark:border-white rounded-xl group shadow-lg bg-neutral-100 relative"
+                        className="overflow-hidden border-2 border-black dark:border-white rounded-xl shadow-lg bg-neutral-100 relative"
                         itemScope
                         itemType="https://schema.org/ImageObject"
                         itemProp="image"
+                        style={{ contain: "layout" }}
                       >
                         <meta itemProp="url" content={_fC(img)} />
                         <meta itemProp="name" content={`${_pD.title} — Gallery ${idx + 1}`} />
                         <img
                           src={_fC(img)}
                           alt={`${_pD.title} — Gallery image ${idx + 1}`}
-                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 aspect-square md:aspect-[4/5]"
+                          /*
+                            ─── FIX UTAMA di ArticleDetail:
+                            Sebelumnya: "grayscale group-hover:grayscale-0 transition-all duration-700"
+                            Ini menerapkan CSS filter transition ke SETIAP gambar di grid saat
+                            salah satu di-hover — menyebabkan paint storm dan scroll freeze.
+
+                            Sekarang: hanya hover:opacity-90 — efek ringan, tidak ada filter,
+                            tidak ada group-hover yang memengaruhi elemen sibling.
+                          */
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity duration-200 aspect-square md:aspect-[4/5]"
                           loading="lazy"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.opacity = "0.3";
                           }}
-                        />
-                        <div
-                          className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                          aria-hidden="true"
                         />
                         <figcaption className="sr-only">
                           {_pD.title} — Gallery image {idx + 1}
