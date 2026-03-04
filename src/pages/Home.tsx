@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, startTransition } from "react";
 import ArticleList from "@/components/features/ArticleList";
 import { supabase } from "@/lib/supabase";
 import { useLocation } from "react-router-dom";
@@ -18,11 +18,7 @@ import { loadSnap, saveSnap, type SnapArticle } from "@/lib/storageSnap";
 import { syncArticles } from "@/lib/supabaseSync";
 import { registerSW } from "@/pwa/swRegister";
 import { openDB } from "@/lib/idbQueue";
-import { detectBestFormat } from "@/lib/imageFormat";
 
-/* ============================================================
-   CONSTANTS
-   ============================================================ */
 const SITE_URL = "https://www.brawnly.online";
 const SITE_NAME = "Brawnly";
 const AUTHOR_NAME = "Budi Putra Jaya";
@@ -31,10 +27,6 @@ const PAGE_DESCRIPTION =
 const HERO_HEADLINE = "The Sexiest Men — Photos Handpicked.";
 const HERO_SUBLINE =
   "An exclusive editorial look at the aesthetic standards of 2026, curated specifically for the Brawnly community by this gay man.";
-
-/* ============================================================
-   STATIC JSON-LD — serialised once outside component
-   ============================================================ */
 
 const _jLdWebSite = JSON.stringify({
   "@context": "https://schema.org",
@@ -167,7 +159,6 @@ const _jLdBreadcrumb = JSON.stringify({
   ],
 });
 
-// Hero editorial cover story
 const _jLdCoverStory = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Article",
@@ -205,10 +196,19 @@ const Home = () => {
     return localData.length > 0 ? localData : loadSnap();
   });
   const [isSyncing, setSyncing] = useState(false);
+  const [shouldRenderFeed, setShouldRenderFeed] = useState(false);
 
-  // Logic Scroll Otomatis ke Feed Section
   useEffect(() => {
-    if (location.hash === "#feed-section") {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        setShouldRenderFeed(true);
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (location.hash === "#feed-section" && shouldRenderFeed) {
       const element = document.getElementById("feed-section");
       if (element) {
         setTimeout(() => {
@@ -216,69 +216,72 @@ const Home = () => {
         }, 100);
       }
     }
-  }, [location]);
+  }, [location, shouldRenderFeed]);
 
   useEffect(() => {
     let _mounted = true;
 
     const _initEnterpriseNode = async () => {
       try {
-        await Promise.all([
-          registerSW(),
-          openDB(),
-          warmupEnterpriseStorage(),
-          detectBestFormat()
-        ]);
-
         const snap = getArticlesSnap();
         if (snap && snap.length > 0 && _mounted) {
           setArticles(snap);
         }
 
-        setCookieHash("brawnly_session");
-        mirrorQuery({ type: "HOME_FEED_INIT", ts: Date.now() });
+        setTimeout(async () => {
+          if (!_mounted) return;
+          try {
+            await Promise.all([
+              registerSW(),
+              openDB(),
+              warmupEnterpriseStorage(),
+              import("@/lib/imageFormat").then(m => m.detectBestFormat())
+            ]);
+            
+            setCookieHash("brawnly_session");
+            mirrorQuery({ type: "HOME_FEED_INIT", ts: Date.now() });
 
-        if (navigator.onLine) {
-          setSyncing(true);
-          const _fetcher = async () => {
-            const { data, error } = await supabase
-              .from("articles")
-              .select("*, author:profiles(username, avatar_url)")
-              .eq("published", true)
-              .order("published_at", { ascending: false })
-              .limit(20);
+            if (navigator.onLine) {
+              setSyncing(true);
+              const { data, error } = await supabase
+                .from("articles")
+                .select("*, author:profiles(username, avatar_url)")
+                .eq("published", true)
+                .order("published_at", { ascending: false })
+                .limit(20);
 
-            if (error) throw error;
-            return data || [];
-          };
+              if (error) throw error;
+              const freshData = data || [];
 
-          const freshData = await syncArticles(_fetcher);
+              if (freshData && Array.isArray(freshData) && _mounted) {
+                setArticles(freshData);
+                window.__BRAWNLY_SNAP__ = freshData;
 
-          if (freshData && Array.isArray(freshData) && _mounted) {
-            setArticles(freshData);
-            window.__BRAWNLY_SNAP__ = freshData;
+                const snapData: SnapArticle[] = freshData.slice(0, 10).map(a => ({
+                  title: a.title,
+                  slug: a.slug,
+                  image: a.featured_image
+                }));
+                saveSnap(snapData);
+              }
+            }
 
-            const snapData: SnapArticle[] = freshData.slice(0, 10).map(a => ({
-              title: a.title,
-              slug: a.slug,
-              image: a.featured_image
-            }));
-            saveSnap(snapData);
+            if ("serviceWorker" in navigator) {
+              const reg = await navigator.serviceWorker.ready;
+              if (reg.sync) {
+                try {
+                  await reg.sync.register("sync-articles");
+                } catch {}
+              }
+            }
+          } catch (e) {
+            console.error("[NODE_INIT_DEFERRED_FAIL]", e);
+          } finally {
+            if (_mounted) setSyncing(false);
           }
-        }
-
-        if ("serviceWorker" in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg.sync) {
-            try {
-              await reg.sync.register("sync-articles");
-            } catch {}
-          }
-        }
+        }, 3000);
       } catch (err) {
         console.error("[NODE_INIT_FAIL]", err);
-      } finally {
-        if (_mounted) setSyncing(false);
       }
     };
 
@@ -286,7 +289,6 @@ const Home = () => {
     return () => { _mounted = false; };
   }, []);
 
-  // Dynamic JSON-LD: feed article list (live articles state)
   const _jLdFeedList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -332,8 +334,8 @@ const Home = () => {
     headline: "text-[42px] md:text-[84px] leading-[0.9] font-black uppercase tracking-tighter mb-6",
     subline: "text-lg md:text-xl font-medium leading-tight text-neutral-600 dark:text-neutral-400 mb-6 max-w-2xl font-serif",
     author: "text-[11px] font-bold uppercase tracking-[0.2em] border-b-2 border-black dark:border-white pb-1 inline-block mb-10",
-    gifCentral: "w-full max-w-[480px] h-auto object-cover rounded-none mb-4 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] dark:shadow-[20px_20px_0px_0px_rgba(255,255,255,0.02)] border border-neutral-200 dark:border-neutral-800",
-    gifSide: "w-full h-auto opacity-80 hover:opacity-100 transition-opacity duration-300 mb-2 grayscale hover:grayscale-0",
+    gifCentral: "w-full max-w-[480px] h-auto object-cover rounded-none mb-4 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] dark:shadow-[20px_20px_0px_0px_rgba(255,255,255,0.02)] border border-neutral-200 dark:border-neutral-800 content-visibility-auto",
+    gifSide: "w-full h-auto opacity-80 hover:opacity-100 transition-opacity duration-300 mb-2 grayscale hover:grayscale-0 content-visibility-auto",
     mustache: "h-5 w-auto object-contain mt-2 opacity-30"
   };
 
@@ -346,34 +348,19 @@ const Home = () => {
       itemType="https://schema.org/WebPage"
       aria-label={`${SITE_NAME} homepage`}
     >
-      {/* ── JSON-LD: WebSite + SearchAction ── */}
       <script type="application/ld+json">{_jLdWebSite}</script>
-
-      {/* ── JSON-LD: Organization ── */}
       <script type="application/ld+json">{_jLdOrganization}</script>
-
-      {/* ── JSON-LD: Person (author) ── */}
       <script type="application/ld+json">{_jLdPerson}</script>
-
-      {/* ── JSON-LD: WebPage ── */}
       <script type="application/ld+json">{_jLdWebPage}</script>
-
-      {/* ── JSON-LD: BreadcrumbList ── */}
       <script type="application/ld+json">{_jLdBreadcrumb}</script>
-
-      {/* ── JSON-LD: Cover Story Article ── */}
       <script type="application/ld+json">{_jLdCoverStory}</script>
-
-      {/* ── JSON-LD: Feed ItemList (dynamic, live articles) ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdFeedList)}</script>
 
-      {/* ── Microdata: page-level ── */}
       <meta itemProp="url" content={SITE_URL} />
       <meta itemProp="name" content={`${SITE_NAME} — LGBTQ+ Fitness & Editorial`} />
       <meta itemProp="description" content={PAGE_DESCRIPTION} />
       <meta itemProp="inLanguage" content="id" />
 
-      {/* ── SEO HIDDEN: full site identity + hero + feed for crawlers ── */}
       <div
         aria-hidden="true"
         style={{
@@ -385,7 +372,6 @@ const Home = () => {
           whiteSpace: "nowrap",
         }}
       >
-        {/* Organization */}
         <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
           <span itemProp="name">{SITE_NAME}</span>
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
@@ -416,7 +402,6 @@ const Home = () => {
           <meta itemProp="knowsAbout" content="Wellness" />
         </span>
 
-        {/* Person / author */}
         <span itemScope itemType="https://schema.org/Person" itemProp="author">
           <span itemProp="name">{AUTHOR_NAME}</span>
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
@@ -433,7 +418,6 @@ const Home = () => {
           </span>
         </span>
 
-        {/* WebSite */}
         <span itemScope itemType="https://schema.org/WebSite" itemProp="isPartOf">
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             {SITE_NAME}
@@ -442,7 +426,6 @@ const Home = () => {
           <span itemProp="description">{PAGE_DESCRIPTION}</span>
         </span>
 
-        {/* Hero cover story — described for crawlers */}
         <article itemScope itemType="https://schema.org/Article">
           <h1 itemProp="headline">{HERO_HEADLINE}</h1>
           <p itemProp="description">{HERO_SUBLINE}</p>
@@ -454,7 +437,6 @@ const Home = () => {
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             Cover Story — {SITE_NAME}
           </a>
-          {/* Hero GIFs as ImageObjects */}
           <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
             <meta itemProp="name" content={`${SITE_NAME} — Central hero image`} />
             <meta itemProp="encodingFormat" content="image/gif" />
@@ -462,7 +444,6 @@ const Home = () => {
           </span>
         </article>
 
-        {/* Sidebar: Trending Now */}
         <aside aria-label="Trending Now">
           <span itemProp="keywords" content="Trending" />
           <p>How Brawnly is Redefining Wellness in 2026.</p>
@@ -472,7 +453,6 @@ const Home = () => {
           </span>
         </aside>
 
-        {/* Sidebar: Must Read */}
         <aside aria-label="Must Read">
           <p>Exclusive: The Art of Fitness and Masculinity.</p>
           <span itemScope itemType="https://schema.org/ImageObject">
@@ -481,7 +461,6 @@ const Home = () => {
           </span>
         </aside>
 
-        {/* BreadcrumbList */}
         <span itemScope itemType="https://schema.org/BreadcrumbList">
           <span
             itemScope
@@ -495,7 +474,6 @@ const Home = () => {
           </span>
         </span>
 
-        {/* Feed section — hidden article list for crawlers */}
         <section aria-label="Hidden SEO article feed">
           <h2>Latest Articles</h2>
           <ol itemScope itemType="https://schema.org/ItemList">
@@ -551,16 +529,12 @@ const Home = () => {
         </section>
       </div>
 
-      {/* ══════════════════════════════════════════════
-          HERO SECTION (all existing logic preserved)
-          ══════════════════════════════════════════════ */}
       <section
         className={_s.hero}
         aria-label="Brawnly Cover Story hero"
         itemScope
         itemType="https://schema.org/Article"
       >
-        {/* Hero article microdata */}
         <meta itemProp="headline" content={HERO_HEADLINE} />
         <meta itemProp="description" content={HERO_SUBLINE} />
         <meta itemProp="articleSection" content="Cover Story" />
@@ -572,7 +546,6 @@ const Home = () => {
         <div className={_s.inner}>
           <div className={_s.topGrid}>
 
-            {/* ── Left sidebar: Trending Now ── */}
             <aside
               className={_s.sideArt}
               aria-label="Trending Now"
@@ -606,7 +579,6 @@ const Home = () => {
               </p>
             </aside>
 
-            {/* ── Main center: Cover Story ── */}
             <div
               className={_s.mainCenter}
               itemScope
@@ -675,7 +647,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ── Right sidebar: Must Read ── */}
             <aside
               className={_s.sideArt}
               aria-label="Must Read"
@@ -713,9 +684,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════
-          FEED SECTION (all existing logic preserved)
-          ══════════════════════════════════════════════ */}
       <section
         id="feed-section"
         className="py-12"
@@ -723,7 +691,6 @@ const Home = () => {
         itemScope
         itemType="https://schema.org/ItemList"
       >
-        {/* Feed section microdata */}
         <meta itemProp="name" content={`${SITE_NAME} Latest Articles`} />
         <meta itemProp="description" content="Latest published articles and editorial content from Brawnly." />
         <meta itemProp="numberOfItems" content={String(articles.length)} />
@@ -754,7 +721,13 @@ const Home = () => {
             aria-label="Article feed"
             aria-live="polite"
           >
-            <ArticleList selectedTag={null} searchTerm="" />
+            {shouldRenderFeed ? (
+              <ArticleList selectedTag={null} searchTerm="" />
+            ) : (
+              <div className="w-full h-96 flex items-center justify-center">
+                <div className="w-20 h-1 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse" />
+              </div>
+            )}
           </div>
         </div>
       </section>
