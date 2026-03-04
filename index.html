@@ -100,7 +100,7 @@
       }
     </script>
 
-    <link rel="preload" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" fetchpriority="high" />
+    <link rel="prefetch" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" />
 
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
@@ -147,6 +147,15 @@
     </div>
 
     <script>
+      // INTERCEPTOR UNLOAD DIPINDAHKAN KE SINI (DILUAR EVENT LOAD)
+      const originalAddEventListener = window.addEventListener;
+      window.addEventListener = function(type, listener, options) {
+        if (type === 'unload') {
+          return originalAddEventListener.call(window, 'pagehide', listener, options);
+        }
+        return originalAddEventListener.call(window, type, listener, options);
+      };
+
       window.addEventListener('load', function() {
         (function() {
           const failedUrls = new Set();
@@ -171,12 +180,6 @@
             return originalFetch.apply(this, arguments);
           };
         })();
-
-        const originalAddEventListener = window.addEventListener;
-        window.addEventListener = function(type, listener, options) {
-          if (type === 'unload') return;
-          return originalAddEventListener.call(window, type, listener, options);
-        };
 
         try {
           if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
