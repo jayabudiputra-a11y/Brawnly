@@ -100,7 +100,7 @@
       }
     </script>
 
-    <link rel="preload" href="/assets/masculineLogo.svg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" fetchpriority="high" />
 
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
@@ -111,7 +111,6 @@
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 
     <script>
-      // Optimasi 1: Jalankan deteksi tema secepat mungkin tapi minimalis
       (function(){
         try {
           var t = localStorage.getItem('theme') || 'light';
@@ -132,7 +131,6 @@
       .dark body { background-color: black; color: white; }
       #root { min-height: 100vh; opacity: 0; animation: fadeIn 0.2s ease-in-out forwards; will-change: opacity; }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      /* Optimasi 2: Kurangi layout shift pada gambar lazy */
       img[loading="lazy"] { aspect-ratio: attr(width) / attr(height); background: rgba(128,128,128,0.05); }
     </style>
   </head>
@@ -149,9 +147,7 @@
     </div>
 
     <script>
-      // Optimasi 3: Bungkus semua logika "interceptor" dan helper ke dalam satu listener yang tidak memblokir render awal
       window.addEventListener('load', function() {
-        // Logika Fetch Interceptor (CORS Handling)
         (function() {
           const failedUrls = new Set();
           const originalFetch = window.fetch;
@@ -176,7 +172,6 @@
           };
         })();
 
-        // Logika Unload Handler & React DevTools Hook (Dipindah ke sini agar tidak memblokir splash)
         const originalAddEventListener = window.addEventListener;
         window.addEventListener = function(type, listener, options) {
           if (type === 'unload') return;
@@ -211,7 +206,6 @@
     </script>
 
     <script>
-      // Optimasi 4: Supabase Preconnect (Gunakan RequestIdleCallback agar tidak memutus animasi splash)
       (function(){
         const pre = () => {
           try {

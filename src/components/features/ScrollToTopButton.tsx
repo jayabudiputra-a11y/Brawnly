@@ -1,14 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { useLocation } from "react-router-dom";
 import { ChevronUp } from "lucide-react";
 
 export default function ScrollToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" as any });
-  }, [pathname]);
 
   useEffect(() => {
     const toggleVisibility = () => {
@@ -19,21 +13,9 @@ export default function ScrollToTopButton() {
   }, []);
 
   const scrollToTop = useCallback(() => {
-    // STRATEGI: Momentum Killer
-    // 1. Paksa body jadi non-scrollable sesaat untuk membunuh inertia/momentum
-    const originalStyle = window.getComputedStyle(document.body).overflow;
-    document.body.style.overflow = "hidden";
-    
-    // 2. Gunakan requestAnimationFrame agar eksekusi selaras dengan render browser
-    requestAnimationFrame(() => {
-      // 3. Kembalikan overflow agar bisa scroll lagi
-      document.body.style.overflow = originalStyle;
-      
-      // 4. Eksekusi scroll ke atas (Smooth via JS)
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
     });
   }, []);
 

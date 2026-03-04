@@ -3,11 +3,8 @@ import React, {
   useEffect as _e,
   lazy as _lz,
   Suspense as _Sp,
-  useTransition,
-  startTransition,
   useRef,
   useState,
-  useCallback,
   memo,
 } from "react";
 import _L from "@/components/layout/Layout";
@@ -199,7 +196,7 @@ function App() {
   _e(() => {
     if (typeof window === "undefined") return;
     if (_prevPath.current !== _p) {
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       _prevPath.current = _p;
     }
   }, [_p]);

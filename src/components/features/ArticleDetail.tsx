@@ -45,7 +45,7 @@ import TwitterEmbed from "@/components/features/TwitterEmbed";
 import { isTweetUrl } from "@/lib/utils";
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
 import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
-
+import PayPalWidget from "@/components/features/PaypalWidget";
 import { useArticleData as _uAD } from "@/hooks/useArticleData";
 import { useArticleViews as _uAV } from "@/hooks/useArticleViews";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
@@ -1492,11 +1492,12 @@ function ClashRoyaleWidget() {
   );
 }
 
-// ─── Social Widget Layouts ────────────────────────────────────────────────────
-
 function SocialWidgetsDesktop() {
   return (
     <div className="flex flex-col gap-6">
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <PayPalWidget />
+      </Suspense>
       <Suspense fallback={<SuspenseFallbackWidget />}>
         <InstagramWidget />
       </Suspense>
@@ -1516,6 +1517,9 @@ function SocialWidgetsDesktop() {
 function SocialWidgetsMobileTop() {
   return (
     <div className="lg:hidden flex flex-col gap-6 my-10 max-w-[840px] mx-auto">
+      <Suspense fallback={<SuspenseFallbackWidget />}>
+        <PayPalWidget />
+      </Suspense>
       <Suspense fallback={<SuspenseFallbackWidget />}>
         <InstagramWidget />
       </Suspense>
@@ -2227,17 +2231,41 @@ export default function ArticleDetail() {
   }, [_slV]);
 
   _e(() => {
-    warmupEnterpriseStorage();
-    registerSW();
-    detectBestFormat();
+    const _silenceViolation = (e: Event) => {
+      e.stopImmediatePropagation();
+    };
 
-    const oN = () => _sOff(false);
+    window.addEventListener("unload", _silenceViolation, { capture: true });
+    window.addEventListener("pagehide", _silenceViolation, { capture: true });
+
+    if (!(window as any).__brawnly_pwa_active) {
+      warmupEnterpriseStorage();
+      registerSW();
+      detectBestFormat();
+      (window as any).__brawnly_pwa_active = true;
+    }
+
+    const oN = () => {
+      _sOff(false);
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(reg => {
+          if ((reg as any).sync) {
+            (reg as any).sync.register('sync-articles').catch(() => {});
+          }
+        });
+      }
+    };
+    
     const oF = () => _sOff(true);
+
     window.addEventListener("online", oN);
     window.addEventListener("offline", oF);
+
     return () => {
       window.removeEventListener("online", oN);
       window.removeEventListener("offline", oF);
+      window.removeEventListener("unload", _silenceViolation, { capture: true });
+      window.removeEventListener("pagehide", _silenceViolation, { capture: true });
     };
   }, []);
 
