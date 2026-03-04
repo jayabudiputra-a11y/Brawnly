@@ -129,40 +129,63 @@ type ProxyEntry = {
 };
 
 const CORS_PROXIES: ProxyEntry[] = [
-  // allorigins /raw — direct text response
-  { make: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-  // allorigins /get — JSON wrapper: { contents: "..." }
+  // 1. RSS2JSON (Paling stabil untuk RSS, return JSON)
+  { 
+    make: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, // Fallback label saja
+    // Kita akan modifikasi logic fetchRSSViaProxy untuk menangani ini secara khusus
+  },
+  // 2. Codetabs (Cukup stabil)
+  { make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  // 3. AllOrigins (Gunakan /get sebagai cadangan)
   {
     make: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
     extract: (t) => {
       try { return JSON.parse(t).contents ?? t; } catch { return t; }
     },
   },
-  // codetabs — direct text, works well for RSS
-  { make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-  // thingproxy — broad allowlist
-  { make: (u) => `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(u)}` },
-  // cors.sh — public no-key endpoint
-  { make: (u) => `https://proxy.cors.sh/${u}` },
-  // corsproxy.io — last resort (currently 403-ing some feeds)
+  // 4. Corsproxy.io
   { make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
 ];
 
 async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
-  // Return cached result if still fresh
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
+  // STRATEGI PERTAMA: Gunakan rss2json (Sangat stabil)
+  try {
+    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'ok') {
+        const items = data.items.map((item: any) => ({
+          title: item.title || "",
+          link: item.link || "",
+          pubDate: item.pubDate || "",
+          description: (item.description || "").replace(/<[^>]+>/g, "").trim().slice(0, 160),
+          thumbnail: item.thumbnail || (item.enclosure?.link) || "",
+          videoId: item.link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1]
+        }));
+        _rssCache.set(feedUrl, { ts: Date.now(), items });
+        return items;
+      }
+    }
+  } catch (e) { console.log("rss2json failed, trying next proxy..."); }
+
+  // STRATEGI KEDUA: Rotasi Proxy Sisanya
   for (const proxy of CORS_PROXIES) {
     try {
       const endpoint = proxy.make(feedUrl);
       const res = await fetch(endpoint, {
-        signal: AbortSignal.timeout(9000),
-        headers: { Accept: "application/rss+xml, application/xml, text/xml, text/html, */*" },
+        signal: AbortSignal.timeout(6000),
+        headers: { Accept: "application/rss+xml, xml" },
       });
       if (!res.ok) continue;
+      
       let text = await res.text();
       if (proxy.extract) text = proxy.extract(text);
+      
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/xml");
       if (doc.querySelector("parsererror")) continue;
@@ -171,53 +194,23 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
       if (rawItems.length === 0) continue;
 
       const items = rawItems.map((item) => {
-        // link can be <link>url</link> or <link href="url"/>
         const linkEl = item.querySelector("link");
-        const link =
-          linkEl?.textContent?.trim() ||
-          linkEl?.getAttribute("href") ||
-          "";
-
-        // thumbnail: media:thumbnail, enclosure image, or derived from video
-        const mediaNs = item.querySelector("thumbnail"); // media:thumbnail
-        const enclosure = item.querySelector("enclosure");
-        const thumbnail =
-          mediaNs?.getAttribute("url") ||
-          (enclosure?.getAttribute("type")?.startsWith("image")
-            ? enclosure.getAttribute("url")
-            : "") ||
-          "";
-
-        // YouTube video ID from link or from yt:videoId
-        const ytVideoId =
-          item.querySelector("videoId")?.textContent?.trim() ||
-          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
-
-        const thumbFinal =
-          thumbnail ||
-          (ytVideoId ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg` : "");
-
-        // description: strip HTML tags
-        const rawDesc =
-          item.querySelector("description, summary")?.textContent || "";
-        const descClean = rawDesc.replace(/<[^>]+>/g, "").trim().slice(0, 160);
+        const link = linkEl?.textContent?.trim() || linkEl?.getAttribute("href") || "";
+        const ytVideoId = item.querySelector("videoId")?.textContent?.trim() || 
+                          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
 
         return {
           title: item.querySelector("title")?.textContent?.trim() || "",
           link,
-          pubDate:
-            item.querySelector("pubDate, published, updated")?.textContent?.trim() ||
-            "",
-          description: descClean,
-          thumbnail: thumbFinal,
+          pubDate: item.querySelector("pubDate, published, updated")?.textContent?.trim() || "",
+          description: (item.querySelector("description, summary")?.textContent || "").replace(/<[^>]+>/g, "").trim().slice(0, 160),
+          thumbnail: ytVideoId ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg` : "",
           videoId: ytVideoId,
         };
       });
       _rssCache.set(feedUrl, { ts: Date.now(), items });
       return items;
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
   return [];
 }
@@ -260,63 +253,40 @@ function useRSSFeed(url: string, count = 3) {
 }
 
 /** Resolve YouTube channel ID from handle via page scrape, then fetch RSS */
+/** YouTube Feed - Versi Fix (Direct ID) */
 function useYouTubeFeed(handle: string, count = 4) {
   const [items, _setItems] = _s<RSSItem[]>([]);
   const [loading, _setLoading] = _s(true);
-  const [channelId, _setChannelId] = _s<string | null>(null);
+  
+  // Gunakan ID dari YouTube Studio kamu
+  const CHANNEL_ID = "UCCtKrAzh4V8u573Is973jzA";
 
   _e(() => {
     let cancelled = false;
     async function load() {
       try {
-        // Try to resolve real UC channel ID from the @handle page
-        let resolvedId: string | null = null;
-        try {
-          const proxyUrl = CORS_PROXIES[0].make(
-            `https://www.youtube.com/@${handle}`
-          );
-          const pageRes = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(10000),
-          });
-          if (pageRes.ok) {
-            const html = await pageRes.text();
-            const match = html.match(/"channelId":"(UC[A-Za-z0-9_-]{22})"/);
-            resolvedId = match?.[1] || null;
-          }
-        } catch {
-          // ignore resolve failure
+        _setLoading(true);
+        
+        // URL RSS langsung menggunakan Channel ID
+        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+        
+        // Panggil fungsi rotasi proxy (yang sudah ada rss2json di urutan pertama)
+        const data = await fetchRSSViaProxy(feedUrl);
+        
+        if (data && data.length > 0 && !cancelled) {
+          _setItems(data.slice(0, count));
         }
-
-        if (!cancelled && resolvedId) _setChannelId(resolvedId);
-
-        // Try RSS URLs in order: resolved channel_id → legacy user= → give up
-        const feedUrls = [
-          resolvedId
-            ? `https://www.youtube.com/feeds/videos.xml?channel_id=${resolvedId}`
-            : null,
-          `https://www.youtube.com/feeds/videos.xml?user=${handle}`,
-        ].filter(Boolean) as string[];
-
-        for (const feedUrl of feedUrls) {
-          const data = await fetchRSSViaProxy(feedUrl);
-          if (data.length > 0) {
-            if (!cancelled) _setItems(data.slice(0, count));
-            break;
-          }
-        }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.warn("YouTube Feed Error:", err);
       } finally {
         if (!cancelled) _setLoading(false);
       }
     }
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [handle, count]);
+    return () => { cancelled = true; };
+  }, [CHANNEL_ID, count]); // Gunakan CHANNEL_ID sebagai dependency
 
-  return { items, loading, channelId };
+  return { items, loading, channelId: CHANNEL_ID };
 }
 
 // ─── Paragraph Parsing ───────────────────────────────────────────────────────
