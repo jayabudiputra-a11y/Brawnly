@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import NewsletterForm from '@/components/common/NewsletterForm'; 
 import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
 import { registerSW } from '@/pwa/swRegister';
+import ScrollToTopButton from '../features/ScrollToTopButton';
 
 const SITE_URL = "https://www.brawnly.online";
 const SITE_NAME = "Brawnly";
@@ -200,14 +201,18 @@ const Footer = () => {
         }
     };
 
-    return (
-        <footer
-            className="bg-gray-900 text-white py-16 transition-colors duration-300 border-t-4 border-black"
-            itemScope
-            itemType="https://schema.org/WPFooter"
-            role="contentinfo"
-            aria-label={`${SITE_NAME} site footer`}
-        >
+     return (
+        <>
+            {/* Dipanggil sebelum footer agar logika deteksi posisi tetap akurat */}
+            <ScrollToTopButton />
+
+            <footer
+                className="bg-gray-900 text-white py-16 transition-colors duration-300 border-t-4 border-black relative z-10"
+                itemScope
+                itemType="https://schema.org/WPFooter"
+                role="contentinfo"
+                aria-label={`${SITE_NAME} site footer`}
+            >
             {/* ── JSON-LD: Organization ── */}
             <script type="application/ld+json">{_jLdOrganization}</script>
 
@@ -632,6 +637,7 @@ const Footer = () => {
                 </div>
             </div>
         </footer>
+        </>
     );
 };
 
