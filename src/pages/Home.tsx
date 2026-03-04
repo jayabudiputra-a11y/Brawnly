@@ -2,6 +2,7 @@ import React, { useEffect, useState, startTransition } from "react";
 import ArticleList from "@/components/features/ArticleList";
 import { supabase } from "@/lib/supabase";
 import { useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 import centralGif from "@/assets/Brawnly-17aDfvayqUvay.gif";
 import leftGif from "@/assets/Brawnly-17VaIyauwVGvanab8Vf.gif";
@@ -348,6 +349,10 @@ const Home = () => {
       itemType="https://schema.org/WebPage"
       aria-label={`${SITE_NAME} homepage`}
     >
+      <Helmet>
+        <link rel="canonical" href={`${SITE_URL}/`} />
+      </Helmet>
+
       <script type="application/ld+json">{_jLdWebSite}</script>
       <script type="application/ld+json">{_jLdOrganization}</script>
       <script type="application/ld+json">{_jLdPerson}</script>
