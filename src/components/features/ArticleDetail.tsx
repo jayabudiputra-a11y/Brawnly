@@ -1689,7 +1689,7 @@ function YouTubeShortsPlayer({
             <button
               onClick={handleUnmute}
               aria-label="Tap to unmute video"
-              className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
+              className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
             >
               <VolumeX size={12} aria-hidden="true" />
               Unmute
@@ -1699,7 +1699,7 @@ function YouTubeShortsPlayer({
           {/* Unmuted indicator */}
           {!muted && (
             <div
-              className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
+              className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
               aria-hidden="true"
             >
               <Volume2 size={12} />
