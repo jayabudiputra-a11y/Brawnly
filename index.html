@@ -101,7 +101,6 @@
     </script>
 
     <link rel="prefetch" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" />
-
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
@@ -147,7 +146,6 @@
     </div>
 
     <script>
-      // INTERCEPTOR UNLOAD DIPINDAHKAN KE SINI (DILUAR EVENT LOAD)
       const originalAddEventListener = window.addEventListener;
       window.addEventListener = function(type, listener, options) {
         if (type === 'unload') {
@@ -162,16 +160,23 @@
           const originalFetch = window.fetch;
           window.fetch = async function(resource, options) {
             let url = typeof resource === 'string' ? resource : resource?.url;
-            if (url && (url.includes('allorigins.win') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('youtube.com/feeds') || url.includes('substack.com'))) {
+            if (url && (url.includes('api.rss2json.com') || url.includes('allorigins.win') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('youtube.com/feeds') || url.includes('substack.com') || url.includes('tumblr.com'))) {
               const dummyXML = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>`;
+              
               if (failedUrls.has(url)) return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+
               try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                // Tambahkan corsproxy.io jika URL adalah rss2json untuk memotong CORS block
-                const finalUrl = url.includes('api.rss2json.com') ? `https://corsproxy.io/?${url}` : url;
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                let finalUrl = url;
+                if (url.includes('api.rss2json.com') && !url.includes('corsproxy.io')) {
+                  finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                }
+
                 const response = await originalFetch(finalUrl, { ...options, signal: controller.signal });
                 clearTimeout(timeoutId);
+
                 if (!response.ok) throw new Error();
                 return response;
               } catch (error) {
@@ -191,10 +196,9 @@
           }
         } catch(e){}
 
-        // Console Error Interceptor
         const originalConsoleError = console.error;
         console.error = function() {
-          if (arguments[0] && typeof arguments[0] === 'string' && (arguments[0].includes('fetchPriority') || arguments[0].includes('Hydration'))) return;
+          if (arguments[0] && typeof arguments[0] === 'string' && (arguments[0].includes('fetchPriority') || arguments[0].includes('Hydration') || arguments[0].includes('unload'))) return;
           originalConsoleError.apply(console, arguments);
         };
       });
