@@ -117,33 +117,25 @@ type RSSItem = {
   videoId?: string;
 };
 
-// ── In-memory RSS cache to avoid double-fetching (React StrictMode) ──────────
 const _rssCache = new Map<string, { ts: number; items: RSSItem[] }>();
 const RSS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Expanded CORS proxy pool — tried in order until one succeeds
-// Each entry: { make: url→endpoint, extract: response→xmlText }
 type ProxyEntry = {
   make: (u: string) => string;
   extract?: (text: string) => string;  // optional transform for JSON wrappers
 };
 
 const CORS_PROXIES: ProxyEntry[] = [
-  // 1. RSS2JSON (Paling stabil untuk RSS, return JSON)
   { 
     make: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, // Fallback label saja
-    // Kita akan modifikasi logic fetchRSSViaProxy untuk menangani ini secara khusus
   },
-  // 2. Codetabs (Cukup stabil)
   { make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-  // 3. AllOrigins (Gunakan /get sebagai cadangan)
   {
     make: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
     extract: (t) => {
       try { return JSON.parse(t).contents ?? t; } catch { return t; }
     },
   },
-  // 4. Corsproxy.io
   { make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
 ];
 
@@ -151,7 +143,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
-  // STRATEGI PERTAMA: Gunakan rss2json (Sangat stabil)
   try {
     const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`, {
       signal: AbortSignal.timeout(5000)
