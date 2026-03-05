@@ -168,7 +168,9 @@
               try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const response = await originalFetch(resource, { ...options, signal: controller.signal });
+                // Tambahkan corsproxy.io jika URL adalah rss2json untuk memotong CORS block
+                const finalUrl = url.includes('api.rss2json.com') ? `https://corsproxy.io/?${url}` : url;
+                const response = await originalFetch(finalUrl, { ...options, signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (!response.ok) throw new Error();
                 return response;
