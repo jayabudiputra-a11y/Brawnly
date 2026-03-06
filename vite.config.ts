@@ -31,6 +31,7 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ['assets/**/*.{png,jpg,jpeg,svg,gif,ico}'],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -67,13 +68,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,wasm}"],
         globIgnores: [
           "**/assets/Brawnly-favicon.svg",
-          "**/assets/favicon.svg",
           "**/assets/masculineLogo.svg",
-          "**/assets/Brawnly.gif",
-          "**/assets/Brawnly-17aDfvayqUvay.gif",
-          "**/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
-          "**/assets/myAvatar.jpg",
-          "**/assets/myPride.gif"
+          "**/assets/Brawnly.gif"
         ],
         runtimeCaching: [
           {
@@ -164,7 +160,7 @@ export default defineConfig({
           if (assetInfo.name && assetInfo.name.endsWith('.css')) {
             return 'assets/css/[name]-[hash][extname]';
           }
-          return 'assets/[name][extname]';
+          return 'assets/[name]-[hash][extname]';
         },
         manualChunks(id) {
           if (id.includes("node_modules")) {
