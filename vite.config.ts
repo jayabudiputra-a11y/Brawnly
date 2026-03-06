@@ -6,10 +6,10 @@ import injectHTML from 'vite-plugin-html-inject';
 import prerender from '@prerenderer/rollup-plugin';
 import Renderer from '@prerenderer/renderer-puppeteer';
 
-// Deteksi apakah sedang berjalan di environment Vercel
 const isVercel = process.env.VERCEL === '1';
 
 export default defineConfig({
+  base: '/',
   optimizeDeps: {
     exclude: ['@jsquash/webp', '@jsquash/avif']
   },
@@ -20,19 +20,17 @@ export default defineConfig({
       },
     }),
     injectHTML(),
-    // Hanya jalankan prerender jika TIDAK sedang di Vercel
     !isVercel && prerender({
       routes: ['/'],
       renderer: new Renderer({
         renderAfterDocumentEvent: 'render-event',
         headless: true
       }),
-      // @ts-ignore: staticDir is required by the plugin at runtime but may not be in the type definition
+      // @ts-ignore: staticDir is required by the plugin but may not be recognized by current types
       staticDir: path.resolve(__dirname, 'dist'),
     }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -65,17 +63,7 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{js,css,html}"],
-        globIgnores: [
-          "**/node_modules/**/*",
-          "sw.js",
-          "workbox-*.js",
-          "assets/*.svg",
-          "assets/*.gif",
-          "assets/*.png",
-          "assets/*.jpg",
-          "assets/*.jpeg"
-        ],
+        globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,wasm}"],
         runtimeCaching: [
           {
             urlPattern: /\.wasm$/,
@@ -95,7 +83,7 @@ export default defineConfig({
               cacheName: "images-cache",
               expiration: {
                 maxEntries: 60,
-                maxAgeSeconds: 30 * 24 * 60 * 60
+                maxAgeSeconds: 2592000
               }
             }
           },
@@ -159,9 +147,14 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
       },
       output: {
-        entryFileNames: "assets/js/[hash].js",
-        chunkFileNames: "assets/js/[hash].js",
-        assetFileNames: "assets/[name]-[hash][extname]",
+        entryFileNames: "assets/js/[name]-[hash].js",
+        chunkFileNames: "assets/js/[name]-[hash].js",
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'assets/css/[name]-[hash][extname]';
+          }
+          return 'assets/[name][extname]';
+        },
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("framer-motion")) return "vendor-motion";
