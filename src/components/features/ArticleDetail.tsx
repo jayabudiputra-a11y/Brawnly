@@ -121,88 +121,173 @@ const _rssCache = new Map<string, { ts: number; items: RSSItem[] }>();
 const RSS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 type ProxyEntry = {
-  make: (u: string) => string;
-  extract?: (text: string) => string;  // optional transform for JSON wrappers
+  make: (u: string) => string | null;
+  extract?: (text: string) => string;
 };
 
+// ─── FIX: Proxy chain baru ────────────────────────────────────────────────────
+// MASALAH LAMA: allorigins.win/raw dipakai untuk wrap rss2json -> server blokir
+// dengan CORS error + HTTP 500 dari domain brawnly.online.
+//
+// CHAIN BARU:
+// 1. rss2json DIRECT — ia punya CORS header sendiri (Access-Control-Allow-Origin: *)
+// 2. codetabs proxy — reliable, tidak memblokir domain manapun
+// 3. allorigins/get (bukan /raw) — hanya untuk non-rss2json, extract via .contents
+// 4. corsproxy.io — last resort untuk semua URL
 const CORS_PROXIES: ProxyEntry[] = [
-  { 
-    make: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, // Fallback label saja
-  },
-  { make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  // Entry 0: Direct fetch (tidak perlu proxy transform)
   {
-    make: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    make: (u) => u,
+  },
+  // Entry 1: codetabs - CORS proxy andal untuk semua domain
+  {
+    make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  },
+  // Entry 2: allorigins/get — SKIP untuk rss2json (sudah dicoba direct),
+  // gunakan untuk feed URL lain. Response berupa JSON { contents: "..." }
+  {
+    make: (u) => {
+      if (u.includes("api.rss2json.com")) return null; // sudah dicoba di entry 0
+      return `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`;
+    },
     extract: (t) => {
-      try { return JSON.parse(t).contents ?? t; } catch { return t; }
+      try {
+        return JSON.parse(t).contents ?? t;
+      } catch {
+        return t;
+      }
     },
   },
-  { make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+  // Entry 3: corsproxy.io — last resort
+  {
+    make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  },
 ];
 
 async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
+  // ── STRATEGI PERTAMA: rss2json direct (no proxy wrapper) ─────────────────
+  // rss2json.com sudah support CORS, tidak perlu di-wrap allorigins.
   try {
-    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`, {
-      signal: AbortSignal.timeout(5000)
-    });
+    const res = await fetch(
+      `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
     if (res.ok) {
       const data = await res.json();
-      if (data.status === 'ok') {
-        const items = data.items.map((item: any) => ({
+      if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
+        const items: RSSItem[] = data.items.map((item: any) => ({
           title: item.title || "",
           link: item.link || "",
           pubDate: item.pubDate || "",
-          description: (item.description || "").replace(/<[^>]+>/g, "").trim().slice(0, 160),
-          thumbnail: item.thumbnail || (item.enclosure?.link) || "",
-          videoId: item.link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1]
+          description: (item.description || "")
+            .replace(/<[^>]+>/g, "")
+            .trim()
+            .slice(0, 160),
+          thumbnail:
+            item.thumbnail ||
+            (item.enclosure?.link) ||
+            "",
+          videoId: (item.link || "").match(
+            /(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/
+          )?.[1],
         }));
         _rssCache.set(feedUrl, { ts: Date.now(), items });
         return items;
       }
     }
-  } catch (e) { console.log("rss2json failed, trying next proxy..."); }
+  } catch (e) {
+    // rss2json direct gagal (network issue / server down), lanjut ke proxy chain
+  }
 
-  // STRATEGI KEDUA: Rotasi Proxy Sisanya
-  for (const proxy of CORS_PROXIES) {
+  // ── STRATEGI KEDUA: Rotasi CORS_PROXIES (skip entry 0 karena sudah dicoba) ──
+  for (const proxy of CORS_PROXIES.slice(1)) {
+    const endpoint = proxy.make(feedUrl);
+    if (!endpoint) continue; // proxy ini skip URL tertentu (misal allorigins skip rss2json)
+
     try {
-      const endpoint = proxy.make(feedUrl);
       const res = await fetch(endpoint, {
         signal: AbortSignal.timeout(6000),
-        headers: { Accept: "application/rss+xml, xml" },
+        headers: { Accept: "application/rss+xml, application/json, text/xml, */*" },
       });
       if (!res.ok) continue;
-      
+
       let text = await res.text();
       if (proxy.extract) text = proxy.extract(text);
-      
+      if (!text || text.trim().length < 10) continue;
+
+      // Cek apakah response adalah JSON dari rss2json (via proxy)
+      if (text.trim().startsWith("{")) {
+        try {
+          const data = JSON.parse(text);
+          if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
+            const items: RSSItem[] = data.items.map((item: any) => ({
+              title: item.title || "",
+              link: item.link || "",
+              pubDate: item.pubDate || "",
+              description: (item.description || "")
+                .replace(/<[^>]+>/g, "")
+                .trim()
+                .slice(0, 160),
+              thumbnail:
+                item.thumbnail || (item.enclosure?.link) || "",
+              videoId: (item.link || "").match(
+                /(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/
+              )?.[1],
+            }));
+            _rssCache.set(feedUrl, { ts: Date.now(), items });
+            return items;
+          }
+        } catch {}
+      }
+
+      // Parse sebagai XML/RSS
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/xml");
-      if (doc.querySelector("parsererror")) continue;
+      if (doc.querySelector("parseerror") || doc.querySelector("parsererror")) continue;
 
       const rawItems = [...doc.querySelectorAll("item, entry")];
       if (rawItems.length === 0) continue;
 
-      const items = rawItems.map((item) => {
+      const items: RSSItem[] = rawItems.map((item) => {
         const linkEl = item.querySelector("link");
-        const link = linkEl?.textContent?.trim() || linkEl?.getAttribute("href") || "";
-        const ytVideoId = item.querySelector("videoId")?.textContent?.trim() || 
-                          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
+        const link =
+          linkEl?.textContent?.trim() ||
+          linkEl?.getAttribute("href") ||
+          "";
+        const ytVideoId =
+          item.querySelector("videoId")?.textContent?.trim() ||
+          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
 
         return {
           title: item.querySelector("title")?.textContent?.trim() || "",
           link,
-          pubDate: item.querySelector("pubDate, published, updated")?.textContent?.trim() || "",
-          description: (item.querySelector("description, summary")?.textContent || "").replace(/<[^>]+>/g, "").trim().slice(0, 160),
-          thumbnail: ytVideoId ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg` : "",
+          pubDate:
+            item
+              .querySelector("pubDate, published, updated")
+              ?.textContent?.trim() || "",
+          description: (
+            item.querySelector("description, summary")?.textContent || ""
+          )
+            .replace(/<[^>]+>/g, "")
+            .trim()
+            .slice(0, 160),
+          thumbnail: ytVideoId
+            ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg`
+            : "",
           videoId: ytVideoId,
         };
       });
+
       _rssCache.set(feedUrl, { ts: Date.now(), items });
       return items;
-    } catch { continue; }
+    } catch {
+      continue;
+    }
   }
+
   return [];
 }
 
@@ -243,13 +328,11 @@ function useRSSFeed(url: string, count = 3) {
   return { items, loading };
 }
 
-/** Resolve YouTube channel ID from handle via page scrape, then fetch RSS */
 /** YouTube Feed - Versi Fix (Direct ID) */
 function useYouTubeFeed(handle: string, count = 4) {
   const [items, _setItems] = _s<RSSItem[]>([]);
   const [loading, _setLoading] = _s(true);
-  
-  // Gunakan ID dari YouTube Studio kamu
+
   const CHANNEL_ID = "UCCtKrAzh4V8u573Is973jzA";
 
   _e(() => {
@@ -257,13 +340,8 @@ function useYouTubeFeed(handle: string, count = 4) {
     async function load() {
       try {
         _setLoading(true);
-        
-        // URL RSS langsung menggunakan Channel ID
         const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
-        
-        // Panggil fungsi rotasi proxy (yang sudah ada rss2json di urutan pertama)
         const data = await fetchRSSViaProxy(feedUrl);
-        
         if (data && data.length > 0 && !cancelled) {
           _setItems(data.slice(0, count));
         }
@@ -274,8 +352,10 @@ function useYouTubeFeed(handle: string, count = 4) {
       }
     }
     load();
-    return () => { cancelled = true; };
-  }, [CHANNEL_ID, count]); // Gunakan CHANNEL_ID sebagai dependency
+    return () => {
+      cancelled = true;
+    };
+  }, [CHANNEL_ID, count]);
 
   return { items, loading, channelId: CHANNEL_ID };
 }
@@ -650,8 +730,6 @@ function ClashRoyaleSEONode() {
 }
 
 // ─── Instagram Widget ────────────────────────────────────────────────────────
-// Instagram blocks iframe embeds (X-Frame-Options: deny).
-// We use the official oEmbed blockquote + instgrm.Embeds.process() approach.
 
 function InstagramWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -849,15 +927,11 @@ function YouTubeWidget() {
         </button>
       </div>
 
-      {/* Live feed section */}
       <div className="px-4 pb-2">
         {loading ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="flex gap-3 animate-pulse"
-              >
+              <div key={i} className="flex gap-3 animate-pulse">
                 <div className="w-20 h-14 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex-shrink-0" />
                 <div className="flex-1 space-y-2 py-1">
                   <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-full" />
@@ -881,7 +955,6 @@ function YouTubeWidget() {
               >
                 <meta itemProp="url" content={item.link} />
                 <meta itemProp="name" content={item.title} />
-                {/* Thumbnail */}
                 <div className="w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-900 relative">
                   {item.thumbnail ? (
                     <img
@@ -1001,7 +1074,6 @@ function TumblrWidget() {
         </a>
       </div>
 
-      {/* Live feed */}
       <div className="px-4 pb-2">
         {loading ? (
           <div className="space-y-3">
@@ -1043,7 +1115,6 @@ function TumblrWidget() {
             ))}
           </div>
         ) : (
-          /* Fallback to original embed if RSS fails */
           <p className="text-[12px] font-serif italic text-neutral-600 dark:text-neutral-400 py-4">
             Posts from{" "}
             <span className="font-black not-italic text-black dark:text-white">
@@ -1119,7 +1190,6 @@ function SubstackWidget() {
         </a>
       </div>
 
-      {/* Live feed */}
       <div className="px-4 pb-2">
         {loading ? (
           <div className="space-y-4">
@@ -1163,7 +1233,6 @@ function SubstackWidget() {
             ))}
           </div>
         ) : (
-          /* Fallback to static post if RSS unavailable */
           <div className="border-b border-neutral-100 dark:border-neutral-800 pb-3 mb-2">
             <a
               href={SUBSTACK_URL}
@@ -1534,7 +1603,7 @@ function SocialWidgetsMobileBottom() {
   );
 }
 
-// ─── YouTube Shorts Player — no black bars + click-to-unmute ─────────────────
+// ─── YouTube Shorts Player ────────────────────────────────────────────────────
 
 function YouTubeShortsPlayer({
   videoUrl,
@@ -1551,7 +1620,6 @@ function YouTubeShortsPlayer({
   const [muted, _setMuted] = _s(true);
   const [playerReady, _setPlayerReady] = _s(false);
 
-  // Extract video ID from any YouTube URL format
   const videoId = _uM(() => {
     try {
       return (
@@ -1568,7 +1636,6 @@ function YouTubeShortsPlayer({
     ? `https://www.youtube-nocookie.com/embed/${videoId}`
     : null;
 
-  // Rebuild src when muted toggles
   const iframeSrc = _uM(() => {
     if (!embedBase) return "";
     const params = new URLSearchParams({
@@ -1585,7 +1652,6 @@ function YouTubeShortsPlayer({
     return `${embedBase}?${params.toString()}`;
   }, [embedBase, videoId, muted]);
 
-  // Listen for YouTube player ready event via postMessage
   _e(() => {
     const handler = (e: MessageEvent) => {
       if (!e.data) return;
@@ -1600,7 +1666,6 @@ function YouTubeShortsPlayer({
   }, []);
 
   const handleUnmute = () => {
-    // Try postMessage first (no reload), fall back to src change
     if (iframeRef.current?.contentWindow) {
       try {
         iframeRef.current.contentWindow.postMessage(
@@ -1619,7 +1684,6 @@ function YouTubeShortsPlayer({
         return;
       } catch {}
     }
-    // Fallback: toggle muted state → triggers iframe src reload
     _setMuted(false);
   };
 
@@ -1638,17 +1702,11 @@ function YouTubeShortsPlayer({
       {thumbUrl && <meta itemProp="thumbnailUrl" content={thumbUrl} />}
 
       <div className="relative w-full flex justify-center">
-        {/* Glow effect */}
         <div
           className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
           aria-hidden="true"
         />
 
-        {/*
-          ── Shorts container: exact 9:16 aspect ratio
-          Negative inset on inner div crops YouTube player chrome (title bar ~56px top,
-          controls/branding ~64px bottom) so the video fills edge-to-edge.
-        */}
         <div
           className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
           style={{
@@ -1656,7 +1714,6 @@ function YouTubeShortsPlayer({
             aspectRatio: "9 / 16",
           }}
         >
-          {/* Inner wrapper stretched to crop player chrome top + bottom */}
           <div
             style={{
               position: "absolute",
@@ -1679,7 +1736,6 @@ function YouTubeShortsPlayer({
             />
           </div>
 
-          {/* Mute overlay — tap to unmute */}
           {muted && (
             <button
               onClick={handleUnmute}
@@ -1691,7 +1747,6 @@ function YouTubeShortsPlayer({
             </button>
           )}
 
-          {/* Unmuted indicator */}
           {!muted && (
             <div
               className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
@@ -2209,7 +2264,6 @@ export default function ArticleDetail() {
     [_pD]
   );
 
-  // ── Hydration-safe init ──
   _e(() => {
     setIsHydrated(true);
     try {
@@ -2222,13 +2276,9 @@ export default function ArticleDetail() {
   }, [_slV]);
 
   _e(() => {
-    const _silenceViolation = (e: Event) => {
-      e.stopImmediatePropagation();
-    };
-
-    window.addEventListener("unload", _silenceViolation, { capture: true });
-    window.addEventListener("pagehide", _silenceViolation, { capture: true });
-
+    // FIX: Tidak lagi mendaftarkan 'unload' listener secara langsung.
+    // Intercept sudah ada di index.html (EventTarget.prototype.addEventListener).
+    // Kita hanya perlu pagehide untuk cleanup.
     if (!(window as any).__brawnly_pwa_active) {
       warmupEnterpriseStorage();
       registerSW();
@@ -2246,7 +2296,7 @@ export default function ArticleDetail() {
         });
       }
     };
-    
+
     const oF = () => _sOff(true);
 
     window.addEventListener("online", oN);
@@ -2255,8 +2305,6 @@ export default function ArticleDetail() {
     return () => {
       window.removeEventListener("online", oN);
       window.removeEventListener("offline", oF);
-      window.removeEventListener("unload", _silenceViolation, { capture: true });
-      window.removeEventListener("pagehide", _silenceViolation, { capture: true });
     };
   }, []);
 
@@ -2369,7 +2417,6 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
-  // ── JSON-LD ──
   const _jsonLdArticle =
     _pD && _art
       ? JSON.stringify({
@@ -2618,7 +2665,6 @@ export default function ArticleDetail() {
           <script type="application/ld+json">{_jsonLdSocialLinks}</script>
         </_Hm>
 
-        {/* Hidden SEO article body */}
         <article
           className="sr-only"
           itemScope
@@ -2721,7 +2767,6 @@ export default function ArticleDetail() {
           />
         </article>
 
-        {/* Fixed side buttons (desktop) */}
         <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
           <button
             onClick={_hSv}
@@ -2759,7 +2804,6 @@ export default function ArticleDetail() {
         </aside>
 
         <div className="max-w-[1320px] mx-auto px-4 md:px-10">
-          {/* Article header */}
           <header
             className="pt-12 md:pt-16 pb-8 md:pb-10 border-b-[8px] md:border-b-[12px] border-black dark:border-white mb-8 md:mb-10 relative text-black dark:text-white"
             itemScope
@@ -2880,7 +2924,6 @@ export default function ArticleDetail() {
                 {_pD.excerpt}
               </p>
 
-              {/* Cover image with muscle decorations */}
               <div className="relative mb-12 md:mb-20 px-4 md:px-12 lg:px-20">
                 <div
                   className="absolute left-[-15px] sm:left-[-30px] md:left-[-60px] lg:left-[-80px] top-1/2 -translate-y-1/2 w-20 sm:w-32 md:w-48 lg:w-56 z-10 opacity-90 pointer-events-none"
@@ -2940,7 +2983,6 @@ export default function ArticleDetail() {
                 <SocialWidgetsMobileTop />
               </Suspense>
 
-              {/* Article body */}
               <div className="max-w-[840px] mx-auto">
                 {_parsedParagraphs.map((block, i) => {
                   if (block.type === "tweet") {
@@ -2972,7 +3014,6 @@ export default function ArticleDetail() {
                 })}
               </div>
 
-              {/* Embedded tweets from DB */}
               {_allTweetUrls.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3019,7 +3060,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* ── YouTube Shorts — fixed aspect ratio + click-to-unmute ── */}
               {_youtubeShorts.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3049,7 +3089,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* Animated images */}
               {_animatedImages.length > 0 && (
                 <section
                   className="my-20 max-w-[600px] mx-auto"
@@ -3122,7 +3161,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* Gallery */}
               {_galleryImages.length > 0 && (
                 <section
                   className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
@@ -3211,7 +3249,6 @@ export default function ArticleDetail() {
                 </Suspense>
               )}
 
-              {/* Mobile save/share bar */}
               <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
                 <button
                   onClick={_hSv}
@@ -3258,7 +3295,6 @@ export default function ArticleDetail() {
               <CommentSection articleId={_art.id} />
             </article>
 
-            {/* Desktop sidebar */}
             <aside
               className="hidden lg:block w-[320px] xl:w-[350px] flex-shrink-0"
               aria-label="Sidebar — Trending articles and social links"

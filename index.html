@@ -16,8 +16,7 @@
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
     <meta property="og:image" content="/assets/myPride.gif" />
-    
-    <meta http-equiv="Permissions-Policy" content="unload=()">
+
 
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:;
@@ -59,8 +58,9 @@
         https://assets.tumblr.com https://*.tumblr.com
         https://api.pinterest.com https://*.pinterest.com
         https://*.royaleapi.com https://royaleapi.com
-        https://api.allorigins.win https://thingproxy.freeboard.io 
-        https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com;
+        https://api.allorigins.win https://thingproxy.freeboard.io
+        https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com
+        https://api.codetabs.com;
       font-src 'self' data: https: http:;
       frame-src 'self' https: http:
         https://www.youtube.com https://www.youtube-nocookie.com
@@ -105,7 +105,7 @@
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://zlwhvkexgjisyhakxyoe.supabase.co" />
-    
+
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 
@@ -146,66 +146,126 @@
     </div>
 
     <script>
-      const originalAddEventListener = window.addEventListener;
-      window.addEventListener = function(type, listener, options) {
-        if (type === 'unload') {
-          return originalAddEventListener.call(window, 'pagehide', listener, options);
-        }
-        return originalAddEventListener.call(window, type, listener, options);
-      };
+      
+      (function() {
+        var _origAEL = EventTarget.prototype.addEventListener;
+        var _origREL = EventTarget.prototype.removeEventListener;
+        var _unloadMap = new WeakMap();
+
+        EventTarget.prototype.addEventListener = function(type, listener, options) {
+          if (type === 'unload') {
+            if (!_unloadMap.has(listener)) _unloadMap.set(listener, listener);
+            return _origAEL.call(this, 'pagehide', listener, options);
+          }
+          return _origAEL.call(this, type, listener, options);
+        };
+
+        EventTarget.prototype.removeEventListener = function(type, listener, options) {
+          if (type === 'unload') {
+            return _origREL.call(this, 'pagehide', listener, options);
+          }
+          return _origREL.call(this, type, listener, options);
+        };
+      })();
 
       window.addEventListener('load', function() {
+
+        // dari domain brawnly.online (CORS + server error 500).
         (function() {
-          const failedUrls = new Set();
-          const originalFetch = window.fetch;
+          var failedUrls = new Set();
+          var originalFetch = window.fetch;
+
           window.fetch = async function(resource, options) {
-            let url = typeof resource === 'string' ? resource : resource?.url;
-            if (url && (url.includes('api.rss2json.com') || url.includes('allorigins.win') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('youtube.com/feeds') || url.includes('substack.com') || url.includes('tumblr.com'))) {
-              const dummyXML = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>`;
-              
-              if (failedUrls.has(url)) return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+            var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
 
+            var isRSSTarget = url && (
+              url.includes('api.rss2json.com') ||
+              url.includes('youtube.com/feeds') ||
+              url.includes('substack.com/feed') ||
+              url.includes('tumblr.com/rss') ||
+              url.includes('cors.sh') ||
+              url.includes('thingproxy') ||
+              url.includes('allorigins.win')
+            );
+
+            if (!isRSSTarget) {
+              return originalFetch.apply(this, arguments);
+            }
+
+            var cleanUrl = url;
+            if (url.includes('allorigins.win')) {
               try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                
-                let finalUrl = url;
-                if (url.includes('api.rss2json.com') && !url.includes('corsproxy.io')) {
-                  finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                }
+                var match = url.match(/[?&]url=([^&]+)/);
+                if (match) cleanUrl = decodeURIComponent(match[1]);
+              } catch(e) {}
+            }
 
-                const response = await originalFetch(finalUrl, { ...options, signal: controller.signal });
-                clearTimeout(timeoutId);
+            var dummyXML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
 
-                if (!response.ok) throw new Error();
-                return response;
-              } catch (error) {
-                failedUrls.add(url);
-                return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+            if (failedUrls.has(cleanUrl)) {
+              return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+            }
+
+            var proxies = [
+              function(u) { return u; },
+              function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+              function(u) {
+                if (u.includes('api.rss2json.com')) return null; // skip, sudah dicoba direct
+                return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
+              },
+              // 3: corsproxy.io - last resort
+              function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); }
+            ];
+
+            for (var i = 0; i < proxies.length; i++) {
+              var proxyUrl = proxies[i](cleanUrl);
+              if (!proxyUrl) continue;
+              try {
+                var ctrl = new AbortController();
+                var tid = setTimeout(function(c) { return function() { c.abort(); }; }(ctrl), i === 0 ? 5000 : 6000);
+                var res = await originalFetch(proxyUrl, {
+                  signal: ctrl.signal,
+                  headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
+                });
+                clearTimeout(tid);
+                if (res.ok) return res;
+              } catch(e) {
+                continue;
               }
             }
-            return originalFetch.apply(this, arguments);
+
+            failedUrls.add(cleanUrl);
+            return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
           };
         })();
 
+        // Suppress React DevTools noise
         try {
           if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
             for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-              if (x !== 'renderers') __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null;
+              if (x !== 'renderers') {
+                __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null;
+              }
             }
           }
         } catch(e){}
 
-        const originalConsoleError = console.error;
+        // Suppress known non-critical console errors
+        var originalConsoleError = console.error;
         console.error = function() {
-          if (arguments[0] && typeof arguments[0] === 'string' && (arguments[0].includes('fetchPriority') || arguments[0].includes('Hydration') || arguments[0].includes('unload'))) return;
+          if (arguments[0] && typeof arguments[0] === 'string' && (
+            arguments[0].includes('fetchPriority') ||
+            arguments[0].includes('Hydration') ||
+            arguments[0].includes('unload') ||
+            arguments[0].includes('Permissions policy')
+          )) return;
           originalConsoleError.apply(console, arguments);
         };
       });
 
       window.__deferScript = function(src) {
         if (src && (src.endsWith('.js') || src.includes('.js?'))) {
-          const script = document.createElement('script');
+          var script = document.createElement('script');
           script.src = src;
           script.defer = true;
           script.type = 'module';
@@ -216,7 +276,7 @@
 
     <script>
       (function(){
-        const pre = () => {
+        var pre = function() {
           try {
             var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];
             var _0x4d=atob(_0x1a[0])+atob(_0x1a[1])+atob(_0x1a[2]);
