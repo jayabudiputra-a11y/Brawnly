@@ -12,6 +12,8 @@ type ImageFormat = "webp" | "avif";
    Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
    Profile ini memenuhi field GSC: license, creator, copyrightNotice,
    acquireLicensePage (wajib untuk Google Image Metadata rich results).
+   PENTING: URL validation HANYA untuk metadata/JSON-LD.
+   Cover image TETAP ditampilkan dari _sU asli tanpa filter.
    ============================================================ */
 const SITE_URL        = "https://www.brawnly.online";
 const SITE_NAME       = "Brawnly";
@@ -128,7 +130,6 @@ function _detectImageSource(url: string): SourceProfile {
     return _SOURCE_PROFILES.youtube;
   if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
     return _SOURCE_PROFILES.cloudinary;
-  // fallback — own content
   return {
     license:     OWN_LICENSE,
     copyright:   OWN_COPYRIGHT,
@@ -140,10 +141,11 @@ function _detectImageSource(url: string): SourceProfile {
 }
 
 /**
- * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
- * Mencegah "Invalid URL in field url/contentUrl" di GSC.
+ * Validasi URL untuk metadata/JSON-LD saja.
+ * TIDAK dipakai untuk menentukan apakah cover ditampilkan atau tidak.
+ * Cover selalu tampil selama _sU ada (logika asli terjaga).
  */
-function _validateUrl(url: string | null | undefined): string | null {
+function _validateUrlForMeta(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const u = new URL(url);
@@ -162,11 +164,11 @@ interface ArticleCoverImageProps {
   className?: string;
 }
 
-const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
-  imageUrl: _u,
-  title: _t,
+const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ 
+  imageUrl: _u, 
+  title: _t, 
   slug: _sl,
-  className: _cN = ""
+  className: _cN = "" 
 }) => {
   const { isEnabled: _iE, saveData: _sD } = _uSD();
   const [_iL, _siL] = _s(false);
@@ -181,17 +183,17 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     return _u.split(/[\r\n]+/)[0].trim();
   }, [_u]);
 
-  // FIX: Validasi URL — mencegah "Invalid URL in field url/contentUrl" di GSC
-  const _validSU = _m(() => _validateUrl(_sU), [_sU]);
-
   const _isGif = _m(() => {
     if (!_sU) return false;
     const _path = _sU.toLowerCase();
     return _path.endsWith('.gif') || _path.endsWith('.gifv') || _path.includes('tumblr.com') || _path.includes('giphy.com');
   }, [_sU]);
 
-  // ─── Copyright profile untuk gambar cover ini ────────────────────────────
-  const _cp = _m(() => _validSU ? _detectImageSource(_validSU) : null, [_validSU]);
+  // ─── Copyright profile — selalu tersedia selama _sU ada ──────────────────
+  const _cp = _m(() => _sU ? _detectImageSource(_sU) : null, [_sU]);
+
+  // ─── URL valid untuk metadata/JSON-LD (tidak mempengaruhi render cover) ──
+  const _metaUrl = _m(() => _validateUrlForMeta(_sU), [_sU]);
 
   const _tOpt = async (_src: string) => {
     try {
@@ -203,17 +205,17 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
       const r = await fetch(_src, { mode: "cors" });
       const b = await r.blob();
-
+      
       let finalBlob = b;
       if (b.type !== "image/gif" && window.Worker) {
         try {
           const _fmtStr = await detectBestFormat();
           const _fmt = (_fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
-          const _quality = _iE ? 0.4 : 0.75;
+          const _quality = _iE ? 0.4 : 0.75; 
 
           finalBlob = await new Promise<Blob>((resolve, reject) => {
             const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
-
+            
             worker.onmessage = (e) => {
               const { error, result } = e.data;
               worker.terminate();
@@ -272,21 +274,25 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     };
   }, [_sU, _isGif, _iE]);
 
-  // FIX: Jangan render jika URL tidak valid
-  if (!_validSU || !_cp) return null;
+  // ─── LOGIKA ASLI DIPERTAHANKAN: hanya return null jika _sU tidak ada ────
+  if (!_sU) return null;
 
   const _iLQM = _iE && _sD.quality === 'low';
   const _tWidth = _iLQM ? 480 : 900;
-
-  const _dU = _isGif ? _validSU : _gOI(_validSU, _tWidth);
+  
+  const _dU = _isGif ? _sU : _gOI(_sU, _tWidth);
   const _fU = _oW || _dU;
 
-  // ─── JSON-LD: ImageObject penuh dengan semua field copyright GSC ──────────
+  // ─── URL yang dipakai di metadata: gunakan _metaUrl jika valid,
+  //     fallback ke _sU agar metadata tetap terisi meski URL tidak sempurna ──
+  const _mU = _metaUrl || _sU;
+
+  // ─── JSON-LD: ImageObject penuh dengan copyright per sumber ──────────────
   const _ldImageObject = {
     "@context": "https://schema.org",
     "@type": "ImageObject",
-    "url": _validSU,
-    "contentUrl": _validSU,
+    "url": _mU,
+    "contentUrl": _mU,
     "name": _t ? `${_t} — Cover Image` : `Cover image — ${_sl}`,
     "description": _t
       ? `Featured cover image for the article: ${_t}`
@@ -296,15 +302,15 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     "encodingFormat": _isGif ? "image/gif" : "image/jpeg",
     "width": _tWidth,
     // FIX: copyright fields — wajib untuk Google Image Metadata rich results
-    "license":            _cp.license,
-    "creator": {
+    "license":            _cp?.license,
+    "creator": _cp ? {
       "@type": _cp.creatorType,
       "name":  _cp.creatorName,
       "url":   _cp.creatorUrl,
-    },
-    "copyrightNotice":    _cp.copyright,
-    "acquireLicensePage": _cp.acquireUrl,
-    "creditText":         _cp.creatorName,
+    } : undefined,
+    "copyrightNotice":    _cp?.copyright,
+    "acquireLicensePage": _cp?.acquireUrl,
+    "creditText":         _cp?.creatorName,
     "associatedArticle": {
       "@type":    "Article",
       "url":      `${SITE_URL}/article/${_sl}`,
@@ -337,25 +343,25 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     "name": _t || _sl.replace(/-/g, ' '),
     "primaryImageOfPage": {
       "@type":               "ImageObject",
-      "url":                 _validSU,
-      "contentUrl":          _validSU,
+      "url":                 _mU,
+      "contentUrl":          _mU,
       "name":                _t ? `${_t} — Cover Image` : `Cover image — ${_sl}`,
       "representativeOfPage": true,
-      // FIX: copyright fields di primaryImageOfPage juga
-      "license":             _cp.license,
-      "creator": {
+      // FIX: copyright fields di primaryImageOfPage
+      "license":             _cp?.license,
+      "creator": _cp ? {
         "@type": _cp.creatorType,
         "name":  _cp.creatorName,
         "url":   _cp.creatorUrl,
-      },
-      "copyrightNotice":     _cp.copyright,
-      "acquireLicensePage":  _cp.acquireUrl,
-      "creditText":          _cp.creatorName,
+      } : undefined,
+      "copyrightNotice":     _cp?.copyright,
+      "acquireLicensePage":  _cp?.acquireUrl,
+      "creditText":          _cp?.creatorName,
     },
     "image": {
       "@type":      "ImageObject",
-      "url":        _validSU,
-      "contentUrl": _validSU,
+      "url":        _mU,
+      "contentUrl": _mU,
     },
   };
 
@@ -366,11 +372,11 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       itemType="https://schema.org/ImageObject"
     >
       <script type="application/ld+json">{JSON.stringify(_ldImageObject)}</script>
+
       <script type="application/ld+json">{JSON.stringify(_ldWebPage)}</script>
 
-      {/* ── Microdata: semua field ImageObject wajib GSC ── */}
-      <meta itemProp="url"                content={_validSU} />
-      <meta itemProp="contentUrl"         content={_validSU} />
+      <meta itemProp="url"         content={_mU} />
+      <meta itemProp="contentUrl"  content={_mU} />
       <meta
         itemProp="name"
         content={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
@@ -388,21 +394,23 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         itemProp="encodingFormat"
         content={_isGif ? "image/gif" : "image/jpeg"}
       />
-      <meta itemProp="caption"          content={_t || _sl.replace(/-/g, ' ')} />
-      {/* FIX: copyright fields microdata — wajib untuk Google Image Metadata */}
-      <meta itemProp="license"            content={_cp.license} />
-      <meta itemProp="copyrightNotice"    content={_cp.copyright} />
-      <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
-      <meta itemProp="creditText"         content={_cp.creatorName} />
-      <span
-        itemScope
-        itemType={`https://schema.org/${_cp.creatorType}`}
-        itemProp="creator"
-        style={{ display: "none" }}
-      >
-        <meta itemProp="name" content={_cp.creatorName} />
-        <meta itemProp="url"  content={_cp.creatorUrl} />
-      </span>
+      <meta itemProp="caption"            content={_t || _sl.replace(/-/g, ' ')} />
+      {/* FIX: copyright fields microdata wajib GSC */}
+      {_cp && <>
+        <meta itemProp="license"            content={_cp.license} />
+        <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+        <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+        <meta itemProp="creditText"         content={_cp.creatorName} />
+        <span
+          itemScope
+          itemType={`https://schema.org/${_cp.creatorType}`}
+          itemProp="creator"
+          style={{ display: "none" }}
+        >
+          <meta itemProp="name" content={_cp.creatorName} />
+          <meta itemProp="url"  content={_cp.creatorUrl} />
+        </span>
+      </>}
 
       <div
         aria-hidden="true"
@@ -415,15 +423,14 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           whiteSpace: "nowrap",
         }}
       >
-        {/* ── Hidden figure — copyright lengkap per sumber ── */}
         <figure itemScope itemType="https://schema.org/ImageObject">
           <img
-            src={_validSU}
+            src={_sU}
             alt={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
             itemProp="url"
             tabIndex={-1}
           />
-          <meta itemProp="contentUrl"          content={_validSU} />
+          <meta itemProp="contentUrl"          content={_mU} />
           <meta
             itemProp="name"
             content={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
@@ -443,18 +450,20 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           />
           <meta itemProp="caption"              content={_t || _sl.replace(/-/g, ' ')} />
           {/* FIX: copyright fields wajib GSC */}
-          <meta itemProp="license"              content={_cp.license} />
-          <meta itemProp="copyrightNotice"      content={_cp.copyright} />
-          <meta itemProp="acquireLicensePage"   content={_cp.acquireUrl} />
-          <meta itemProp="creditText"           content={_cp.creatorName} />
-          <span
-            itemScope
-            itemType={`https://schema.org/${_cp.creatorType}`}
-            itemProp="creator"
-          >
-            <meta itemProp="name" content={_cp.creatorName} />
-            <meta itemProp="url"  content={_cp.creatorUrl} />
-          </span>
+          {_cp && <>
+            <meta itemProp="license"            content={_cp.license} />
+            <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+            <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+            <meta itemProp="creditText"         content={_cp.creatorName} />
+            <span
+              itemScope
+              itemType={`https://schema.org/${_cp.creatorType}`}
+              itemProp="creator"
+            >
+              <meta itemProp="name" content={_cp.creatorName} />
+              <meta itemProp="url"  content={_cp.creatorUrl} />
+            </span>
+          </>}
           <figcaption itemProp="caption">
             {_t || _sl.replace(/-/g, ' ')}
             {_isGif ? " (animated)" : ""}
@@ -471,7 +480,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
             {_t || _sl.replace(/-/g, ' ')}
           </a>
           <span itemProp="headline" content={_t || _sl.replace(/-/g, ' ')} />
-          <meta itemProp="image" content={_validSU} />
+          <meta itemProp="image" content={_mU} />
         </span>
 
         <span itemScope itemType="https://schema.org/Organization">
@@ -488,26 +497,28 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
         <link rel="isPartOf" href={`${SITE_URL}/article/${_sl}`} />
 
-        {/* ── 1200w variant ImageObject — copyright sama dengan sumber ── */}
+        {/* FIX: 1200w variant dengan copyright sama dari sumber */}
         <span itemScope itemType="https://schema.org/ImageObject">
-          <meta itemProp="url"                content={_gOI(_validSU, 1200)} />
-          <meta itemProp="width"              content="1200" />
+          <meta itemProp="url"   content={_gOI(_sU, 1200)} />
+          <meta itemProp="width" content="1200" />
           <meta
             itemProp="name"
             content={_t ? `${_t} — Cover (1200w)` : `Cover image 1200w — ${_sl}`}
           />
           <meta itemProp="representativeOfPage" content="true" />
-          <meta itemProp="license"              content={_cp.license} />
-          <meta itemProp="copyrightNotice"      content={_cp.copyright} />
-          <meta itemProp="acquireLicensePage"   content={_cp.acquireUrl} />
-          <meta itemProp="creditText"           content={_cp.creatorName} />
+          {_cp && <>
+            <meta itemProp="license"            content={_cp.license} />
+            <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+            <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+            <meta itemProp="creditText"         content={_cp.creatorName} />
+          </>}
         </span>
       </div>
 
       <div className="p-[4px] bg-gradient-to-r from-[#ff0099] via-[#00ffff] to-[#ccff00] rounded-sm shadow-[6px_6px_0px_0px_#aa00ff] dark:shadow-[6px_6px_0px_0px_#00ffff] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_#aa00ff] transition-all duration-200">
         <div className="bg-white dark:bg-[#1a0b2e] p-[2px]">
           <a
-            href={_validSU}
+            href={_sU}
             className="block w-full h-full cursor-zoom-in"
             target="_blank"
             rel="noopener noreferrer"
