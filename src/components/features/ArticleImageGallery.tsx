@@ -17,6 +17,186 @@ import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
 
 type ImageFormat = "webp" | "avif";
 
+/* ============================================================
+   COPYRIGHT PROFILES
+   Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
+   Profile ini memenuhi field GSC: license, creator, copyrightNotice,
+   acquireLicensePage (wajib untuk Google Image Metadata rich results).
+   ============================================================ */
+const SITE_URL        = "https://www.brawnly.online";
+const SITE_NAME       = "Brawnly";
+const AUTHOR_NAME     = "Budi Putra Jaya";
+const OWN_LICENSE     = "https://creativecommons.org/licenses/by/4.0/";
+const OWN_COPYRIGHT   = `© 2026 ${AUTHOR_NAME}. All rights reserved.`;
+const OWN_ACQUIRE_URL = `${SITE_URL}/license`;
+
+const _SOURCE_PROFILES: Record<
+  string,
+  {
+    license: string;
+    copyright: string;
+    acquireUrl: string;
+    creatorName: string;
+    creatorType: "Person" | "Organization";
+    creatorUrl: string;
+  }
+> = {
+  instagram: {
+    license:     "https://www.instagram.com/legal/terms/",
+    copyright:   "© Instagram / Meta Platforms, Inc. All rights reserved.",
+    acquireUrl:  "https://www.instagram.com/legal/terms/",
+    creatorName: "Instagram / Meta Platforms, Inc.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.instagram.com",
+  },
+  tiktok: {
+    license:     "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    copyright:   "© TikTok / ByteDance Ltd. All rights reserved.",
+    acquireUrl:  "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    creatorName: "TikTok / ByteDance Ltd.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tiktok.com",
+  },
+  tumblr: {
+    license:     "https://www.tumblr.com/policy/en/terms-of-service",
+    copyright:   "© Tumblr / Automattic Inc. / respective content creators. All rights reserved.",
+    acquireUrl:  "https://www.tumblr.com/policy/en/terms-of-service",
+    creatorName: "Tumblr / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tumblr.com",
+  },
+  twitter: {
+    license:     "https://twitter.com/en/tos",
+    copyright:   "© X Corp. / respective tweet authors. All rights reserved.",
+    acquireUrl:  "https://twitter.com/en/tos",
+    creatorName: "X Corp. / respective tweet authors",
+    creatorType: "Organization",
+    creatorUrl:  "https://twitter.com",
+  },
+  pinterest: {
+    license:     "https://policy.pinterest.com/en/terms-of-service",
+    copyright:   "© Pinterest, Inc. / respective pin owners. All rights reserved.",
+    acquireUrl:  "https://policy.pinterest.com/en/terms-of-service",
+    creatorName: "Pinterest / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.pinterest.com",
+  },
+  google: {
+    license:     "https://policies.google.com/terms",
+    copyright:   "© Google LLC. All rights reserved.",
+    acquireUrl:  "https://policies.google.com/terms",
+    creatorName: "Google LLC",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.google.com",
+  },
+  flickr: {
+    license:     "https://www.flickr.com/creativecommons/",
+    copyright:   "© Respective photographers on Flickr. License varies per image.",
+    acquireUrl:  "https://www.flickr.com/help/terms",
+    creatorName: "Respective photographers on Flickr",
+    creatorType: "Person",
+    creatorUrl:  "https://www.flickr.com",
+  },
+  cloudinary: {
+    license:     OWN_LICENSE,
+    copyright:   OWN_COPYRIGHT,
+    acquireUrl:  OWN_ACQUIRE_URL,
+    creatorName: AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  SITE_URL,
+  },
+};
+
+type SourceProfile = typeof _SOURCE_PROFILES[keyof typeof _SOURCE_PROFILES];
+
+/** Deteksi sumber gambar dari URL, return profil copyright yang sesuai */
+function _detectImageSource(url: string): SourceProfile {
+  const u = (url || "").toLowerCase();
+  if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net"))
+    return _SOURCE_PROFILES.instagram;
+  if (u.includes("tiktok.com") || u.includes("tiktokcdn.com") || u.includes("musical.ly"))
+    return _SOURCE_PROFILES.tiktok;
+  if (u.includes("tumblr.com") || u.includes("tumblr.co"))
+    return _SOURCE_PROFILES.tumblr;
+  if (u.includes("twitter.com") || u.includes("twimg.com") || u.includes("x.com"))
+    return _SOURCE_PROFILES.twitter;
+  if (u.includes("pinterest.com") || u.includes("pinimg.com"))
+    return _SOURCE_PROFILES.pinterest;
+  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com"))
+    return _SOURCE_PROFILES.google;
+  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com"))
+    return _SOURCE_PROFILES.flickr;
+  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
+    return _SOURCE_PROFILES.cloudinary;
+  // fallback — own content
+  return {
+    license:     OWN_LICENSE,
+    copyright:   OWN_COPYRIGHT,
+    acquireUrl:  OWN_ACQUIRE_URL,
+    creatorName: AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  SITE_URL,
+  };
+}
+
+/**
+ * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
+ * Mengembalikan null jika tidak valid.
+ * Ini mencegah "Invalid URL in field url" dan "Invalid URL in field contentUrl" di GSC.
+ */
+function _validateUrl(url: string): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!u.hostname || u.hostname.length < 4) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bangun ImageObject schema.org lengkap (JSON-LD).
+ * Mencakup semua field yang diwajibkan Google Image Metadata:
+ * url, contentUrl, license, creator, copyrightNotice, acquireLicensePage.
+ * Mengembalikan null jika url tidak valid.
+ */
+function _buildImageObject(
+  url: string,
+  name: string,
+  description?: string,
+  isRepresentative?: boolean
+): object | null {
+  const validUrl = _validateUrl(url);
+  if (!validUrl) return null;
+  const p = _detectImageSource(validUrl);
+  return {
+    "@type":               "ImageObject",
+    "url":                 validUrl,
+    "contentUrl":          validUrl,
+    "name":                name,
+    ...(description ? { "description": description } : {}),
+    "license":             p.license,
+    "creator": {
+      "@type": p.creatorType,
+      "name":  p.creatorName,
+      "url":   p.creatorUrl,
+    },
+    "copyrightNotice":     p.copyright,
+    "acquireLicensePage":  p.acquireUrl,
+    "creditText":          p.creatorName,
+    ...(isRepresentative !== undefined
+      ? { "representativeOfPage": isRepresentative }
+      : {}),
+    "encodingFormat": url.toLowerCase().match(/\.gif/i)
+      ? "image/gif"
+      : url.toLowerCase().match(/\.webp/i)
+      ? "image/webp"
+      : "image/jpeg",
+  };
+}
+
 interface ArticleImageGalleryProps {
   images: string;
   title: string;
@@ -59,6 +239,9 @@ function GalleryItem({
   };
 
   const _hQ = _fC(rawPath);
+
+  // FIX: Validasi URL sebelum render — jika tidak valid, skip seluruh item
+  const _validHQ = _validateUrl(_hQ);
 
   const _isGif =
     _hQ.toLowerCase().match(/\.(gif|gifv|webp)$/i) ||
@@ -168,7 +351,17 @@ function GalleryItem({
     };
   }, [_hQ, _isGif, isLowQuality, slug, index]);
 
-  if (!_hQ || _hQ.includes("supabase.co")) return null;
+  // FIX: Jangan render jika URL tidak valid atau berasal dari supabase
+  if (!_hQ || _hQ.includes("supabase.co") || !_validHQ) return null;
+
+  // ─── Per-item copyright metadata ─────────────────────────────────────────
+  const _cp = _detectImageSource(_hQ);
+  const _imgName = title
+    ? `${title} — Image ${startIndex + index + 1}`
+    : `Gallery image ${startIndex + index + 1}`;
+  const _imgDesc = title
+    ? `Photo ${startIndex + index + 1} from ${title}`
+    : `Gallery photo ${startIndex + index + 1}`;
 
   return (
     <figure
@@ -179,24 +372,25 @@ function GalleryItem({
       // ─── FIX: contain:content mencegah repaint menyebar ke luar komponen
       style={{ contain: "content" }}
     >
-      <meta itemProp="url" content={_hQ} />
-      <meta itemProp="contentUrl" content={_hQ} />
-      <meta
-        itemProp="name"
-        content={
-          title
-            ? `${title} — Image ${startIndex + index + 1}`
-            : `Gallery image ${startIndex + index + 1}`
-        }
-      />
-      <meta
-        itemProp="description"
-        content={
-          title
-            ? `Photo ${startIndex + index + 1} from ${title}`
-            : `Gallery photo ${startIndex + index + 1}`
-        }
-      />
+      {/* ── Microdata: semua field ImageObject wajib GSC ── */}
+      <meta itemProp="url"                content={_hQ} />
+      <meta itemProp="contentUrl"         content={_hQ} />
+      <meta itemProp="name"               content={_imgName} />
+      <meta itemProp="description"        content={_imgDesc} />
+      {/* FIX: copyright fields — wajib untuk Google Image Metadata rich results */}
+      <meta itemProp="license"            content={_cp.license} />
+      <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+      <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+      <meta itemProp="creditText"         content={_cp.creatorName} />
+      <span
+        itemScope
+        itemType={`https://schema.org/${_cp.creatorType}`}
+        itemProp="creator"
+        style={{ display: "none" }}
+      >
+        <meta itemProp="name" content={_cp.creatorName} />
+        <meta itemProp="url"  content={_cp.creatorUrl} />
+      </span>
       <meta
         itemProp="encodingFormat"
         content={
@@ -355,71 +549,87 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
 
   if (!_iP.length) return null;
 
+  // ─── FIX: Resolve + validasi semua URL sebelum masuk ke JSON-LD.
+  // Tumblr, IG, TikTok bisa menghasilkan URL relatif atau proxy —
+  // wajib absolute HTTPS valid agar tidak kena "Invalid URL in field url/contentUrl" di GSC.
+  const _resolvedImages: Array<{ raw: string; valid: string }> = _iP
+    .map((_p) => {
+      const resolved = _fC(_p);
+      const valid = _validateUrl(resolved);
+      return valid ? { raw: _p, valid } : null;
+    })
+    .filter((x): x is { raw: string; valid: string } =>
+      x !== null && !x.valid.includes("supabase.co")
+    );
+
+  // ─── JSON-LD: ImageGallery (dengan semua field copyright per sumber) ──────
   const _ld = {
     "@context": "https://schema.org",
     "@type": "ImageGallery",
-    name: _tS || `Gallery ${_sl}`,
-    description: _tS
-      ? `Image gallery for article: ${_tS}. Contains ${_iP.length} image${_iP.length !== 1 ? "s" : ""}.`
-      : `Photo gallery — ${_iP.length} image${_iP.length !== 1 ? "s" : ""}.`,
-    url: `https://www.brawnly.online/article/${_sl}`,
-    image: _iP
-      .map((_p, _idx) => ({
-        "@type": "ImageObject",
-        url: _fC(_p),
-        name: _tS
-          ? `${_tS} — Image ${_sI + _idx + 1}`
-          : `Gallery image ${_sI + _idx + 1}`,
-        description: _tS
-          ? `Photo ${_sI + _idx + 1} from ${_tS}`
-          : `Gallery photo ${_sI + _idx + 1}`,
-        contentUrl: _fC(_p),
-        encodingFormat: _p.toLowerCase().match(/\.gif/i)
-          ? "image/gif"
-          : _p.toLowerCase().match(/\.webp/i)
-          ? "image/webp"
-          : "image/jpeg",
-        representativeOfPage: _idx === 0,
-      }))
-      .filter((_o) => !_o.url.includes("supabase.co")),
-    associatedArticle: {
+    "name": _tS || `Gallery ${_sl}`,
+    "description": _tS
+      ? `Image gallery for article: ${_tS}. Contains ${_resolvedImages.length} image${_resolvedImages.length !== 1 ? "s" : ""}.`
+      : `Photo gallery — ${_resolvedImages.length} image${_resolvedImages.length !== 1 ? "s" : ""}.`,
+    "url": `${SITE_URL}/article/${_sl}`,
+    "numberOfItems": _resolvedImages.length,
+    // FIX: image field pakai ImageObject penuh dengan copyright per sumber
+    "image": _resolvedImages
+      .map(({ valid }, _idx) =>
+        _buildImageObject(
+          valid,
+          _tS ? `${_tS} — Image ${_sI + _idx + 1}` : `Gallery image ${_sI + _idx + 1}`,
+          _tS ? `Photo ${_sI + _idx + 1} from ${_tS}` : `Gallery photo ${_sI + _idx + 1}`,
+          _idx === 0
+        )
+      )
+      .filter(Boolean),
+    "associatedArticle": {
       "@type": "Article",
-      url: `https://www.brawnly.online/article/${_sl}`,
-      headline: _tS || _sl,
-      name: _tS || _sl,
+      "url":      `${SITE_URL}/article/${_sl}`,
+      "headline": _tS || _sl,
+      "name":     _tS || _sl,
     },
-    numberOfItems: _iP.length,
-    publisher: {
+    "author": {
+      "@type": "Person",
+      "name":  AUTHOR_NAME,
+      "url":   SITE_URL,
+    },
+    "publisher": {
       "@type": "Organization",
-      name: "Brawnly",
-      url: "https://www.brawnly.online",
+      "name":  SITE_NAME,
+      "url":   SITE_URL,
+      "logo": {
+        "@type":               "ImageObject",
+        "url":                 `${SITE_URL}/masculineLogo.svg`,
+        "contentUrl":          `${SITE_URL}/masculineLogo.svg`,
+        "name":                `${SITE_NAME} logo`,
+        "license":             OWN_LICENSE,
+        "creator":             { "@type": "Person", "name": AUTHOR_NAME, "url": SITE_URL },
+        "copyrightNotice":     OWN_COPYRIGHT,
+        "acquireLicensePage":  OWN_ACQUIRE_URL,
+      },
     },
   };
 
+  // ─── JSON-LD: ItemList (dengan copyright per item) ────────────────────────
   const _ldItemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: _tS ? `Image list — ${_tS}` : `Gallery image list`,
-    description: `Ordered list of images in gallery for: ${_tS || _sl}`,
-    numberOfItems: _iP.length,
-    itemListElement: _iP
-      .map((_p, _idx) => {
-        const _url = _fC(_p);
-        if (!_url || _url.includes("supabase.co")) return null;
-        return {
-          "@type": "ListItem",
-          position: _sI + _idx + 1,
-          item: {
-            "@type": "ImageObject",
-            url: _url,
-            name: _tS
-              ? `${_tS} — Image ${_sI + _idx + 1}`
-              : `Gallery image ${_sI + _idx + 1}`,
-            contentUrl: _url,
-          },
-        };
-      })
-      .filter(Boolean),
+    "name": _tS ? `Image list — ${_tS}` : `Gallery image list`,
+    "description": `Ordered list of images in gallery for: ${_tS || _sl}`,
+    "numberOfItems": _resolvedImages.length,
+    "itemListElement": _resolvedImages
+      .map(({ valid }, _idx) => ({
+        "@type":    "ListItem",
+        "position": _sI + _idx + 1,
+        "item":     _buildImageObject(
+          valid,
+          _tS ? `${_tS} — Image ${_sI + _idx + 1}` : `Gallery image ${_sI + _idx + 1}`,
+          _tS ? `Photo ${_sI + _idx + 1} from ${_tS}` : `Gallery photo ${_sI + _idx + 1}`,
+          _idx === 0
+        ),
+      }))
+      .filter((x) => x.item !== null),
   };
 
   const _lQ = _iE && _sD.quality === "low";
@@ -438,15 +648,45 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
         itemProp="description"
         content={
           _tS
-            ? `Image gallery for article: ${_tS}. Contains ${_iP.length} image${_iP.length !== 1 ? "s" : ""}.`
-            : `Photo gallery — ${_iP.length} image${_iP.length !== 1 ? "s" : ""}.`
+            ? `Image gallery for article: ${_tS}. Contains ${_resolvedImages.length} image${_resolvedImages.length !== 1 ? "s" : ""}.`
+            : `Photo gallery — ${_resolvedImages.length} image${_resolvedImages.length !== 1 ? "s" : ""}.`
         }
       />
-      <meta
-        itemProp="url"
-        content={`https://www.brawnly.online/article/${_sl}`}
-      />
-      <meta itemProp="numberOfItems" content={String(_iP.length)} />
+      <meta itemProp="url"           content={`${SITE_URL}/article/${_sl}`} />
+      <meta itemProp="numberOfItems" content={String(_resolvedImages.length)} />
+
+      {/* FIX: Publisher dengan logo ImageObject lengkap */}
+      <span
+        itemScope
+        itemType="https://schema.org/Organization"
+        itemProp="publisher"
+        style={{ display: "none" }}
+      >
+        <meta itemProp="name" content={SITE_NAME} />
+        <meta itemProp="url"  content={SITE_URL} />
+        <span itemScope itemType="https://schema.org/ImageObject" itemProp="logo">
+          <meta itemProp="url"                content={`${SITE_URL}/masculineLogo.svg`} />
+          <meta itemProp="contentUrl"         content={`${SITE_URL}/masculineLogo.svg`} />
+          <meta itemProp="name"               content={`${SITE_NAME} logo`} />
+          <meta itemProp="license"            content={OWN_LICENSE} />
+          <meta itemProp="copyrightNotice"    content={OWN_COPYRIGHT} />
+          <meta itemProp="acquireLicensePage" content={OWN_ACQUIRE_URL} />
+          <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+            <meta itemProp="name" content={AUTHOR_NAME} />
+            <meta itemProp="url"  content={SITE_URL} />
+          </span>
+        </span>
+      </span>
+
+      <span
+        itemScope
+        itemType="https://schema.org/Person"
+        itemProp="author"
+        style={{ display: "none" }}
+      >
+        <meta itemProp="name" content={AUTHOR_NAME} />
+        <meta itemProp="url"  content={SITE_URL} />
+      </span>
 
       <div
         aria-hidden="true"
@@ -461,7 +701,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
       >
         <span itemScope itemType="https://schema.org/Article">
           <a
-            href={`https://www.brawnly.online/article/${_sl}`}
+            href={`${SITE_URL}/article/${_sl}`}
             itemProp="url"
             tabIndex={-1}
             rel="noopener noreferrer"
@@ -469,52 +709,51 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
             {_tS || _sl}
           </a>
           <span itemProp="headline" content={_tS || _sl} />
-          <span itemProp="publisher" content="Brawnly" />
+          <span itemProp="publisher" content={SITE_NAME} />
         </span>
 
         <span itemScope itemType="https://schema.org/Organization">
           <a
-            href="https://www.brawnly.online"
+            href={SITE_URL}
             itemProp="url"
             tabIndex={-1}
             rel="noopener noreferrer"
           >
-            Brawnly
+            {SITE_NAME}
           </a>
-          <span itemProp="name" content="Brawnly" />
+          <span itemProp="name" content={SITE_NAME} />
         </span>
 
+        {/* ── Hidden ordered image list — full copyright per item ── */}
         <ol aria-label={_tS ? `Image list for ${_tS}` : "Gallery image list"}>
-          {_iP.map((_p, _idx) => {
-            const _url = _fC(_p);
-            if (!_url || _url.includes("supabase.co")) return null;
+          {_resolvedImages.map(({ valid: _url }, _idx) => {
             const _isGif =
               _url.toLowerCase().match(/\.(gif|gifv|webp)$/i) ||
               _url.includes("tumblr.com");
+            const _cp2 = _detectImageSource(_url);
             return (
               <li
                 key={`seo-img-${_idx}`}
                 itemScope
                 itemType="https://schema.org/ImageObject"
               >
-                <meta itemProp="url" content={_url} />
-                <meta itemProp="contentUrl" content={_url} />
-                <meta
-                  itemProp="name"
-                  content={
-                    _tS
-                      ? `${_tS} — Image ${_sI + _idx + 1}`
-                      : `Gallery image ${_sI + _idx + 1}`
-                  }
-                />
-                <meta
-                  itemProp="description"
-                  content={
-                    _tS
-                      ? `Photo ${_sI + _idx + 1} from ${_tS}`
-                      : `Gallery photo ${_sI + _idx + 1}`
-                  }
-                />
+                <meta itemProp="url"                content={_url} />
+                <meta itemProp="contentUrl"         content={_url} />
+                <meta itemProp="name"               content={_tS ? `${_tS} — Image ${_sI + _idx + 1}` : `Gallery image ${_sI + _idx + 1}`} />
+                <meta itemProp="description"        content={_tS ? `Photo ${_sI + _idx + 1} from ${_tS}` : `Gallery photo ${_sI + _idx + 1}`} />
+                {/* FIX: copyright fields wajib GSC */}
+                <meta itemProp="license"            content={_cp2.license} />
+                <meta itemProp="copyrightNotice"    content={_cp2.copyright} />
+                <meta itemProp="acquireLicensePage" content={_cp2.acquireUrl} />
+                <meta itemProp="creditText"         content={_cp2.creatorName} />
+                <span
+                  itemScope
+                  itemType={`https://schema.org/${_cp2.creatorType}`}
+                  itemProp="creator"
+                >
+                  <meta itemProp="name" content={_cp2.creatorName} />
+                  <meta itemProp="url"  content={_cp2.creatorUrl} />
+                </span>
                 <meta
                   itemProp="encodingFormat"
                   content={
@@ -525,10 +764,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                       : "image/jpeg"
                   }
                 />
-                <meta
-                  itemProp="representativeOfPage"
-                  content={String(_idx === 0)}
-                />
+                <meta itemProp="representativeOfPage" content={String(_idx === 0)} />
                 <a
                   href={_url}
                   itemProp="url"
@@ -536,9 +772,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
                   download={`brawnly_${_sl}_${_dP}_${_sI + _idx}.jpg`}
                   rel="noopener noreferrer"
                 >
-                  {_tS
-                    ? `${_tS} — Image ${_sI + _idx + 1}`
-                    : `Gallery image ${_sI + _idx + 1}`}
+                  {_tS ? `${_tS} — Image ${_sI + _idx + 1}` : `Gallery image ${_sI + _idx + 1}`}
                   {_isGif ? " (GIF)" : ""}
                 </a>
               </li>
@@ -548,7 +782,7 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
 
         <link
           rel="isPartOf"
-          href={`https://www.brawnly.online/article/${_sl}`}
+          href={`${SITE_URL}/article/${_sl}`}
         />
       </div>
 
@@ -593,20 +827,20 @@ const ArticleImageGallery: React.FC<ArticleImageGalleryProps> = ({
           whiteSpace: "nowrap",
         }}
       >
-        <span itemProp="numberOfItems" content={String(_iP.length)} />
+        <span itemProp="numberOfItems" content={String(_resolvedImages.length)} />
         <span
           itemScope
           itemType="https://schema.org/Organization"
           itemProp="publisher"
         >
-          <span itemProp="name" content="Brawnly" />
+          <span itemProp="name" content={SITE_NAME} />
           <a
-            href="https://www.brawnly.online"
+            href={SITE_URL}
             itemProp="url"
             tabIndex={-1}
             rel="noopener noreferrer"
           >
-            Brawnly
+            {SITE_NAME}
           </a>
         </span>
       </div>

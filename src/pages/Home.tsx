@@ -29,6 +29,18 @@ const HERO_HEADLINE = "The Sexiest Men — Photos Handpicked.";
 const HERO_SUBLINE =
   "An exclusive editorial look at the aesthetic standards of 2026, curated specifically for the Brawnly community by this gay man.";
 
+// ─── Image License Constants (Budi Putra Jaya) ─────────────────────────────
+const IMAGE_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
+const IMAGE_COPYRIGHT_NOTICE = "© 2026 Budi Putra Jaya. All rights reserved.";
+const IMAGE_ACQUIRE_LICENSE_URL = `${SITE_URL}/license`;
+const IMAGE_CREATOR_NAME = AUTHOR_NAME;
+
+// ─── Absolute asset URLs ────────────────────────────────────────────────────
+// Vite resolves these as relative hashed paths; prepend SITE_URL for schema.org
+const _centralGifAbs = `${SITE_URL}${centralGif}`;
+const _leftGifAbs    = `${SITE_URL}${leftGif}`;
+const _rightGifAbs   = `${SITE_URL}${rightGif}`;
+
 const _jLdWebSite = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -44,7 +56,12 @@ const _jLdWebSite = JSON.stringify({
     "logo": {
       "@type": "ImageObject",
       "url": `${SITE_URL}/masculineLogo.svg`,
+      "contentUrl": `${SITE_URL}/masculineLogo.svg`,
       "name": `${SITE_NAME} logo`,
+      "license": IMAGE_LICENSE_URL,
+      "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+      "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+      "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
     },
   },
   "potentialAction": {
@@ -65,9 +82,14 @@ const _jLdOrganization = JSON.stringify({
   "logo": {
     "@type": "ImageObject",
     "url": `${SITE_URL}/masculineLogo.svg`,
+    "contentUrl": `${SITE_URL}/masculineLogo.svg`,
     "name": `${SITE_NAME} logo`,
     "width": 32,
     "height": 32,
+    "license": IMAGE_LICENSE_URL,
+    "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+    "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+    "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
   },
   "description": PAGE_DESCRIPTION,
   "foundingDate": "2026",
@@ -150,6 +172,18 @@ const _jLdWebPage = JSON.stringify({
       { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL },
     ],
   },
+  "primaryImageOfPage": {
+    "@type": "ImageObject",
+    "url": _centralGifAbs,
+    "contentUrl": _centralGifAbs,
+    "name": `${SITE_NAME} — Cover Story hero image`,
+    "description": "Hero editorial visual — Brawnly Cover Story 2026",
+    "encodingFormat": "image/gif",
+    "license": IMAGE_LICENSE_URL,
+    "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+    "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+    "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+  },
 });
 
 const _jLdBreadcrumb = JSON.stringify({
@@ -167,6 +201,18 @@ const _jLdCoverStory = JSON.stringify({
   "description": HERO_SUBLINE,
   "url": SITE_URL,
   "articleSection": "Cover Story",
+  "image": {
+    "@type": "ImageObject",
+    "url": _centralGifAbs,
+    "contentUrl": _centralGifAbs,
+    "name": `${SITE_NAME} — Cover Story hero image`,
+    "description": "Hero editorial visual — Brawnly Cover Story 2026",
+    "encodingFormat": "image/gif",
+    "license": IMAGE_LICENSE_URL,
+    "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+    "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+    "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+  },
   "author": {
     "@type": "Person",
     "name": AUTHOR_NAME,
@@ -179,6 +225,11 @@ const _jLdCoverStory = JSON.stringify({
     "logo": {
       "@type": "ImageObject",
       "url": `${SITE_URL}/masculineLogo.svg`,
+      "contentUrl": `${SITE_URL}/masculineLogo.svg`,
+      "license": IMAGE_LICENSE_URL,
+      "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+      "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+      "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
     },
   },
   "datePublished": "2026-01-01",
@@ -188,6 +239,52 @@ const _jLdCoverStory = JSON.stringify({
     "url": SITE_URL,
   },
   "keywords": "LGBTQ+, Fitness, Muscle Worship, Mindset, Wellness, Brawnly",
+});
+
+// ─── JSON-LD Hero Image Metadata (standalone ImageObject) ───────────────────
+const _jLdHeroImageCentral = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "url": _centralGifAbs,
+  "contentUrl": _centralGifAbs,
+  "name": `${SITE_NAME} — Cover Story hero image`,
+  "description": "Hero editorial visual — Brawnly Cover Story 2026",
+  "encodingFormat": "image/gif",
+  "license": IMAGE_LICENSE_URL,
+  "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+  "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+  "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+  "creditText": IMAGE_CREATOR_NAME,
+});
+
+const _jLdHeroImageLeft = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "url": _leftGifAbs,
+  "contentUrl": _leftGifAbs,
+  "name": `${SITE_NAME} — Trending sidebar visual`,
+  "description": "Trending sidebar animated visual — Brawnly 2026",
+  "encodingFormat": "image/gif",
+  "license": IMAGE_LICENSE_URL,
+  "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+  "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+  "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+  "creditText": IMAGE_CREATOR_NAME,
+});
+
+const _jLdHeroImageRight = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "url": _rightGifAbs,
+  "contentUrl": _rightGifAbs,
+  "name": `${SITE_NAME} — Must Read sidebar visual`,
+  "description": "Must Read sidebar animated visual — Brawnly 2026",
+  "encodingFormat": "image/gif",
+  "license": IMAGE_LICENSE_URL,
+  "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+  "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+  "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+  "creditText": IMAGE_CREATOR_NAME,
 });
 
 const Home = () => {
@@ -297,31 +394,45 @@ const Home = () => {
     "description": "Latest published articles and editorial content from Brawnly.",
     "url": `${SITE_URL}/#feed-section`,
     "numberOfItems": articles.length,
-    "itemListElement": articles.slice(0, 15).map((a: any, i: number) => ({
-      "@type": "ListItem",
-      "position": i + 1,
-      "url": `${SITE_URL}/article/${a.slug}`,
-      "name": a.title,
-      "item": {
-        "@type": "BlogPosting",
+    "itemListElement": articles.slice(0, 15).map((a: any, i: number) => {
+      const imgUrl = a.featured_image || a.featured_image_url || undefined;
+      return {
+        "@type": "ListItem",
+        "position": i + 1,
         "url": `${SITE_URL}/article/${a.slug}`,
-        "headline": a.title,
-        "description": a.excerpt || a.description || undefined,
-        "image": a.featured_image || a.featured_image_url || undefined,
-        "datePublished": a.published_at || a.created_at || undefined,
-        "dateModified": a.updated_at || a.published_at || undefined,
-        "articleSection": a.category || "Brawnly Selection",
-        "author": {
-          "@type": "Person",
-          "name": a.author?.username || AUTHOR_NAME,
+        "name": a.title,
+        "item": {
+          "@type": "BlogPosting",
+          "url": `${SITE_URL}/article/${a.slug}`,
+          "headline": a.title,
+          "description": a.excerpt || a.description || undefined,
+          "image": imgUrl
+            ? {
+                "@type": "ImageObject",
+                "url": imgUrl,
+                "contentUrl": imgUrl,
+                "name": a.title,
+                "license": IMAGE_LICENSE_URL,
+                "creator": { "@type": "Person", "name": IMAGE_CREATOR_NAME },
+                "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+                "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+              }
+            : undefined,
+          "datePublished": a.published_at || a.created_at || undefined,
+          "dateModified": a.updated_at || a.published_at || undefined,
+          "articleSection": a.category || "Brawnly Selection",
+          "author": {
+            "@type": "Person",
+            "name": a.author?.username || AUTHOR_NAME,
+          },
+          "interactionStatistic": {
+            "@type": "InteractionCounter",
+            "interactionType": "https://schema.org/ReadAction",
+            "userInteractionCount": a.views ?? 0,
+          },
         },
-        "interactionStatistic": {
-          "@type": "InteractionCounter",
-          "interactionType": "https://schema.org/ReadAction",
-          "userInteractionCount": a.views ?? 0,
-        },
-      },
-    })),
+      };
+    }),
   };
 
   const _s = {
@@ -350,7 +461,8 @@ const Home = () => {
       aria-label={`${SITE_NAME} homepage`}
     >
       <Helmet>
-        <link rel="canonical" href={`${SITE_URL}/`} />
+        {/* FIX: canonical tanpa trailing slash → cegah Pages with redirect */}
+        <link rel="canonical" href={SITE_URL} />
       </Helmet>
 
       <script type="application/ld+json">{_jLdWebSite}</script>
@@ -360,6 +472,10 @@ const Home = () => {
       <script type="application/ld+json">{_jLdBreadcrumb}</script>
       <script type="application/ld+json">{_jLdCoverStory}</script>
       <script type="application/ld+json">{JSON.stringify(_jLdFeedList)}</script>
+      {/* Standalone ImageObject JSON-LD untuk setiap hero GIF */}
+      <script type="application/ld+json">{_jLdHeroImageCentral}</script>
+      <script type="application/ld+json">{_jLdHeroImageLeft}</script>
+      <script type="application/ld+json">{_jLdHeroImageRight}</script>
 
       <meta itemProp="url" content={SITE_URL} />
       <meta itemProp="name" content={`${SITE_NAME} — LGBTQ+ Fitness & Editorial`} />
@@ -390,7 +506,14 @@ const Home = () => {
             itemProp="logo"
           >
             <meta itemProp="url" content={`${SITE_URL}/masculineLogo.svg`} />
+            <meta itemProp="contentUrl" content={`${SITE_URL}/masculineLogo.svg`} />
             <meta itemProp="name" content={`${SITE_NAME} logo`} />
+            <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+            <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+            <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+            <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+              <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+            </span>
           </span>
           <span
             itemScope
@@ -442,27 +565,56 @@ const Home = () => {
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             Cover Story — {SITE_NAME}
           </a>
+          {/* FIX: ImageObject dengan url, contentUrl, license, creator, copyrightNotice, acquireLicensePage */}
           <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
+            <meta itemProp="url" content={_centralGifAbs} />
+            <meta itemProp="contentUrl" content={_centralGifAbs} />
             <meta itemProp="name" content={`${SITE_NAME} — Central hero image`} />
             <meta itemProp="encodingFormat" content="image/gif" />
             <meta itemProp="description" content="Hero editorial visual — Brawnly Cover Story 2026" />
+            <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+            <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+            <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+            <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+              <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+            </span>
           </span>
         </article>
 
         <aside aria-label="Trending Now">
           <span itemProp="keywords" content="Trending" />
           <p>How Brawnly is Redefining Wellness in 2026.</p>
+          {/* FIX: Trending sidebar ImageObject */}
           <span itemScope itemType="https://schema.org/ImageObject">
+            <meta itemProp="url" content={_leftGifAbs} />
+            <meta itemProp="contentUrl" content={_leftGifAbs} />
             <meta itemProp="name" content={`${SITE_NAME} — Trending sidebar visual`} />
             <meta itemProp="encodingFormat" content="image/gif" />
+            <meta itemProp="description" content="Trending sidebar animated visual — Brawnly 2026" />
+            <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+            <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+            <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+            <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+              <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+            </span>
           </span>
         </aside>
 
         <aside aria-label="Must Read">
           <p>Exclusive: The Art of Fitness and Masculinity.</p>
+          {/* FIX: Must Read sidebar ImageObject */}
           <span itemScope itemType="https://schema.org/ImageObject">
+            <meta itemProp="url" content={_rightGifAbs} />
+            <meta itemProp="contentUrl" content={_rightGifAbs} />
             <meta itemProp="name" content={`${SITE_NAME} — Must Read sidebar visual`} />
             <meta itemProp="encodingFormat" content="image/gif" />
+            <meta itemProp="description" content="Must Read sidebar animated visual — Brawnly 2026" />
+            <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+            <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+            <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+            <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+              <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+            </span>
           </span>
         </aside>
 
@@ -504,9 +656,23 @@ const Home = () => {
                 {(a.excerpt || a.description) && (
                   <meta itemProp="description" content={a.excerpt || a.description} />
                 )}
-                {(a.featured_image || a.featured_image_url) && (
-                  <meta itemProp="image" content={a.featured_image || a.featured_image_url} />
-                )}
+                {/* FIX: ImageObject dengan url & contentUrl absolut + metadata */}
+                {(a.featured_image || a.featured_image_url) && (() => {
+                  const imgUrl = a.featured_image || a.featured_image_url;
+                  return (
+                    <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
+                      <meta itemProp="url" content={imgUrl} />
+                      <meta itemProp="contentUrl" content={imgUrl} />
+                      <meta itemProp="name" content={a.title} />
+                      <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                      <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                      <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                      <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+                        <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                      </span>
+                    </span>
+                  );
+                })()}
                 {(a.published_at || a.created_at) && (
                   <meta itemProp="datePublished" content={a.published_at || a.created_at} />
                 )}
@@ -563,14 +729,29 @@ const Home = () => {
               >
                 Trending Now
               </span>
-              <img
-                src={leftGif}
-                alt={`${SITE_NAME} — trending visual (animated)`}
-                className={_s.gifSide}
-                {...pProps}
+              {/* FIX: Trending sidebar img — microdata ImageObject lengkap */}
+              <div
                 itemScope
                 itemType="https://schema.org/ImageObject"
-              />
+              >
+                <meta itemProp="url" content={_leftGifAbs} />
+                <meta itemProp="contentUrl" content={_leftGifAbs} />
+                <meta itemProp="name" content={`${SITE_NAME} — trending visual`} />
+                <meta itemProp="encodingFormat" content="image/gif" />
+                <meta itemProp="description" content="Trending sidebar animated visual — Brawnly 2026" />
+                <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+                  <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                </span>
+                <img
+                  src={leftGif}
+                  alt={`${SITE_NAME} — trending visual (animated)`}
+                  className={_s.gifSide}
+                  {...pProps}
+                />
+              </div>
               <img
                 src={prideMustache}
                 alt={`${SITE_NAME} pride mustache icon`}
@@ -610,21 +791,29 @@ const Home = () => {
               </h1>
 
               <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                {/* FIX: Cover ImageObject dengan semua field wajib + opsional */}
                 <div
                   className="relative"
                   itemScope
                   itemType="https://schema.org/ImageObject"
                   itemProp="image"
                 >
+                  <meta itemProp="url" content={_centralGifAbs} />
+                  <meta itemProp="contentUrl" content={_centralGifAbs} />
                   <meta itemProp="name" content={`${SITE_NAME} — Cover Story hero image`} />
                   <meta itemProp="description" content="Hero editorial visual — Brawnly Cover Story 2026" />
                   <meta itemProp="encodingFormat" content="image/gif" />
+                  <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                  <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                  <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                  <span itemScope itemType="https://schema.org/Person" itemProp="creator" style={{ display: "none" }}>
+                    <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                  </span>
                   <img
                     src={centralGif}
                     alt={`${SITE_NAME} — Cover Story hero image (animated)`}
                     className={_s.gifCentral}
                     {...pProps}
-                    itemProp="contentUrl"
                   />
                   <img
                     src={prideMustache}
@@ -664,14 +853,29 @@ const Home = () => {
               >
                 Must Read
               </span>
-              <img
-                src={rightGif}
-                alt={`${SITE_NAME} — must read visual (animated)`}
-                className={_s.gifSide}
-                {...pProps}
+              {/* FIX: Must Read sidebar img — microdata ImageObject lengkap */}
+              <div
                 itemScope
                 itemType="https://schema.org/ImageObject"
-              />
+              >
+                <meta itemProp="url" content={_rightGifAbs} />
+                <meta itemProp="contentUrl" content={_rightGifAbs} />
+                <meta itemProp="name" content={`${SITE_NAME} — must read visual`} />
+                <meta itemProp="encodingFormat" content="image/gif" />
+                <meta itemProp="description" content="Must Read sidebar animated visual — Brawnly 2026" />
+                <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+                  <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                </span>
+                <img
+                  src={rightGif}
+                  alt={`${SITE_NAME} — must read visual (animated)`}
+                  className={_s.gifSide}
+                  {...pProps}
+                />
+              </div>
               <img
                 src={prideMustache}
                 alt={`${SITE_NAME} pride mustache icon`}

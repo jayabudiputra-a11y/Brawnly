@@ -25,6 +25,21 @@ const PAGE_TITLE = `Library — ${SITE_NAME}`;
 const PAGE_DESCRIPTION =
   "Your personal Brawnly library — saved articles and sonic vault. Access your bookmarked editorial content and music collection.";
 
+// ─── Article Image License (Budi Putra Jaya) ────────────────────────────────
+const ARTICLE_IMAGE_LICENSE     = "https://creativecommons.org/licenses/by/4.0/";
+const ARTICLE_IMAGE_COPYRIGHT   = "© 2026 Budi Putra Jaya. All rights reserved.";
+const ARTICLE_IMAGE_ACQUIRE_URL = `${SITE_URL}/license`;
+const ARTICLE_IMAGE_CREATOR     = AUTHOR_NAME;
+
+// ─── YouTube Thumbnail License ───────────────────────────────────────────────
+// Thumbnail YouTube tunduk pada YouTube Terms of Service:
+// https://www.youtube.com/t/terms
+// Creator konten adalah pemilik channel/video masing-masing.
+const YT_THUMBNAIL_LICENSE     = "https://www.youtube.com/t/terms";
+const YT_THUMBNAIL_COPYRIGHT   = "© YouTube / respective content creators. All rights reserved.";
+const YT_THUMBNAIL_ACQUIRE_URL = "https://www.youtube.com/t/terms";
+const YT_THUMBNAIL_CREATOR     = "YouTube / respective content creators";
+
 /* ============================================================
    STATIC JSON-LD — serialised once outside component
    ============================================================ */
@@ -53,6 +68,12 @@ const _jLdWebPage = JSON.stringify({
     "logo": {
       "@type": "ImageObject",
       "url": `${SITE_URL}/masculineLogo.svg`,
+      "contentUrl": `${SITE_URL}/masculineLogo.svg`,
+      "name": `${SITE_NAME} logo`,
+      "license": ARTICLE_IMAGE_LICENSE,
+      "creator": { "@type": "Person", "name": ARTICLE_IMAGE_CREATOR },
+      "copyrightNotice": ARTICLE_IMAGE_COPYRIGHT,
+      "acquireLicensePage": ARTICLE_IMAGE_ACQUIRE_URL,
     },
   },
   "breadcrumb": {
@@ -72,6 +93,22 @@ const _jLdBreadcrumb = JSON.stringify({
     { "@type": "ListItem", "position": 2, "name": "Library", "item": PAGE_URL },
   ],
 });
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+/** Kembalikan URL thumbnail YouTube dari videoId, prefer maxresdefault */
+function _ytThumb(videoId: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
+/** Ekstrak YouTube videoId dari berbagai format URL */
+function _extractYtId(url: string): string | null {
+  const r = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?\s]*).*/;
+  const m = url.match(r);
+  return m && m[2].length === 11 ? m[2] : null;
+}
 
 export default function Library() {
   const { isDark: _iD } = _uTP();
@@ -147,7 +184,7 @@ export default function Library() {
               const opt = await _wTI(b, _format, 0.5);
               await _sAS(_song.id.toString(), opt);
               const _url = URL.createObjectURL(opt);
-              _setBlobMap(p => ({ ...p, [_song.id]: _url }));
+              _setBlobMap(p => ({ ...p, [_url]: _url }));
             } catch (e) { }
           }
         }
@@ -168,14 +205,8 @@ export default function Library() {
     localStorage.setItem("brawnly_lib_cache", JSON.stringify(_nA));
   };
 
-  const _gYI = (u: string) => {
-    const r = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const m = u.match(r);
-    return (m && m[2].length === 11) ? m[2] : null;
-  };
-
   const _triggerPlay = (url: string) => {
-    const id = _gYI(url);
+    const id = _extractYtId(url);
     if (id) {
       window.dispatchEvent(new CustomEvent("BRAWNLY_MUSIC", {
         detail: { type: "PLAY_SONG", id: id }
@@ -210,7 +241,22 @@ export default function Library() {
         "url": `${SITE_URL}/article/${a.slug}`,
         "headline": a.title,
         "description": a.excerpt || a.description || undefined,
-        "image": a.featured_image ? `${a.featured_image}` : undefined,
+        // FIX: image sebagai ImageObject lengkap, bukan string URL
+        ...(a.featured_image
+          ? {
+              "image": {
+                "@type": "ImageObject",
+                "url": a.featured_image,
+                "contentUrl": a.featured_image,
+                "name": `${a.title} — cover`,
+                "license": ARTICLE_IMAGE_LICENSE,
+                "creator": { "@type": "Person", "name": ARTICLE_IMAGE_CREATOR },
+                "copyrightNotice": ARTICLE_IMAGE_COPYRIGHT,
+                "acquireLicensePage": ARTICLE_IMAGE_ACQUIRE_URL,
+                "creditText": ARTICLE_IMAGE_CREATOR,
+              },
+            }
+          : {}),
         "datePublished": a.published_at || a.created_at || undefined,
         "articleSection": a.category || "Brawnly Selection",
         "author": {
@@ -228,6 +274,7 @@ export default function Library() {
 
   /* ============================================================
      DYNAMIC JSON-LD — Sonic Vault MusicPlaylist (live state)
+     Thumbnail YouTube menggunakan copyright YouTube/creator masing-masing
      ============================================================ */
   const _jLdSonicVault = {
     "@context": "https://schema.org",
@@ -236,13 +283,36 @@ export default function Library() {
     "description": "Brawnly personal sonic vault — curated music collection.",
     "url": `${PAGE_URL}#sonic-vault`,
     "numTracks": _sL.length,
-    "track": _sL.map((s: _S, i: number) => ({
-      "@type": "MusicRecording",
-      "position": i + 1,
-      "name": s.title,
-      "url": s.url,
-      "thumbnailUrl": s.thumbnail_url || undefined,
-    })),
+    "track": _sL.map((s: _S, i: number) => {
+      const ytId = _extractYtId(s.url);
+      const thumbUrl = ytId ? _ytThumb(ytId) : (s.thumbnail_url || undefined);
+      return {
+        "@type": "MusicRecording",
+        "position": i + 1,
+        "name": s.title,
+        "url": s.url,
+        // FIX: thumbnailUrl sebagai ImageObject lengkap dengan copyright YouTube
+        ...(thumbUrl
+          ? {
+              "thumbnailUrl": thumbUrl,
+              "image": {
+                "@type": "ImageObject",
+                "url": thumbUrl,
+                "contentUrl": thumbUrl,
+                "name": `${s.title} — thumbnail`,
+                "license": YT_THUMBNAIL_LICENSE,
+                "creator": {
+                  "@type": "Organization",
+                  "name": YT_THUMBNAIL_CREATOR,
+                  "url": "https://www.youtube.com",
+                },
+                "copyrightNotice": YT_THUMBNAIL_COPYRIGHT,
+                "acquireLicensePage": YT_THUMBNAIL_ACQUIRE_URL,
+              },
+            }
+          : {}),
+      };
+    }),
     "publisher": {
       "@type": "Organization",
       "name": SITE_NAME,
@@ -267,7 +337,10 @@ export default function Library() {
       aria-live="polite"
       aria-label="Loading library..."
     >
-      <div className={`w-12 h-12 border-4 ${_iD ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`} aria-hidden="true" />
+      <div
+        className={`w-12 h-12 border-4 ${_iD ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`}
+        aria-hidden="true"
+      />
     </div>
   );
 
@@ -381,8 +454,27 @@ export default function Library() {
               {(a.excerpt || a.description) && (
                 <meta itemProp="description" content={a.excerpt || a.description} />
               )}
+              {/* FIX: ImageObject penuh untuk featured_image artikel (Budi Putra Jaya) */}
               {a.featured_image && (
-                <meta itemProp="image" content={a.featured_image} />
+                <span
+                  itemScope
+                  itemType="https://schema.org/ImageObject"
+                  itemProp="image"
+                >
+                  <meta itemProp="url" content={a.featured_image} />
+                  <meta itemProp="contentUrl" content={a.featured_image} />
+                  <meta itemProp="name" content={`${a.title} — cover`} />
+                  <meta itemProp="license" content={ARTICLE_IMAGE_LICENSE} />
+                  <meta itemProp="copyrightNotice" content={ARTICLE_IMAGE_COPYRIGHT} />
+                  <meta itemProp="acquireLicensePage" content={ARTICLE_IMAGE_ACQUIRE_URL} />
+                  <span
+                    itemScope
+                    itemType="https://schema.org/Person"
+                    itemProp="creator"
+                  >
+                    <meta itemProp="name" content={ARTICLE_IMAGE_CREATOR} />
+                  </span>
+                </span>
               )}
               {(a.published_at || a.created_at) && (
                 <meta itemProp="datePublished" content={a.published_at || a.created_at} />
@@ -405,28 +497,52 @@ export default function Library() {
         >
           <meta itemProp="name" content={`${SITE_NAME} — Sonic Vault`} />
           <meta itemProp="numTracks" content={String(_sL.length)} />
-          {_sL.map((s: _S, i: number) => (
-            <li
-              key={`seo-song-${s.id}`}
-              itemScope
-              itemType="https://schema.org/MusicRecording"
-              itemProp="track"
-            >
-              <meta itemProp="position" content={String(i + 1)} />
-              <span itemProp="name">{s.title}</span>
-              <a
-                href={s.url}
-                itemProp="url"
-                tabIndex={-1}
-                rel="noopener noreferrer"
+          {_sL.map((s: _S, i: number) => {
+            const ytId = _extractYtId(s.url);
+            const thumbUrl = ytId ? _ytThumb(ytId) : (s.thumbnail_url || null);
+            return (
+              <li
+                key={`seo-song-${s.id}`}
+                itemScope
+                itemType="https://schema.org/MusicRecording"
+                itemProp="track"
               >
-                {s.title}
-              </a>
-              {s.thumbnail_url && (
-                <meta itemProp="thumbnailUrl" content={s.thumbnail_url} />
-              )}
-            </li>
-          ))}
+                <meta itemProp="position" content={String(i + 1)} />
+                <span itemProp="name">{s.title}</span>
+                <a
+                  href={s.url}
+                  itemProp="url"
+                  tabIndex={-1}
+                  rel="noopener noreferrer"
+                >
+                  {s.title}
+                </a>
+                {/* FIX: YouTube thumbnail — ImageObject dengan copyright YouTube */}
+                {thumbUrl && (
+                  <span
+                    itemScope
+                    itemType="https://schema.org/ImageObject"
+                    itemProp="image"
+                  >
+                    <meta itemProp="url" content={thumbUrl} />
+                    <meta itemProp="contentUrl" content={thumbUrl} />
+                    <meta itemProp="name" content={`${s.title} — thumbnail`} />
+                    <meta itemProp="license" content={YT_THUMBNAIL_LICENSE} />
+                    <meta itemProp="copyrightNotice" content={YT_THUMBNAIL_COPYRIGHT} />
+                    <meta itemProp="acquireLicensePage" content={YT_THUMBNAIL_ACQUIRE_URL} />
+                    <span
+                      itemScope
+                      itemType="https://schema.org/Organization"
+                      itemProp="creator"
+                    >
+                      <meta itemProp="name" content={YT_THUMBNAIL_CREATOR} />
+                      <meta itemProp="url" content="https://www.youtube.com" />
+                    </span>
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ol>
       </div>
 
@@ -479,7 +595,7 @@ export default function Library() {
 
           {/* Node count badge */}
           <div
-            className={`flex items-center gap-4 ${ _iD ? 'bg-white text-black' : 'bg-black text-white' } px-6 py-4 rounded-xl shadow-xl border border-neutral-800`}
+            className={`flex items-center gap-4 ${_iD ? 'bg-white text-black' : 'bg-black text-white'} px-6 py-4 rounded-xl shadow-xl border border-neutral-800`}
             aria-label={`Total nodes mapped: ${_sA.length + _sL.length}`}
             itemScope
             itemType="https://schema.org/QuantitativeValue"
@@ -535,52 +651,115 @@ export default function Library() {
             role="list"
             aria-label="Song grid"
           >
-            {_sL.map((s) => (
-              <_m.div
-                whileHover={{ y: -5 }}
-                key={s.id}
-                onClick={() => _triggerPlay(s.url)}
-                role="listitem"
-                aria-label={`Play song: ${s.title}`}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") _triggerPlay(s.url); }}
-                className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500"
-                itemScope
-                itemType="https://schema.org/MusicRecording"
-                itemProp="track"
-              >
-                {/* Song microdata */}
-                <meta itemProp="name" content={s.title} />
-                <a href={s.url} itemProp="url" tabIndex={-1} rel="noopener noreferrer" style={{ display: "none" }}>
-                  {s.title}
-                </a>
-                {s.thumbnail_url && (
-                  <meta itemProp="thumbnailUrl" content={s.thumbnail_url} />
-                )}
+            {_sL.map((s) => {
+              const ytId = _extractYtId(s.url);
+              // FIX: selalu gunakan YouTube thumbnail URL (bukan blob) untuk src attr &
+              // contentUrl — blob hanya untuk tampilan UI, bukan schema.org
+              const ytThumbUrl = ytId ? _ytThumb(ytId) : (s.thumbnail_url || "");
+              const displaySrc = _blobMap[s.id] || ytThumbUrl;
 
-                <img
-                  src={_blobMap[s.id] || s.thumbnail_url}
-                  alt={`${s.title} — song thumbnail`}
-                  className={`w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700 ${!_blobMap[s.id] ? 'blur-sm' : 'blur-0'}`}
-                  itemProp="thumbnailUrl"
-                />
-
-                {_blobMap[s.id] && (
-                  <div
-                    className="absolute top-2 right-2 bg-emerald-500 text-black p-1 rounded shadow-lg"
-                    aria-label="Optimized asset cached"
-                    title="Optimized & cached"
+              return (
+                <_m.div
+                  whileHover={{ y: -5 }}
+                  key={s.id}
+                  onClick={() => _triggerPlay(s.url)}
+                  role="listitem"
+                  aria-label={`Play song: ${s.title}`}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") _triggerPlay(s.url);
+                  }}
+                  className="relative aspect-square rounded-xl overflow-hidden group bg-neutral-100 dark:bg-neutral-800 cursor-pointer border border-transparent hover:border-emerald-500"
+                  itemScope
+                  itemType="https://schema.org/MusicRecording"
+                  itemProp="track"
+                >
+                  {/* Song microdata */}
+                  <meta itemProp="name" content={s.title} />
+                  <a
+                    href={s.url}
+                    itemProp="url"
+                    tabIndex={-1}
+                    rel="noopener noreferrer"
+                    style={{ display: "none" }}
                   >
-                    <_Hd size={10} aria-hidden="true" />
-                  </div>
-                )}
+                    {s.title}
+                  </a>
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
-                <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
-                  <p className="text-[9px] font-black uppercase text-white tracking-widest truncate">{s.title}</p>
-                </div>
-              </_m.div>
-            ))}
+                  {/* FIX: ImageObject untuk thumbnail YouTube — url & contentUrl absolut,
+                      copyright YouTube Terms of Service */}
+                  {ytThumbUrl && (
+                    <span
+                      itemScope
+                      itemType="https://schema.org/ImageObject"
+                      itemProp="image"
+                      style={{ display: "none" }}
+                    >
+                      <meta itemProp="url" content={ytThumbUrl} />
+                      <meta itemProp="contentUrl" content={ytThumbUrl} />
+                      <meta itemProp="name" content={`${s.title} — thumbnail`} />
+                      <meta
+                        itemProp="description"
+                        content={`YouTube thumbnail for: ${s.title}`}
+                      />
+                      <meta itemProp="license" content={YT_THUMBNAIL_LICENSE} />
+                      <meta
+                        itemProp="copyrightNotice"
+                        content={YT_THUMBNAIL_COPYRIGHT}
+                      />
+                      <meta
+                        itemProp="acquireLicensePage"
+                        content={YT_THUMBNAIL_ACQUIRE_URL}
+                      />
+                      <span
+                        itemScope
+                        itemType="https://schema.org/Organization"
+                        itemProp="creator"
+                      >
+                        <meta itemProp="name" content={YT_THUMBNAIL_CREATOR} />
+                        <meta itemProp="url" content="https://www.youtube.com" />
+                      </span>
+                    </span>
+                  )}
+
+                  <img
+                    src={displaySrc}
+                    alt={`${s.title} — song thumbnail`}
+                    className={`w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700 ${
+                      !_blobMap[s.id] ? "blur-sm" : "blur-0"
+                    }`}
+                    loading="lazy"
+                    onError={(e) => {
+                      // fallback ke thumbnail YouTube standar jika maxresdefault 404
+                      if (ytId) {
+                        (e.target as HTMLImageElement).src =
+                          `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+                      }
+                    }}
+                  />
+
+                  {_blobMap[s.id] && (
+                    <div
+                      className="absolute top-2 right-2 bg-emerald-500 text-black p-1 rounded shadow-lg"
+                      aria-label="Optimized asset cached"
+                      title="Optimized & cached"
+                    >
+                      <_Hd size={10} aria-hidden="true" />
+                    </div>
+                  )}
+
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-hidden="true"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
+                    <p className="text-[9px] font-black uppercase text-white tracking-widest truncate">
+                      {s.title}
+                    </p>
+                  </div>
+                </_m.div>
+              );
+            })}
           </div>
         </section>
 
@@ -608,8 +787,15 @@ export default function Library() {
               aria-label="No saved articles yet"
               role="status"
             >
-              <_Hx size={120} className="mb-8 opacity-10" strokeWidth={1} aria-hidden="true" />
-              <h2 className="text-xl font-black uppercase tracking-tighter mb-4">VAULT_EMPTY</h2>
+              <_Hx
+                size={120}
+                className="mb-8 opacity-10"
+                strokeWidth={1}
+                aria-hidden="true"
+              />
+              <h2 className="text-xl font-black uppercase tracking-tighter mb-4">
+                VAULT_EMPTY
+              </h2>
               <_L
                 to="/#feed-section"
                 className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-[10px] tracking-widest"
@@ -619,7 +805,11 @@ export default function Library() {
               </_L>
             </div>
           ) : (
-            <div className={_x.g} role="list" aria-label="Saved articles grid">
+            <div
+              className={_x.g}
+              role="list"
+              aria-label="Saved articles grid"
+            >
               <_AP mode="popLayout">
                 {_sA.map((a) => (
                   <_m.div
@@ -637,10 +827,18 @@ export default function Library() {
                   >
                     {/* Article microdata */}
                     <meta itemProp="headline" content={a.title} />
-                    <meta itemProp="url" content={`${SITE_URL}/article/${a.slug}`} />
-                    {a.category && <meta itemProp="articleSection" content={a.category} />}
+                    <meta
+                      itemProp="url"
+                      content={`${SITE_URL}/article/${a.slug}`}
+                    />
+                    {a.category && (
+                      <meta itemProp="articleSection" content={a.category} />
+                    )}
                     {(a.published_at || a.created_at) && (
-                      <meta itemProp="datePublished" content={a.published_at || a.created_at} />
+                      <meta
+                        itemProp="datePublished"
+                        content={a.published_at || a.created_at}
+                      />
                     )}
                     <span
                       itemScope
@@ -666,10 +864,47 @@ export default function Library() {
                       itemType="https://schema.org/ImageObject"
                       itemProp="image"
                     >
+                      {/* FIX: url & contentUrl absolut, plus license/creator/copyright artikel */}
                       {a.featured_image && (
-                        <meta itemProp="url" content={a.featured_image} />
+                        <>
+                          <meta itemProp="url" content={a.featured_image} />
+                          <meta itemProp="contentUrl" content={a.featured_image} />
+                          <meta
+                            itemProp="name"
+                            content={`${a.title} — cover`}
+                          />
+                          <meta
+                            itemProp="description"
+                            content={`Cover image for article: ${a.title}`}
+                          />
+                          <meta
+                            itemProp="license"
+                            content={ARTICLE_IMAGE_LICENSE}
+                          />
+                          <meta
+                            itemProp="copyrightNotice"
+                            content={ARTICLE_IMAGE_COPYRIGHT}
+                          />
+                          <meta
+                            itemProp="acquireLicensePage"
+                            content={ARTICLE_IMAGE_ACQUIRE_URL}
+                          />
+                          <span
+                            itemScope
+                            itemType="https://schema.org/Person"
+                            itemProp="creator"
+                            style={{ display: "none" }}
+                          >
+                            <meta
+                              itemProp="name"
+                              content={ARTICLE_IMAGE_CREATOR}
+                            />
+                          </span>
+                        </>
                       )}
-                      {a.title && <meta itemProp="name" content={`${a.title} — cover`} />}
+                      {!a.featured_image && a.title && (
+                        <meta itemProp="name" content={`${a.title} — cover`} />
+                      )}
 
                       {a.featured_image ? (
                         <img
@@ -677,11 +912,14 @@ export default function Library() {
                           alt={`${a.title} — cover image`}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
                           loading="lazy"
-                          itemProp="contentUrl"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <_Im size={40} className="text-neutral-300 dark:text-neutral-700" aria-hidden="true" />
+                          <_Im
+                            size={40}
+                            className="text-neutral-300 dark:text-neutral-700"
+                            aria-hidden="true"
+                          />
                         </div>
                       )}
                     </div>
@@ -713,7 +951,11 @@ export default function Library() {
                         <button
                           onClick={() => _rI(a.slug)}
                           aria-label={`Remove "${a.title}" from saved articles`}
-                          className={`p-2.5 rounded-lg border transition-all ${_iD ? 'bg-white text-black border-white' : 'bg-black text-white border-black'} hover:bg-red-600 hover:border-red-600 hover:text-white`}
+                          className={`p-2.5 rounded-lg border transition-all ${
+                            _iD
+                              ? "bg-white text-black border-white"
+                              : "bg-black text-white border-black"
+                          } hover:bg-red-600 hover:border-red-600 hover:text-white`}
                         >
                           <_Bm size={16} fill="currentColor" aria-hidden="true" />
                         </button>

@@ -7,6 +7,154 @@ import { saveAssetToShared, getAssetFromShared } from '@/lib/sharedStorage';
 
 type ImageFormat = "webp" | "avif";
 
+/* ============================================================
+   COPYRIGHT PROFILES
+   Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
+   Profile ini memenuhi field GSC: license, creator, copyrightNotice,
+   acquireLicensePage (wajib untuk Google Image Metadata rich results).
+   ============================================================ */
+const SITE_URL        = "https://www.brawnly.online";
+const SITE_NAME       = "Brawnly";
+const AUTHOR_NAME     = "Budi Putra Jaya";
+const OWN_LICENSE     = "https://creativecommons.org/licenses/by/4.0/";
+const OWN_COPYRIGHT   = `© 2026 ${AUTHOR_NAME}. All rights reserved.`;
+const OWN_ACQUIRE_URL = `${SITE_URL}/license`;
+
+const _SOURCE_PROFILES: Record<
+  string,
+  {
+    license: string;
+    copyright: string;
+    acquireUrl: string;
+    creatorName: string;
+    creatorType: "Person" | "Organization";
+    creatorUrl: string;
+  }
+> = {
+  instagram: {
+    license:     "https://www.instagram.com/legal/terms/",
+    copyright:   "© Instagram / Meta Platforms, Inc. All rights reserved.",
+    acquireUrl:  "https://www.instagram.com/legal/terms/",
+    creatorName: "Instagram / Meta Platforms, Inc.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.instagram.com",
+  },
+  tiktok: {
+    license:     "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    copyright:   "© TikTok / ByteDance Ltd. All rights reserved.",
+    acquireUrl:  "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    creatorName: "TikTok / ByteDance Ltd.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tiktok.com",
+  },
+  tumblr: {
+    license:     "https://www.tumblr.com/policy/en/terms-of-service",
+    copyright:   "© Tumblr / Automattic Inc. / respective content creators. All rights reserved.",
+    acquireUrl:  "https://www.tumblr.com/policy/en/terms-of-service",
+    creatorName: "Tumblr / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tumblr.com",
+  },
+  twitter: {
+    license:     "https://twitter.com/en/tos",
+    copyright:   "© X Corp. / respective tweet authors. All rights reserved.",
+    acquireUrl:  "https://twitter.com/en/tos",
+    creatorName: "X Corp. / respective tweet authors",
+    creatorType: "Organization",
+    creatorUrl:  "https://twitter.com",
+  },
+  pinterest: {
+    license:     "https://policy.pinterest.com/en/terms-of-service",
+    copyright:   "© Pinterest, Inc. / respective pin owners. All rights reserved.",
+    acquireUrl:  "https://policy.pinterest.com/en/terms-of-service",
+    creatorName: "Pinterest / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.pinterest.com",
+  },
+  google: {
+    license:     "https://policies.google.com/terms",
+    copyright:   "© Google LLC. All rights reserved.",
+    acquireUrl:  "https://policies.google.com/terms",
+    creatorName: "Google LLC",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.google.com",
+  },
+  flickr: {
+    license:     "https://www.flickr.com/creativecommons/",
+    copyright:   "© Respective photographers on Flickr. License varies per image.",
+    acquireUrl:  "https://www.flickr.com/help/terms",
+    creatorName: "Respective photographers on Flickr",
+    creatorType: "Person",
+    creatorUrl:  "https://www.flickr.com",
+  },
+  youtube: {
+    license:     "https://www.youtube.com/t/terms",
+    copyright:   "© YouTube / Google LLC / respective content creators. All rights reserved.",
+    acquireUrl:  "https://www.youtube.com/t/terms",
+    creatorName: "YouTube / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.youtube.com",
+  },
+  cloudinary: {
+    license:     OWN_LICENSE,
+    copyright:   OWN_COPYRIGHT,
+    acquireUrl:  OWN_ACQUIRE_URL,
+    creatorName: AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  SITE_URL,
+  },
+};
+
+type SourceProfile = typeof _SOURCE_PROFILES[keyof typeof _SOURCE_PROFILES];
+
+/** Deteksi sumber gambar dari URL, return profil copyright yang sesuai */
+function _detectImageSource(url: string): SourceProfile {
+  const u = (url || "").toLowerCase();
+  if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net"))
+    return _SOURCE_PROFILES.instagram;
+  if (u.includes("tiktok.com") || u.includes("tiktokcdn.com") || u.includes("musical.ly"))
+    return _SOURCE_PROFILES.tiktok;
+  if (u.includes("tumblr.com") || u.includes("tumblr.co"))
+    return _SOURCE_PROFILES.tumblr;
+  if (u.includes("twitter.com") || u.includes("twimg.com") || u.includes("x.com"))
+    return _SOURCE_PROFILES.twitter;
+  if (u.includes("pinterest.com") || u.includes("pinimg.com"))
+    return _SOURCE_PROFILES.pinterest;
+  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com"))
+    return _SOURCE_PROFILES.google;
+  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com"))
+    return _SOURCE_PROFILES.flickr;
+  if (u.includes("youtube.com") || u.includes("ytimg.com") || u.includes("youtu.be"))
+    return _SOURCE_PROFILES.youtube;
+  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
+    return _SOURCE_PROFILES.cloudinary;
+  // fallback — own content
+  return {
+    license:     OWN_LICENSE,
+    copyright:   OWN_COPYRIGHT,
+    acquireUrl:  OWN_ACQUIRE_URL,
+    creatorName: AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  SITE_URL,
+  };
+}
+
+/**
+ * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
+ * Mencegah "Invalid URL in field url/contentUrl" di GSC.
+ */
+function _validateUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!u.hostname || u.hostname.length < 4) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 interface ArticleCoverImageProps {
   imageUrl?: string | null;
   title: string;
@@ -14,11 +162,11 @@ interface ArticleCoverImageProps {
   className?: string;
 }
 
-const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({ 
-  imageUrl: _u, 
-  title: _t, 
+const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
+  imageUrl: _u,
+  title: _t,
   slug: _sl,
-  className: _cN = "" 
+  className: _cN = ""
 }) => {
   const { isEnabled: _iE, saveData: _sD } = _uSD();
   const [_iL, _siL] = _s(false);
@@ -33,11 +181,17 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     return _u.split(/[\r\n]+/)[0].trim();
   }, [_u]);
 
+  // FIX: Validasi URL — mencegah "Invalid URL in field url/contentUrl" di GSC
+  const _validSU = _m(() => _validateUrl(_sU), [_sU]);
+
   const _isGif = _m(() => {
     if (!_sU) return false;
     const _path = _sU.toLowerCase();
     return _path.endsWith('.gif') || _path.endsWith('.gifv') || _path.includes('tumblr.com') || _path.includes('giphy.com');
   }, [_sU]);
+
+  // ─── Copyright profile untuk gambar cover ini ────────────────────────────
+  const _cp = _m(() => _validSU ? _detectImageSource(_validSU) : null, [_validSU]);
 
   const _tOpt = async (_src: string) => {
     try {
@@ -49,17 +203,17 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
       const r = await fetch(_src, { mode: "cors" });
       const b = await r.blob();
-      
+
       let finalBlob = b;
       if (b.type !== "image/gif" && window.Worker) {
         try {
           const _fmtStr = await detectBestFormat();
           const _fmt = (_fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as ImageFormat;
-          const _quality = _iE ? 0.4 : 0.75; 
+          const _quality = _iE ? 0.4 : 0.75;
 
           finalBlob = await new Promise<Blob>((resolve, reject) => {
             const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
-            
+
             worker.onmessage = (e) => {
               const { error, result } = e.data;
               worker.terminate();
@@ -118,19 +272,21 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     };
   }, [_sU, _isGif, _iE]);
 
-  if (!_sU) return null;
+  // FIX: Jangan render jika URL tidak valid
+  if (!_validSU || !_cp) return null;
 
   const _iLQM = _iE && _sD.quality === 'low';
   const _tWidth = _iLQM ? 480 : 900;
-  
-  const _dU = _isGif ? _sU : _gOI(_sU, _tWidth);
+
+  const _dU = _isGif ? _validSU : _gOI(_validSU, _tWidth);
   const _fU = _oW || _dU;
 
+  // ─── JSON-LD: ImageObject penuh dengan semua field copyright GSC ──────────
   const _ldImageObject = {
     "@context": "https://schema.org",
     "@type": "ImageObject",
-    "url": _sU,
-    "contentUrl": _sU,
+    "url": _validSU,
+    "contentUrl": _validSU,
     "name": _t ? `${_t} — Cover Image` : `Cover image — ${_sl}`,
     "description": _t
       ? `Featured cover image for the article: ${_t}`
@@ -139,42 +295,67 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
     "representativeOfPage": true,
     "encodingFormat": _isGif ? "image/gif" : "image/jpeg",
     "width": _tWidth,
+    // FIX: copyright fields — wajib untuk Google Image Metadata rich results
+    "license":            _cp.license,
+    "creator": {
+      "@type": _cp.creatorType,
+      "name":  _cp.creatorName,
+      "url":   _cp.creatorUrl,
+    },
+    "copyrightNotice":    _cp.copyright,
+    "acquireLicensePage": _cp.acquireUrl,
+    "creditText":         _cp.creatorName,
     "associatedArticle": {
-      "@type": "Article",
-      "url": `https://www.brawnly.online/article/${_sl}`,
+      "@type":    "Article",
+      "url":      `${SITE_URL}/article/${_sl}`,
       "headline": _t || _sl.replace(/-/g, ' '),
-      "name": _t || _sl.replace(/-/g, ' '),
+      "name":     _t || _sl.replace(/-/g, ' '),
     },
     "publisher": {
       "@type": "Organization",
-      "name": "Brawnly",
-      "url": "https://www.brawnly.online",
+      "name":  SITE_NAME,
+      "url":   SITE_URL,
       "logo": {
-        "@type": "ImageObject",
-        "url": "https://www.brawnly.online/favicon.ico",
+        "@type":               "ImageObject",
+        "url":                 `${SITE_URL}/masculineLogo.svg`,
+        "contentUrl":          `${SITE_URL}/masculineLogo.svg`,
+        "name":                `${SITE_NAME} logo`,
+        "license":             OWN_LICENSE,
+        "creator":             { "@type": "Person", "name": AUTHOR_NAME, "url": SITE_URL },
+        "copyrightNotice":     OWN_COPYRIGHT,
+        "acquireLicensePage":  OWN_ACQUIRE_URL,
       },
     },
-    "creditText": "Brawnly",
-    "copyrightNotice": "© Brawnly",
-    "acquireLicensePage": `https://www.brawnly.online/article/${_sl}`,
   };
 
+  // ─── JSON-LD: WebPage — primaryImageOfPage penuh dengan copyright ─────────
   const _ldWebPage = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "@id": `https://www.brawnly.online/article/${_sl}`,
-    "url": `https://www.brawnly.online/article/${_sl}`,
+    "@id": `${SITE_URL}/article/${_sl}`,
+    "url": `${SITE_URL}/article/${_sl}`,
     "name": _t || _sl.replace(/-/g, ' '),
     "primaryImageOfPage": {
-      "@type": "ImageObject",
-      "url": _sU,
-      "contentUrl": _sU,
-      "name": _t ? `${_t} — Cover Image` : `Cover image — ${_sl}`,
+      "@type":               "ImageObject",
+      "url":                 _validSU,
+      "contentUrl":          _validSU,
+      "name":                _t ? `${_t} — Cover Image` : `Cover image — ${_sl}`,
       "representativeOfPage": true,
+      // FIX: copyright fields di primaryImageOfPage juga
+      "license":             _cp.license,
+      "creator": {
+        "@type": _cp.creatorType,
+        "name":  _cp.creatorName,
+        "url":   _cp.creatorUrl,
+      },
+      "copyrightNotice":     _cp.copyright,
+      "acquireLicensePage":  _cp.acquireUrl,
+      "creditText":          _cp.creatorName,
     },
     "image": {
-      "@type": "ImageObject",
-      "url": _sU,
+      "@type":      "ImageObject",
+      "url":        _validSU,
+      "contentUrl": _validSU,
     },
   };
 
@@ -185,11 +366,11 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
       itemType="https://schema.org/ImageObject"
     >
       <script type="application/ld+json">{JSON.stringify(_ldImageObject)}</script>
-
       <script type="application/ld+json">{JSON.stringify(_ldWebPage)}</script>
 
-      <meta itemProp="url" content={_sU} />
-      <meta itemProp="contentUrl" content={_sU} />
+      {/* ── Microdata: semua field ImageObject wajib GSC ── */}
+      <meta itemProp="url"                content={_validSU} />
+      <meta itemProp="contentUrl"         content={_validSU} />
       <meta
         itemProp="name"
         content={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
@@ -207,8 +388,21 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
         itemProp="encodingFormat"
         content={_isGif ? "image/gif" : "image/jpeg"}
       />
-      <meta itemProp="caption" content={_t || _sl.replace(/-/g, ' ')} />
-      <meta itemProp="creditText" content="Brawnly" />
+      <meta itemProp="caption"          content={_t || _sl.replace(/-/g, ' ')} />
+      {/* FIX: copyright fields microdata — wajib untuk Google Image Metadata */}
+      <meta itemProp="license"            content={_cp.license} />
+      <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+      <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+      <meta itemProp="creditText"         content={_cp.creatorName} />
+      <span
+        itemScope
+        itemType={`https://schema.org/${_cp.creatorType}`}
+        itemProp="creator"
+        style={{ display: "none" }}
+      >
+        <meta itemProp="name" content={_cp.creatorName} />
+        <meta itemProp="url"  content={_cp.creatorUrl} />
+      </span>
 
       <div
         aria-hidden="true"
@@ -221,14 +415,15 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
           whiteSpace: "nowrap",
         }}
       >
+        {/* ── Hidden figure — copyright lengkap per sumber ── */}
         <figure itemScope itemType="https://schema.org/ImageObject">
           <img
-            src={_sU}
+            src={_validSU}
             alt={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
             itemProp="url"
             tabIndex={-1}
           />
-          <meta itemProp="contentUrl" content={_sU} />
+          <meta itemProp="contentUrl"          content={_validSU} />
           <meta
             itemProp="name"
             content={_t ? `${_t} — Cover Image` : `Cover image — ${_sl}`}
@@ -246,12 +441,20 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
             itemProp="encodingFormat"
             content={_isGif ? "image/gif" : "image/jpeg"}
           />
-          <meta itemProp="caption" content={_t || _sl.replace(/-/g, ' ')} />
-          <meta itemProp="creditText" content="Brawnly" />
-          <meta
-            itemProp="acquireLicensePage"
-            content={`https://www.brawnly.online/article/${_sl}`}
-          />
+          <meta itemProp="caption"              content={_t || _sl.replace(/-/g, ' ')} />
+          {/* FIX: copyright fields wajib GSC */}
+          <meta itemProp="license"              content={_cp.license} />
+          <meta itemProp="copyrightNotice"      content={_cp.copyright} />
+          <meta itemProp="acquireLicensePage"   content={_cp.acquireUrl} />
+          <meta itemProp="creditText"           content={_cp.creatorName} />
+          <span
+            itemScope
+            itemType={`https://schema.org/${_cp.creatorType}`}
+            itemProp="creator"
+          >
+            <meta itemProp="name" content={_cp.creatorName} />
+            <meta itemProp="url"  content={_cp.creatorUrl} />
+          </span>
           <figcaption itemProp="caption">
             {_t || _sl.replace(/-/g, ' ')}
             {_isGif ? " (animated)" : ""}
@@ -260,7 +463,7 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
         <span itemScope itemType="https://schema.org/Article">
           <a
-            href={`https://www.brawnly.online/article/${_sl}`}
+            href={`${SITE_URL}/article/${_sl}`}
             itemProp="url"
             tabIndex={-1}
             rel="noopener noreferrer"
@@ -268,47 +471,43 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
             {_t || _sl.replace(/-/g, ' ')}
           </a>
           <span itemProp="headline" content={_t || _sl.replace(/-/g, ' ')} />
-          <meta
-            itemProp="image"
-            content={_sU}
-          />
+          <meta itemProp="image" content={_validSU} />
         </span>
 
         <span itemScope itemType="https://schema.org/Organization">
           <a
-            href="https://www.brawnly.online"
+            href={SITE_URL}
             itemProp="url"
             tabIndex={-1}
             rel="noopener noreferrer"
           >
-            Brawnly
+            {SITE_NAME}
           </a>
-          <span itemProp="name" content="Brawnly" />
+          <span itemProp="name" content={SITE_NAME} />
         </span>
 
-        <link
-          rel="isPartOf"
-          href={`https://www.brawnly.online/article/${_sl}`}
-        />
+        <link rel="isPartOf" href={`${SITE_URL}/article/${_sl}`} />
 
+        {/* ── 1200w variant ImageObject — copyright sama dengan sumber ── */}
         <span itemScope itemType="https://schema.org/ImageObject">
-          <meta
-            itemProp="url"
-            content={_gOI(_sU, 1200)}
-          />
-          <meta itemProp="width" content="1200" />
+          <meta itemProp="url"                content={_gOI(_validSU, 1200)} />
+          <meta itemProp="width"              content="1200" />
           <meta
             itemProp="name"
             content={_t ? `${_t} — Cover (1200w)` : `Cover image 1200w — ${_sl}`}
           />
           <meta itemProp="representativeOfPage" content="true" />
+          <meta itemProp="license"              content={_cp.license} />
+          <meta itemProp="copyrightNotice"      content={_cp.copyright} />
+          <meta itemProp="acquireLicensePage"   content={_cp.acquireUrl} />
+          <meta itemProp="creditText"           content={_cp.creatorName} />
         </span>
       </div>
 
       <div className="p-[4px] bg-gradient-to-r from-[#ff0099] via-[#00ffff] to-[#ccff00] rounded-sm shadow-[6px_6px_0px_0px_#aa00ff] dark:shadow-[6px_6px_0px_0px_#00ffff] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_#aa00ff] transition-all duration-200">
         <div className="bg-white dark:bg-[#1a0b2e] p-[2px]">
           <a
-            href={_sU}
+            href={_validSU}
             className="block w-full h-full cursor-zoom-in"
             target="_blank"
             rel="noopener noreferrer"

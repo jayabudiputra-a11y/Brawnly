@@ -8,81 +8,373 @@ import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from '@/lib/enter
 import { registerSW } from '@/pwa/swRegister';
 import { detectBestFormat } from '@/lib/imageFormat';
 
+/* ============================================================
+   COPYRIGHT PROFILES
+   Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
+   Profile ini memenuhi field GSC: license, creator, copyrightNotice,
+   acquireLicensePage (wajib untuk Google Image Metadata rich results).
+   Blog ini menggunakan konten dari IG, TikTok, Tumblr, dll. sebagai
+   sumber editorial — setiap gambar dikreditkan ke platform asalnya.
+   ============================================================ */
+const _SITE_URL        = "https://www.brawnly.online"
+const _SITE_NAME       = "Brawnly"
+const _AUTHOR_NAME     = "Budi Putra Jaya"
+const _OWN_LICENSE     = "https://creativecommons.org/licenses/by/4.0/"
+const _OWN_COPYRIGHT   = `© 2026 ${_AUTHOR_NAME}. All rights reserved.`
+const _OWN_ACQUIRE_URL = `${_SITE_URL}/license`
+
+const _SOURCE_PROFILES: Record<
+  string,
+  {
+    license: string
+    copyright: string
+    acquireUrl: string
+    creatorName: string
+    creatorType: "Person" | "Organization"
+    creatorUrl: string
+  }
+> = {
+  instagram: {
+    license:     "https://www.instagram.com/legal/terms/",
+    copyright:   "© Instagram / Meta Platforms, Inc. All rights reserved.",
+    acquireUrl:  "https://www.instagram.com/legal/terms/",
+    creatorName: "Instagram / Meta Platforms, Inc.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.instagram.com",
+  },
+  tiktok: {
+    license:     "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    copyright:   "© TikTok / ByteDance Ltd. All rights reserved.",
+    acquireUrl:  "https://www.tiktok.com/legal/page/us/terms-of-service/en",
+    creatorName: "TikTok / ByteDance Ltd.",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tiktok.com",
+  },
+  tumblr: {
+    license:     "https://www.tumblr.com/policy/en/terms-of-service",
+    copyright:   "© Tumblr / Automattic Inc. / respective content creators. All rights reserved.",
+    acquireUrl:  "https://www.tumblr.com/policy/en/terms-of-service",
+    creatorName: "Tumblr / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.tumblr.com",
+  },
+  twitter: {
+    license:     "https://twitter.com/en/tos",
+    copyright:   "© X Corp. / respective tweet authors. All rights reserved.",
+    acquireUrl:  "https://twitter.com/en/tos",
+    creatorName: "X Corp. / respective tweet authors",
+    creatorType: "Organization",
+    creatorUrl:  "https://twitter.com",
+  },
+  pinterest: {
+    license:     "https://policy.pinterest.com/en/terms-of-service",
+    copyright:   "© Pinterest, Inc. / respective pin owners. All rights reserved.",
+    acquireUrl:  "https://policy.pinterest.com/en/terms-of-service",
+    creatorName: "Pinterest / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.pinterest.com",
+  },
+  google: {
+    license:     "https://policies.google.com/terms",
+    copyright:   "© Google LLC. All rights reserved.",
+    acquireUrl:  "https://policies.google.com/terms",
+    creatorName: "Google LLC",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.google.com",
+  },
+  flickr: {
+    license:     "https://www.flickr.com/creativecommons/",
+    copyright:   "© Respective photographers on Flickr. License varies per image.",
+    acquireUrl:  "https://www.flickr.com/help/terms",
+    creatorName: "Respective photographers on Flickr",
+    creatorType: "Person",
+    creatorUrl:  "https://www.flickr.com",
+  },
+  youtube: {
+    license:     "https://www.youtube.com/t/terms",
+    copyright:   "© YouTube / Google LLC / respective content creators. All rights reserved.",
+    acquireUrl:  "https://www.youtube.com/t/terms",
+    creatorName: "YouTube / respective content creators",
+    creatorType: "Organization",
+    creatorUrl:  "https://www.youtube.com",
+  },
+  cloudinary: {
+    license:     _OWN_LICENSE,
+    copyright:   _OWN_COPYRIGHT,
+    acquireUrl:  _OWN_ACQUIRE_URL,
+    creatorName: _AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  _SITE_URL,
+  },
+}
+
+type _SourceProfile = typeof _SOURCE_PROFILES[keyof typeof _SOURCE_PROFILES]
+
+/** Deteksi sumber gambar dari URL, return profil copyright yang sesuai */
+function _detectImageSource(url: string): _SourceProfile {
+  const u = (url || "").toLowerCase()
+  if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net"))
+    return _SOURCE_PROFILES.instagram
+  if (u.includes("tiktok.com") || u.includes("tiktokcdn.com") || u.includes("musical.ly"))
+    return _SOURCE_PROFILES.tiktok
+  if (u.includes("tumblr.com") || u.includes("tumblr.co"))
+    return _SOURCE_PROFILES.tumblr
+  if (u.includes("twitter.com") || u.includes("twimg.com") || u.includes("x.com"))
+    return _SOURCE_PROFILES.twitter
+  if (u.includes("pinterest.com") || u.includes("pinimg.com"))
+    return _SOURCE_PROFILES.pinterest
+  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com"))
+    return _SOURCE_PROFILES.google
+  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com"))
+    return _SOURCE_PROFILES.flickr
+  if (u.includes("youtube.com") || u.includes("ytimg.com") || u.includes("youtu.be"))
+    return _SOURCE_PROFILES.youtube
+  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
+    return _SOURCE_PROFILES.cloudinary
+  // fallback — own content (logo, gif internal, dll.)
+  return {
+    license:     _OWN_LICENSE,
+    copyright:   _OWN_COPYRIGHT,
+    acquireUrl:  _OWN_ACQUIRE_URL,
+    creatorName: _AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  _SITE_URL,
+  }
+}
+
+/**
+ * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
+ * Mencegah "Invalid URL in field url/contentUrl" di GSC.
+ */
+function _validateUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null
+    if (!u.hostname || u.hostname.length < 4) return null
+    return url
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Bangun ImageObject schema.org lengkap (JSON-LD) dengan semua field GSC terpenuhi.
+ * Mengembalikan undefined jika url tidak valid.
+ */
+function _buildImageObject(
+  url: string | null | undefined,
+  name: string,
+  description?: string,
+  representative?: boolean
+): object | undefined {
+  const validUrl = _validateUrl(url)
+  if (!validUrl) return undefined
+  const p = _detectImageSource(validUrl)
+  return {
+    "@type":               "ImageObject",
+    "url":                 validUrl,
+    "contentUrl":          validUrl,
+    "name":                name,
+    ...(description ? { "description": description } : {}),
+    "license":             p.license,
+    "creator": {
+      "@type": p.creatorType,
+      "name":  p.creatorName,
+      "url":   p.creatorUrl,
+    },
+    "copyrightNotice":     p.copyright,
+    "acquireLicensePage":  p.acquireUrl,
+    "creditText":          p.creatorName,
+    ...(representative !== undefined ? { "representativeOfPage": representative } : {}),
+    "encodingFormat": validUrl.toLowerCase().match(/\.gif/i)
+      ? "image/gif"
+      : validUrl.toLowerCase().match(/\.webp/i)
+      ? "image/webp"
+      : "image/jpeg",
+  }
+}
+
+// ─── Own-content assets (logo, gif site) selalu pakai own copyright ──────────
+const _LOGO_OBJECT = _buildImageObject(
+  `${_SITE_URL}/masculineLogo.svg`,
+  `${_SITE_NAME} logo`,
+  `Official logo of ${_SITE_NAME}`,
+)
+
+const _PRIDE_GIF_OBJECT = _buildImageObject(
+  // myPride.gif adalah asset internal Brawnly
+  `${_SITE_URL}/myPride.gif`,
+  `${_SITE_NAME} — Pride GIF`,
+  `Brawnly editorial pride visual`,
+)
+
+const _BRAWNLY_GIF_OBJECT = _buildImageObject(
+  `${_SITE_URL}/Brawnly.gif`,
+  `${_SITE_NAME} animated logo`,
+  `Brawnly animated brand logo`,
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface MetaTagsProps {
-  title: string;
-  description?: string;
-  url?: string;
-  image?: string;
+  title: string
+  description?: string
+  url?: string
+  image?: string
 }
 
 const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsProps) => {
-  const _bU = "https://brawnly.online";
-  const _fT = `${_t} | Brawnly`;
-  const _fD = _d || "Brawnly 2026: Smart Fitness and Wellness Tracker Intelligence.";
-  const _fU = _u || _bU;
-  const _fI = _i || `${_bU}${_bG}`;
+  const _bU  = _SITE_URL
+  const _fT  = `${_t} | ${_SITE_NAME}`
+  const _fD  = _d || "Brawnly 2026: Smart Fitness and Wellness Tracker Intelligence."
+  // FIX: Validasi URL canonical dan image — mencegah "Invalid URL" di GSC
+  const _fU  = _validateUrl(_u) || _bU
+  const _fI  = _validateUrl(_i) || `${_bU}/Brawnly.gif`
+
+  // ─── Copyright profile untuk og:image ────────────────────────────────────
+  const _ogCp = _detectImageSource(_fI)
 
   _e(() => {
-    warmupEnterpriseStorage();
-    registerSW();
-    detectBestFormat();
-    
-    if (_t) {
-      setCookieHash(_t);
-      mirrorQuery({
-        type: "META_LOAD",
-        title: _t,
-        url: _fU,
-        ts: Date.now()
-      });
-    }
-  }, [_t, _fU]);
+    warmupEnterpriseStorage()
+    registerSW()
+    detectBestFormat()
 
+    if (_t) {
+      setCookieHash(_t)
+      mirrorQuery({
+        type:  "META_LOAD",
+        title: _t,
+        url:   _fU,
+        ts:    Date.now()
+      })
+    }
+  }, [_t, _fU])
+
+  // ─── JSON-LD: WebSite — image + logo sebagai ImageObject penuh ───────────
   const _jLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Brawnly",
+    "name":          _SITE_NAME,
     "alternateName": "Brawnly Online",
-    "url": _bU,
-    "image": `${_bU}${_pG}`,
-    "logo": `${_bU}${_mL}`,
+    "url":           _bU,
+    "description":   _fD,
+    // FIX: image sebagai ImageObject penuh dengan copyright own content
+    "image":  _buildImageObject(
+      `${_bU}/myPride.gif`,
+      `${_SITE_NAME} — Pride visual`,
+      _fD,
+      true
+    ),
+    // FIX: logo sebagai ImageObject penuh dengan copyright own content
+    "logo": _LOGO_OBJECT,
     "author": {
       "@type": "Person",
-      "name": "Budi Putra Jaya"
+      "name":  _AUTHOR_NAME,
+      "url":   _bU,
     },
-    "description": _fD
-  };
+    "publisher": {
+      "@type": "Organization",
+      "name":  _SITE_NAME,
+      "url":   _bU,
+      "logo":  _LOGO_OBJECT,
+    },
+  }
 
   return (
     <>
       <_H>
         <title>{_fT}</title>
         <link rel="icon" type="image/svg+xml" href={_fS} />
-        <meta name="description" content={_fD} />
-        <meta name="author" content="Budi Putra Jaya" />
-        
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={_fT} />
+        <meta name="description"  content={_fD} />
+        <meta name="author"       content={_AUTHOR_NAME} />
+
+        <meta property="og:type"        content="website" />
+        <meta property="og:title"       content={_fT} />
         <meta property="og:description" content={_fD} />
-        <meta property="og:image" content={_fI} />
-        <meta property="og:url" content={_fU} />
-        <meta property="og:site_name" content="Brawnly" />
+        <meta property="og:image"       content={_fI} />
+        <meta property="og:url"         content={_fU} />
+        <meta property="og:site_name"   content={_SITE_NAME} />
+
+        {/* FIX: og:image copyright fields untuk social media sharing */}
+        <meta property="og:image:alt"   content={`${_t} — ${_SITE_NAME}`} />
 
         <link rel="canonical" href={_fU} />
-        
+
         <script type="application/ld+json">
           {JSON.stringify(_jLd)}
         </script>
       </_H>
 
-      {/* Trik SEO SPA: 
-        sr-only menyembunyikan teks dari layar, tapi LLM & Google Bot 
-        akan membacanya sebagai hierarki konten utama di halaman ini. 
+      {/* Trik SEO SPA:
+        sr-only menyembunyikan teks dari layar, tapi LLM & Google Bot
+        akan membacanya sebagai hierarki konten utama di halaman ini.
       */}
-      <h1 className="sr-only">{_t || "Brawnly - Smart Fitness Intelligence"}</h1>
+      <h1 className="sr-only">{_t || `${_SITE_NAME} - Smart Fitness Intelligence`}</h1>
       <p className="sr-only">{_fD}</p>
-    </>
-  );
-};
 
-export default MetaTags;
+      {/* FIX: WebSite microdata dengan image copyright per sumber */}
+      <div
+        className="sr-only"
+        itemScope
+        itemType="https://schema.org/WebSite"
+      >
+        <meta itemProp="name"        content={_SITE_NAME} />
+        <meta itemProp="url"         content={_bU} />
+        <meta itemProp="description" content={_fD} />
+
+        {/* FIX: image ImageObject dengan copyright per sumber (bisa IG/TikTok/Tumblr/own) */}
+        {_validateUrl(_fI) && (() => {
+          const _cp = _detectImageSource(_fI)
+          return (
+            <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
+              <meta itemProp="url"                content={_fI} />
+              <meta itemProp="contentUrl"         content={_fI} />
+              <meta itemProp="name"               content={`${_t} — ${_SITE_NAME}`} />
+              <meta itemProp="license"            content={_cp.license} />
+              <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+              <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+              <meta itemProp="creditText"         content={_cp.creatorName} />
+              <span
+                itemScope
+                itemType={`https://schema.org/${_cp.creatorType}`}
+                itemProp="creator"
+              >
+                <meta itemProp="name" content={_cp.creatorName} />
+                <meta itemProp="url"  content={_cp.creatorUrl} />
+              </span>
+            </span>
+          )
+        })()}
+
+        {/* FIX: logo own copyright */}
+        <span itemScope itemType="https://schema.org/ImageObject" itemProp="logo">
+          <meta itemProp="url"                content={`${_bU}/masculineLogo.svg`} />
+          <meta itemProp="contentUrl"         content={`${_bU}/masculineLogo.svg`} />
+          <meta itemProp="name"               content={`${_SITE_NAME} logo`} />
+          <meta itemProp="license"            content={_OWN_LICENSE} />
+          <meta itemProp="copyrightNotice"    content={_OWN_COPYRIGHT} />
+          <meta itemProp="acquireLicensePage" content={_OWN_ACQUIRE_URL} />
+          <span itemScope itemType="https://schema.org/Person" itemProp="creator">
+            <meta itemProp="name" content={_AUTHOR_NAME} />
+            <meta itemProp="url"  content={_bU} />
+          </span>
+        </span>
+
+        {/* Author */}
+        <span itemScope itemType="https://schema.org/Person" itemProp="author">
+          <meta itemProp="name" content={_AUTHOR_NAME} />
+          <meta itemProp="url"  content={_bU} />
+        </span>
+
+        {/* Publisher */}
+        <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
+          <meta itemProp="name" content={_SITE_NAME} />
+          <meta itemProp="url"  content={_bU} />
+        </span>
+      </div>
+    </>
+  )
+}
+
+export default MetaTags

@@ -64,6 +64,12 @@ import { registerSW } from "@/pwa/swRegister";
 
 import type { CommentWithUser as _Cu } from "@/types";
 
+// ─── Image / Copyright License Constants (Budi Putra Jaya) ─────────────────
+const IMAGE_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
+const IMAGE_COPYRIGHT_NOTICE = "© 2026 Budi Putra Jaya. All rights reserved.";
+const IMAGE_ACQUIRE_LICENSE_URL = "https://www.brawnly.online/license";
+const IMAGE_CREATOR_NAME = "Budi Putra Jaya";
+
 // ─── Social Media Constants ─────────────────────────────────────────────────
 
 const INSTAGRAM_USERNAME = "deul.umm";
@@ -118,36 +124,21 @@ type RSSItem = {
 };
 
 const _rssCache = new Map<string, { ts: number; items: RSSItem[] }>();
-const RSS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const RSS_CACHE_TTL = 5 * 60 * 1000;
 
 type ProxyEntry = {
   make: (u: string) => string | null;
   extract?: (text: string) => string;
 };
 
-// ─── FIX: Proxy chain baru ────────────────────────────────────────────────────
-// MASALAH LAMA: allorigins.win/raw dipakai untuk wrap rss2json -> server blokir
-// dengan CORS error + HTTP 500 dari domain brawnly.online.
-//
-// CHAIN BARU:
-// 1. rss2json DIRECT — ia punya CORS header sendiri (Access-Control-Allow-Origin: *)
-// 2. codetabs proxy — reliable, tidak memblokir domain manapun
-// 3. allorigins/get (bukan /raw) — hanya untuk non-rss2json, extract via .contents
-// 4. corsproxy.io — last resort untuk semua URL
 const CORS_PROXIES: ProxyEntry[] = [
-  // Entry 0: Direct fetch (tidak perlu proxy transform)
-  {
-    make: (u) => u,
-  },
-  // Entry 1: codetabs - CORS proxy andal untuk semua domain
+  { make: (u) => u },
   {
     make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
   },
-  // Entry 2: allorigins/get — SKIP untuk rss2json (sudah dicoba direct),
-  // gunakan untuk feed URL lain. Response berupa JSON { contents: "..." }
   {
     make: (u) => {
-      if (u.includes("api.rss2json.com")) return null; // sudah dicoba di entry 0
+      if (u.includes("api.rss2json.com")) return null;
       return `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`;
     },
     extract: (t) => {
@@ -158,7 +149,6 @@ const CORS_PROXIES: ProxyEntry[] = [
       }
     },
   },
-  // Entry 3: corsproxy.io — last resort
   {
     make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   },
@@ -168,8 +158,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
-  // ── STRATEGI PERTAMA: rss2json direct (no proxy wrapper) ─────────────────
-  // rss2json.com sudah support CORS, tidak perlu di-wrap allorigins.
   try {
     const res = await fetch(
       `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
@@ -199,13 +187,12 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
       }
     }
   } catch (e) {
-    // rss2json direct gagal (network issue / server down), lanjut ke proxy chain
+    // continue to proxy chain
   }
 
-  // ── STRATEGI KEDUA: Rotasi CORS_PROXIES (skip entry 0 karena sudah dicoba) ──
   for (const proxy of CORS_PROXIES.slice(1)) {
     const endpoint = proxy.make(feedUrl);
-    if (!endpoint) continue; // proxy ini skip URL tertentu (misal allorigins skip rss2json)
+    if (!endpoint) continue;
 
     try {
       const res = await fetch(endpoint, {
@@ -218,7 +205,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
       if (proxy.extract) text = proxy.extract(text);
       if (!text || text.trim().length < 10) continue;
 
-      // Cek apakah response adalah JSON dari rss2json (via proxy)
       if (text.trim().startsWith("{")) {
         try {
           const data = JSON.parse(text);
@@ -243,7 +229,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
         } catch {}
       }
 
-      // Parse sebagai XML/RSS
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/xml");
       if (doc.querySelector("parseerror") || doc.querySelector("parsererror")) continue;
@@ -291,10 +276,8 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
   return [];
 }
 
-// In-flight dedup — prevents StrictMode double-mount from spawning parallel fetches
 const _rssPending = new Map<string, Promise<RSSItem[]>>();
 
-/** Generic RSS hook */
 function useRSSFeed(url: string, count = 3) {
   const [items, _setItems] = _s<RSSItem[]>([]);
   const [loading, _setLoading] = _s(true);
@@ -328,7 +311,6 @@ function useRSSFeed(url: string, count = 3) {
   return { items, loading };
 }
 
-/** YouTube Feed - Versi Fix (Direct ID) */
 function useYouTubeFeed(handle: string, count = 4) {
   const [items, _setItems] = _s<RSSItem[]>([]);
   const [loading, _setLoading] = _s(true);
@@ -955,6 +937,12 @@ function YouTubeWidget() {
               >
                 <meta itemProp="url" content={item.link} />
                 <meta itemProp="name" content={item.title} />
+                {item.videoId && (
+                  <meta
+                    itemProp="thumbnailUrl"
+                    content={`https://i.ytimg.com/vi/${item.videoId}/mqdefault.jpg`}
+                  />
+                )}
                 <div className="w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-900 relative">
                   {item.thumbnail ? (
                     <img
@@ -1464,16 +1452,10 @@ function ClashRoyaleWidget() {
           <div className="relative z-10 flex flex-col items-center gap-5">
             <div className="relative">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
-                <_Sw
-                  size={36}
-                  className="text-white drop-shadow-lg"
-                  aria-hidden="true"
-                />
+                <_Sw size={36} className="text-white drop-shadow-lg" aria-hidden="true" />
               </div>
               <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
-                <span className="text-[12px]" aria-hidden="true">
-                  👑
-                </span>
+                <span className="text-[12px]" aria-hidden="true">👑</span>
               </div>
             </div>
 
@@ -1610,11 +1592,15 @@ function YouTubeShortsPlayer({
   title,
   index,
   thumbUrl,
+  articleDate,    // FIX: untuk uploadDate schema.org
+  description,    // FIX: untuk description schema.org
 }: {
   videoUrl: string;
   title: string;
   index: number;
   thumbUrl?: string;
+  articleDate?: string;
+  description?: string;
 }) {
   const iframeRef = _uR<HTMLIFrameElement>(null);
   const [muted, _setMuted] = _s(true);
@@ -1635,6 +1621,11 @@ function YouTubeShortsPlayer({
   const embedBase = videoId
     ? `https://www.youtube-nocookie.com/embed/${videoId}`
     : null;
+
+  // FIX: YouTube thumbnail dari videoId, selalu tersedia (tidak pakai blob/article image)
+  const ytThumbnailUrl = videoId
+    ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+    : thumbUrl;
 
   const iframeSrc = _uM(() => {
     if (!embedBase) return "";
@@ -1695,11 +1686,23 @@ function YouTubeShortsPlayer({
       itemScope
       itemType="https://schema.org/VideoObject"
     >
+      {/* FIX: VideoObject — semua field wajib terpenuhi */}
       <meta itemProp="position" content={String(index + 1)} />
       <meta itemProp="name" content={title} />
+      <meta itemProp="description" content={description || title} />
       <meta itemProp="embedUrl" content={embedBase} />
       <meta itemProp="contentUrl" content={videoUrl} />
-      {thumbUrl && <meta itemProp="thumbnailUrl" content={thumbUrl} />}
+      {/* FIX: thumbnailUrl dari YouTube (bukan blob/article image) */}
+      {ytThumbnailUrl && (
+        <meta itemProp="thumbnailUrl" content={ytThumbnailUrl} />
+      )}
+      {/* FIX: uploadDate wajib untuk Videos rich result */}
+      {articleDate && (
+        <meta itemProp="uploadDate" content={articleDate} />
+      )}
+      <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
+        <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+      </span>
 
       <div className="relative w-full flex justify-center">
         <div
@@ -1877,7 +1880,22 @@ function CommentItem({
   );
 }
 
-function CommentSectionInner({ articleId }: { articleId: string }) {
+// FIX: CommentSectionInner — terima props article untuk DiscussionForumPosting schema
+function CommentSectionInner({
+  articleId,
+  articleTitle,
+  articleDate,
+  authorName,
+  articleUrl,
+  articleExcerpt,
+}: {
+  articleId: string;
+  articleTitle?: string;
+  articleDate?: string;
+  authorName?: string;
+  articleUrl?: string;
+  articleExcerpt?: string;
+}) {
   const { user: _u } = useAuth();
   const _nav = _uN();
   const _qC = useQueryClient();
@@ -1994,9 +2012,41 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
       itemScope
       itemType="https://schema.org/DiscussionForumPosting"
     >
+      {/* FIX: DiscussionForumPosting — semua field wajib terpenuhi */}
+      {/* headline (non-critical) */}
+      {articleTitle && (
+        <meta itemProp="headline" content={`Discussion: ${articleTitle}`} />
+      )}
+      {/* url (non-critical) */}
+      {articleUrl && (
+        <meta itemProp="url" content={`${articleUrl}#discussion-${articleId}`} />
+      )}
+      {/* datePublished (critical) */}
+      {articleDate && (
+        <meta itemProp="datePublished" content={articleDate} />
+      )}
+      {/* text (critical — either text, image, or video required) */}
+      <meta
+        itemProp="text"
+        content={
+          articleExcerpt ||
+          articleTitle ||
+          "Discussion section for this Brawnly article."
+        }
+      />
+      {/* author (critical — must be valid Person object, not string) */}
+      <span
+        itemScope
+        itemType="https://schema.org/Person"
+        itemProp="author"
+        style={{ display: "none" }}
+      >
+        <meta itemProp="name" content={authorName || IMAGE_CREATOR_NAME} />
+        <meta itemProp="url" content="https://www.brawnly.online" />
+      </span>
       <meta
         itemProp="discussionUrl"
-        content={`#discussion-${articleId}`}
+        content={`${articleUrl || "https://www.brawnly.online"}#discussion-${articleId}`}
       />
       <meta
         itemProp="interactionCount"
@@ -2073,11 +2123,7 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
                 className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 hover:invert active:scale-95 transition-all disabled:opacity-30"
               >
                 {_sub ? (
-                  <_L2
-                    className="animate-spin"
-                    size={14}
-                    aria-hidden="true"
-                  />
+                  <_L2 className="animate-spin" size={14} aria-hidden="true" />
                 ) : (
                   <_Sd size={14} aria-hidden="true" />
                 )}{" "}
@@ -2156,10 +2202,32 @@ function CommentSectionInner({ articleId }: { articleId: string }) {
   );
 }
 
-function CommentSection({ articleId }: { articleId: string }) {
+// FIX: CommentSection — teruskan props artikel ke inner component
+function CommentSection({
+  articleId,
+  articleTitle,
+  articleDate,
+  authorName,
+  articleUrl,
+  articleExcerpt,
+}: {
+  articleId: string;
+  articleTitle?: string;
+  articleDate?: string;
+  authorName?: string;
+  articleUrl?: string;
+  articleExcerpt?: string;
+}) {
   return (
     <Suspense fallback={<SuspenseFallbackComments />}>
-      <CommentSectionInner articleId={articleId} />
+      <CommentSectionInner
+        articleId={articleId}
+        articleTitle={articleTitle}
+        articleDate={articleDate}
+        authorName={authorName}
+        articleUrl={articleUrl}
+        articleExcerpt={articleExcerpt}
+      />
     </Suspense>
   );
 }
@@ -2276,9 +2344,6 @@ export default function ArticleDetail() {
   }, [_slV]);
 
   _e(() => {
-    // FIX: Tidak lagi mendaftarkan 'unload' listener secara langsung.
-    // Intercept sudah ada di index.html (EventTarget.prototype.addEventListener).
-    // Kita hanya perlu pagehide untuk cleanup.
     if (!(window as any).__brawnly_pwa_active) {
       warmupEnterpriseStorage();
       registerSW();
@@ -2417,6 +2482,7 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
+  // FIX: _jsonLdArticle — image sebagai ImageObject penuh (url, contentUrl, license, creator, dll)
   const _jsonLdArticle =
     _pD && _art
       ? JSON.stringify({
@@ -2424,7 +2490,24 @@ export default function ArticleDetail() {
           "@type": "Article",
           headline: _pD.title,
           description: _pD.excerpt,
-          image: _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
+          image: _rawImgSource
+            ? {
+                "@type": "ImageObject",
+                "url": _gOI(_rawImgSource, 1200),
+                "contentUrl": _gOI(_rawImgSource, 1200),
+                "width": 1200,
+                "height": 630,
+                "name": `Cover image — ${_pD.title}`,
+                "license": IMAGE_LICENSE_URL,
+                "creator": {
+                  "@type": "Person",
+                  "name": IMAGE_CREATOR_NAME,
+                },
+                "copyrightNotice": IMAGE_COPYRIGHT_NOTICE,
+                "acquireLicensePage": IMAGE_ACQUIRE_LICENSE_URL,
+                "creditText": IMAGE_CREATOR_NAME,
+              }
+            : undefined,
           author: {
             "@type": "Person",
             name: _art.author || "Brawnly",
@@ -2444,6 +2527,11 @@ export default function ArticleDetail() {
             logo: {
               "@type": "ImageObject",
               url: "https://www.brawnly.online/favicon.ico",
+              contentUrl: "https://www.brawnly.online/favicon.ico",
+              license: IMAGE_LICENSE_URL,
+              creator: { "@type": "Person", name: IMAGE_CREATOR_NAME },
+              copyrightNotice: IMAGE_COPYRIGHT_NOTICE,
+              acquireLicensePage: IMAGE_ACQUIRE_LICENSE_URL,
             },
           },
           datePublished: _art.published_at,
@@ -2467,6 +2555,35 @@ export default function ArticleDetail() {
           },
         })
       : null;
+
+  // FIX: VideoObject JSON-LD untuk setiap YouTube Short
+  const _jsonLdVideoObjects = _uM(() => {
+    if (!_pD || !_art || _youtubeShorts.length === 0) return null;
+    return _youtubeShorts.map((videoUrl: string) => {
+      const videoId = videoUrl.match(
+        /(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/
+      )?.[1];
+      return JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": _pD.title,
+        "description": _pD.excerpt || _pD.title,
+        "thumbnailUrl": videoId
+          ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+          : undefined,
+        "uploadDate": _art.published_at,
+        "embedUrl": videoId
+          ? `https://www.youtube-nocookie.com/embed/${videoId}`
+          : undefined,
+        "contentUrl": videoUrl,
+        "author": {
+          "@type": "Person",
+          "name": IMAGE_CREATOR_NAME,
+          "url": "https://www.brawnly.online",
+        },
+      });
+    });
+  }, [_pD, _art, _youtubeShorts]);
 
   const _jsonLdBreadcrumb = _pD
     ? JSON.stringify({
@@ -2510,10 +2627,17 @@ export default function ArticleDetail() {
             name: "Brawnly",
             url: "https://www.brawnly.online",
           },
-          primaryImageOfPage: {
-            "@type": "ImageObject",
-            url: _rawImgSource ? _gOI(_rawImgSource, 1200) : undefined,
-          },
+          primaryImageOfPage: _rawImgSource
+            ? {
+                "@type": "ImageObject",
+                url: _gOI(_rawImgSource, 1200),
+                contentUrl: _gOI(_rawImgSource, 1200),
+                license: IMAGE_LICENSE_URL,
+                creator: { "@type": "Person", name: IMAGE_CREATOR_NAME },
+                copyrightNotice: IMAGE_COPYRIGHT_NOTICE,
+                acquireLicensePage: IMAGE_ACQUIRE_LICENSE_URL,
+              }
+            : undefined,
           datePublished: _art.published_at,
           author: {
             "@type": "Person",
@@ -2548,6 +2672,9 @@ export default function ArticleDetail() {
     ],
   });
 
+  // Canonical & article URL
+  const _articleCanonical = `https://www.brawnly.online/article/${_slV}`;
+
   if (!isHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
@@ -2577,22 +2704,13 @@ export default function ArticleDetail() {
           <meta name="description" content={_pD.excerpt} />
 
           <meta property="og:type" content="article" />
-          <meta
-            property="og:title"
-            content={`${_pD.title} | Brawnly`}
-          />
+          <meta property="og:title" content={`${_pD.title} | Brawnly`} />
           <meta property="og:description" content={_pD.excerpt} />
-          <meta
-            property="og:url"
-            content={`https://www.brawnly.online/article/${_slV}`}
-          />
+          <meta property="og:url" content={_articleCanonical} />
           <meta property="og:site_name" content="Brawnly" />
           <meta property="og:locale" content="id_ID" />
           {_rawImgSource && (
-            <meta
-              property="og:image"
-              content={_gOI(_rawImgSource, 1200)}
-            />
+            <meta property="og:image" content={_gOI(_rawImgSource, 1200)} />
           )}
           {_rawImgSource && (
             <meta property="og:image:width" content="1200" />
@@ -2601,42 +2719,24 @@ export default function ArticleDetail() {
             <meta property="og:image:height" content="630" />
           )}
           {_art.published_at && (
-            <meta
-              property="article:published_time"
-              content={_art.published_at}
-            />
+            <meta property="article:published_time" content={_art.published_at} />
           )}
           {_art.updated_at && (
-            <meta
-              property="article:modified_time"
-              content={_art.updated_at}
-            />
+            <meta property="article:modified_time" content={_art.updated_at} />
           )}
-          <meta
-            property="article:author"
-            content={_art.author || "Brawnly"}
-          />
+          <meta property="article:author" content={_art.author || "Brawnly"} />
           <meta property="article:section" content="Technology" />
 
           <meta name="twitter:card" content="summary_large_image" />
-          <meta
-            name="twitter:title"
-            content={`${_pD.title} | Brawnly`}
-          />
+          <meta name="twitter:title" content={`${_pD.title} | Brawnly`} />
           <meta name="twitter:description" content={_pD.excerpt} />
           {_rawImgSource && (
-            <meta
-              name="twitter:image"
-              content={_gOI(_rawImgSource, 1200)}
-            />
+            <meta name="twitter:image" content={_gOI(_rawImgSource, 1200)} />
           )}
           <meta name="twitter:site" content="@brawnly" />
           <meta name="twitter:creator" content="@brawnly" />
 
-          <link
-            rel="canonical"
-            href={`https://www.brawnly.online/article/${_slV}`}
-          />
+          <link rel="canonical" href={_articleCanonical} />
           <meta
             name="robots"
             content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
@@ -2654,10 +2754,15 @@ export default function ArticleDetail() {
           {_jsonLdArticle && (
             <script type="application/ld+json">{_jsonLdArticle}</script>
           )}
+          {/* FIX: VideoObject JSON-LD untuk setiap YouTube Short */}
+          {_jsonLdVideoObjects &&
+            _jsonLdVideoObjects.map((ld, idx) => (
+              <script key={`ld-video-${idx}`} type="application/ld+json">
+                {ld}
+              </script>
+            ))}
           {_jsonLdBreadcrumb && (
-            <script type="application/ld+json">
-              {_jsonLdBreadcrumb}
-            </script>
+            <script type="application/ld+json">{_jsonLdBreadcrumb}</script>
           )}
           {_jsonLdWebPage && (
             <script type="application/ld+json">{_jsonLdWebPage}</script>
@@ -2725,39 +2830,19 @@ export default function ArticleDetail() {
             <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>
               Instagram: @{INSTAGRAM_USERNAME}
             </a>
-            <a
-              href={YOUTUBE_CHANNEL_URL}
-              rel="noopener noreferrer"
-              tabIndex={-1}
-            >
+            <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>
               YouTube: @{YOUTUBE_CHANNEL_HANDLE}
             </a>
-            <a
-              href={SUBSTACK_ROOT_URL}
-              rel="noopener noreferrer"
-              tabIndex={-1}
-            >
+            <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>
               Substack: deulo
             </a>
-            <a
-              href={TUMBLR_BLOG_URL}
-              rel="noopener noreferrer"
-              tabIndex={-1}
-            >
+            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>
               Tumblr: deulo
             </a>
-            <a
-              href={PINTEREST_PROFILE_URL}
-              rel="noopener noreferrer"
-              tabIndex={-1}
-            >
+            <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>
               Pinterest: mustbeloveonthebrain
             </a>
-            <a
-              href={CR_ROYALEAPI_PROFILE}
-              rel="noopener noreferrer"
-              tabIndex={-1}
-            >
+            <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>
               Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}
             </a>
           </nav>
@@ -2770,11 +2855,7 @@ export default function ArticleDetail() {
         <aside className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
           <button
             onClick={_hSv}
-            aria-label={
-              _iS
-                ? "Remove article from saved"
-                : "Save this article"
-            }
+            aria-label={_iS ? "Remove article from saved" : "Save this article"}
             aria-pressed={_iS}
             className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500 border-2 ${
               _iS
@@ -2813,24 +2894,13 @@ export default function ArticleDetail() {
             <meta itemProp="description" content={_pD.excerpt} />
             <meta itemProp="datePublished" content={_art.published_at} />
             {(_art as any).updated_at && (
-              <meta
-                itemProp="dateModified"
-                content={(_art as any).updated_at}
-              />
+              <meta itemProp="dateModified" content={(_art as any).updated_at} />
             )}
-            <meta
-              itemProp="author"
-              content={_art.author || "Brawnly"}
-            />
-            <meta
-              itemProp="url"
-              content={`https://www.brawnly.online/article/${_slV}`}
-            />
+            <meta itemProp="author" content={_art.author || "Brawnly"} />
+            <meta itemProp="url" content={_articleCanonical} />
+            {/* FIX: image meta dengan URL absolut valid */}
             {_rawImgSource && (
-              <meta
-                itemProp="image"
-                content={_gOI(_rawImgSource, 1200)}
-              />
+              <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
             )}
 
             <div className="flex justify-between items-start mb-6">
@@ -2873,8 +2943,7 @@ export default function ArticleDetail() {
                     alt={`Author avatar — ${_art.author || "Brawnly"}`}
                     itemProp="image"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display =
-                        "none";
+                      (e.target as HTMLImageElement).style.display = "none";
                     }}
                   />
                 </div>
@@ -2902,11 +2971,7 @@ export default function ArticleDetail() {
                 >
                   {_realtimeViews.toLocaleString("en-US")}
                 </span>{" "}
-                <_Ey
-                  size={20}
-                  className="text-red-600"
-                  aria-hidden="true"
-                />
+                <_Ey size={20} className="text-red-600" aria-hidden="true" />
               </div>
             </div>
           </header>
@@ -2935,21 +3000,42 @@ export default function ArticleDetail() {
                     className="w-full drop-shadow-2xl"
                   />
                 </div>
+                {/* FIX: Cover ImageObject — url absolut, contentUrl dari _rawImgSource (bukan blob),
+                    ditambah license, creator, copyrightNotice, acquireLicensePage */}
                 <figure
                   className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
                   itemScope
                   itemType="https://schema.org/ImageObject"
                 >
+                  {/* url: absolute, valid */}
                   <meta
                     itemProp="url"
-                    content={
-                      _rawImgSource ? _gOI(_rawImgSource, 1200) : ""
-                    }
+                    content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""}
+                  />
+                  {/* contentUrl: selalu pakai _rawImgSource (bukan blob), agar Google bisa validasi */}
+                  <meta
+                    itemProp="contentUrl"
+                    content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""}
                   />
                   <meta
                     itemProp="name"
                     content={`Cover image — ${_pD.title}`}
                   />
+                  <meta
+                    itemProp="description"
+                    content={`Cover image for article: ${_pD.title}`}
+                  />
+                  <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                  <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                  <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                  <span
+                    itemScope
+                    itemType="https://schema.org/Person"
+                    itemProp="creator"
+                    style={{ display: "none" }}
+                  >
+                    <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                  </span>
                   <ArticleCoverImage
                     imageUrl={_blobUrl || _rawImgSource || ""}
                     title={_pD.title}
@@ -3042,10 +3128,7 @@ export default function ArticleDetail() {
                         itemType="https://schema.org/SocialMediaPosting"
                         itemProp="itemListElement"
                       >
-                        <meta
-                          itemProp="position"
-                          content={String(idx + 1)}
-                        />
+                        <meta itemProp="position" content={String(idx + 1)} />
                         <meta itemProp="url" content={url} />
                         <Suspense
                           fallback={
@@ -3060,6 +3143,7 @@ export default function ArticleDetail() {
                 </section>
               )}
 
+              {/* FIX: YouTubeShortsPlayer — pass articleDate & description untuk VideoObject schema */}
               {_youtubeShorts.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3067,10 +3151,7 @@ export default function ArticleDetail() {
                   itemScope
                   itemType="https://schema.org/ItemList"
                 >
-                  <meta
-                    itemProp="name"
-                    content="Embedded YouTube Shorts"
-                  />
+                  <meta itemProp="name" content="Embedded YouTube Shorts" />
                   {_youtubeShorts.map(
                     (videoUrl: string, idx: number) => (
                       <YouTubeShortsPlayer
@@ -3083,6 +3164,8 @@ export default function ArticleDetail() {
                             ? _gOI(_rawImgSource, 600)
                             : undefined
                         }
+                        articleDate={_art.published_at}
+                        description={_pD.excerpt || _pD.title}
                       />
                     )
                   )}
@@ -3121,18 +3204,29 @@ export default function ArticleDetail() {
                           itemProp="itemListElement"
                           style={{ contain: "layout" }}
                         >
-                          <meta
-                            itemProp="position"
-                            content={String(idx + 1)}
-                          />
-                          <meta
-                            itemProp="url"
-                            content={_fC(img)}
-                          />
+                          <meta itemProp="position" content={String(idx + 1)} />
+                          {/* FIX: url & contentUrl absolut, tambah license/creator/copyright */}
+                          <meta itemProp="url" content={_fC(img)} />
+                          <meta itemProp="contentUrl" content={_fC(img)} />
                           <meta
                             itemProp="name"
                             content={`${_pD.title} — Animated image ${idx + 1}`}
                           />
+                          <meta
+                            itemProp="description"
+                            content={`Animated image ${idx + 1} from article: ${_pD.title}`}
+                          />
+                          <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                          <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                          <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                          <span
+                            itemScope
+                            itemType="https://schema.org/Person"
+                            itemProp="creator"
+                            style={{ display: "none" }}
+                          >
+                            <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                          </span>
                           <img
                             src={_fC(img)}
                             alt={`${_pD.title} — Animated image ${idx + 1}`}
@@ -3140,9 +3234,7 @@ export default function ArticleDetail() {
                             style={{ objectFit: "contain" }}
                             loading="lazy"
                             onError={(e) => {
-                              (
-                                e.target as HTMLImageElement
-                              ).style.display = "none";
+                              (e.target as HTMLImageElement).style.display = "none";
                             }}
                           />
                           <div
@@ -3195,23 +3287,35 @@ export default function ArticleDetail() {
                         itemProp="image"
                         style={{ contain: "layout" }}
                       >
-                        <meta
-                          itemProp="url"
-                          content={_fC(img)}
-                        />
+                        {/* FIX: url & contentUrl absolut, tambah license/creator/copyright */}
+                        <meta itemProp="url" content={_fC(img)} />
+                        <meta itemProp="contentUrl" content={_fC(img)} />
                         <meta
                           itemProp="name"
                           content={`${_pD.title} — Gallery ${idx + 1}`}
                         />
+                        <meta
+                          itemProp="description"
+                          content={`Gallery image ${idx + 1} from article: ${_pD.title}`}
+                        />
+                        <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                        <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                        <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                        <span
+                          itemScope
+                          itemType="https://schema.org/Person"
+                          itemProp="creator"
+                          style={{ display: "none" }}
+                        >
+                          <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                        </span>
                         <img
                           src={_fC(img)}
                           alt={`${_pD.title} — Gallery image ${idx + 1}`}
                           className="w-full h-full object-cover hover:opacity-90 transition-opacity duration-200 aspect-square md:aspect-[4/5]"
                           loading="lazy"
                           onError={(e) => {
-                            (
-                              e.target as HTMLImageElement
-                            ).style.opacity = "0.3";
+                            (e.target as HTMLImageElement).style.opacity = "0.3";
                           }}
                         />
                         <figcaption className="sr-only">
@@ -3252,11 +3356,7 @@ export default function ArticleDetail() {
               <div className="flex xl:hidden items-center gap-4 mb-16 border-t-2 border-neutral-100 dark:border-neutral-900 pt-8 mt-8">
                 <button
                   onClick={_hSv}
-                  aria-label={
-                    _iS
-                      ? "Remove from saved"
-                      : "Save this article"
-                  }
+                  aria-label={_iS ? "Remove from saved" : "Save this article"}
                   aria-pressed={_iS}
                   className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl border-2 font-black uppercase text-[12px] tracking-widest transition-all shadow-md active:scale-95 ${
                     _iS
@@ -3274,13 +3374,8 @@ export default function ArticleDetail() {
 
                 <button
                   onClick={() => {
-                    if (
-                      typeof navigator !== "undefined" &&
-                      navigator.clipboard
-                    ) {
-                      navigator.clipboard.writeText(
-                        window.location.href
-                      );
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href);
                       toast.success("Node Link Copied");
                     }
                   }}
@@ -3292,7 +3387,15 @@ export default function ArticleDetail() {
                 </button>
               </div>
 
-              <CommentSection articleId={_art.id} />
+              {/* FIX: CommentSection — pass semua props artikel agar DiscussionForumPosting valid */}
+              <CommentSection
+                articleId={_art.id}
+                articleTitle={_pD.title}
+                articleDate={_art.published_at}
+                authorName={_art.author || IMAGE_CREATOR_NAME}
+                articleUrl={_articleCanonical}
+                articleExcerpt={_pD.excerpt}
+              />
             </article>
 
             <aside
@@ -3306,10 +3409,7 @@ export default function ArticleDetail() {
                   itemScope
                   itemType="https://schema.org/ItemList"
                 >
-                  <meta
-                    itemProp="name"
-                    content="Trending Articles on Brawnly"
-                  />
+                  <meta itemProp="name" content="Trending Articles on Brawnly" />
 
                   <h2 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 mb-8 italic flex items-center gap-2">
                     <div
@@ -3326,18 +3426,12 @@ export default function ArticleDetail() {
                         itemType="https://schema.org/Article"
                         itemProp="itemListElement"
                       >
-                        <meta
-                          itemProp="position"
-                          content={String(i + 1)}
-                        />
+                        <meta itemProp="position" content={String(i + 1)} />
                         <meta
                           itemProp="url"
                           content={`https://www.brawnly.online/article/${it.slug}`}
                         />
-                        <meta
-                          itemProp="headline"
-                          content={it.title}
-                        />
+                        <meta itemProp="headline" content={it.title} />
                         <_L
                           to={`/article/${it.slug}`}
                           aria-label={`Read trending article: ${it.title}`}
