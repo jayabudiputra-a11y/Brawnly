@@ -63,6 +63,8 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // PERBAIKAN: Menaikkan limit cache menjadi 5MB agar file WASM bisa masuk
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,wasm}"],
         runtimeCaching: [
           {
