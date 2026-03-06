@@ -26,7 +26,7 @@ export default defineConfig({
         renderAfterDocumentEvent: 'render-event',
         headless: true
       }),
-      // @ts-ignore: staticDir is required by the plugin but may not be recognized by current types
+      // @ts-ignore
       staticDir: path.resolve(__dirname, 'dist'),
     }),
     VitePWA({
@@ -63,9 +63,18 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // PERBAIKAN: Menaikkan limit cache menjadi 5MB agar file WASM bisa masuk
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 7 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,wasm}"],
+        globIgnores: [
+          "**/assets/Brawnly-favicon.svg",
+          "**/assets/favicon.svg",
+          "**/assets/masculineLogo.svg",
+          "**/assets/Brawnly.gif",
+          "**/assets/Brawnly-17aDfvayqUvay.gif",
+          "**/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
+          "**/assets/myAvatar.jpg",
+          "**/assets/myPride.gif"
+        ],
         runtimeCaching: [
           {
             urlPattern: /\.wasm$/,
@@ -84,7 +93,7 @@ export default defineConfig({
             options: {
               cacheName: "images-cache",
               expiration: {
-                maxEntries: 60,
+                maxEntries: 100,
                 maxAgeSeconds: 2592000
               }
             }
@@ -96,7 +105,7 @@ export default defineConfig({
               cacheName: "supabase-images-cache",
               networkTimeoutSeconds: 3,
               expiration: {
-                maxEntries: 30,
+                maxEntries: 50,
                 maxAgeSeconds: 2592000,
               }
             },
