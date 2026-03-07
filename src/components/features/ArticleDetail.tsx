@@ -522,9 +522,55 @@ if (typeof document !== "undefined") {
         0%   { background-position: -200% 0; }
         100% { background-position:  200% 0; }
       }
+      @keyframes mcSignBounce {
+        0%, 100% { transform: translateY(0px) rotate(-2deg); }
+        30%       { transform: translateY(-4px) rotate(1deg); }
+        60%       { transform: translateY(-2px) rotate(-1deg); }
+      }
+      @keyframes mcArrowDrop {
+        0%, 100% { transform: translateY(0px); opacity: 1; }
+        50%       { transform: translateY(3px); opacity: 0.6; }
+      }
     `;
     document.head.appendChild(s);
   }
+}
+
+function _MotionCaptureSign() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 0,
+        marginLeft: 2,
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width="34"
+        height="46"
+        viewBox="0 0 34 46"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ animation: "mcSignBounce 2.4s ease-in-out infinite", display: "block" }}
+      >
+        {/* pole */}
+        <rect x="15.5" y="22" width="3" height="22" rx="1.5" className="fill-black dark:fill-white" fill="currentColor" />
+        {/* sign board */}
+        <rect x="1" y="1" width="32" height="21" rx="4" className="fill-black dark:fill-white" fill="currentColor" />
+        <rect x="2" y="2" width="30" height="19" rx="3" fill="white" className="dark:fill-[#111]" />
+        {/* down arrow inside board */}
+        <g style={{ animation: "mcArrowDrop 1.1s ease-in-out infinite" }}>
+          <line x1="17" y1="6" x2="17" y2="15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="stroke-black dark:stroke-white" />
+          <polyline points="12,11 17,16 22,11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-black dark:stroke-white" />
+        </g>
+      </svg>
+    </span>
+  );
 }
 
 /**
@@ -3934,7 +3980,7 @@ export default function ArticleDetail() {
               {/* ── Animated GIFs / WebP ──────────────────────────────────── */}
               {_animatedImages.length > 0 && (
                 <section
-                  className="my-20 max-w-[600px] mx-auto"
+                  className="my-20 max-w-[600px] mx-auto lg:hidden"
                   aria-label="Animated images"
                   itemScope
                   itemType="https://schema.org/ItemList"
@@ -3952,6 +3998,9 @@ export default function ArticleDetail() {
                     <span className="text-[10px] uppercase font-black tracking-[0.3em]">
                       Motion_Capture
                     </span>
+                    {_animatedImages.length > 1 && (
+                      <_MotionCaptureSign />
+                    )}
                   </div>
                   <div className="flex flex-col gap-10 items-center">
                     {_animatedImages.map(
@@ -4233,6 +4282,72 @@ export default function ArticleDetail() {
                 >
                   <SocialWidgetsDesktop />
                 </Suspense>
+
+                {/* ── Motion Capture GIFs — sidebar desktop only ── */}
+                {_animatedImages.length > 0 && _pD && (
+                  <div
+                    className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
+                    aria-label="Animated images"
+                    itemScope
+                    itemType="https://schema.org/ItemList"
+                  >
+                    <meta itemProp="name" content="Motion Capture — Animated Images" />
+                    <div className="h-1.5 w-full bg-gradient-to-r from-neutral-300 via-neutral-500 to-neutral-300 dark:from-neutral-700 dark:via-neutral-500 dark:to-neutral-700" />
+
+                    <div className="px-5 pt-5 pb-2 flex items-center gap-2">
+                      <_Ap size={14} className="animate-spin-slow text-black dark:text-white flex-shrink-0" aria-hidden="true" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-black dark:text-white">
+                        Motion_Capture
+                      </span>
+                      {_animatedImages.length > 1 && (
+                        <_MotionCaptureSign />
+                      )}
+                    </div>
+
+                    <div className="px-4 pb-5 flex flex-col gap-5 items-center">
+                      {_animatedImages.map((img: string, idx: number) => (
+                        <figure
+                          key={`sidebar-gif-${idx}`}
+                          className="w-full relative group overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800"
+                          itemScope
+                          itemType="https://schema.org/ImageObject"
+                          itemProp="itemListElement"
+                          style={{ contain: "layout" }}
+                        >
+                          <meta itemProp="position" content={String(idx + 1)} />
+                          <meta itemProp="url" content={_fC(img)} />
+                          <meta itemProp="contentUrl" content={_fC(img)} />
+                          <meta itemProp="name" content={`${_pD.title} — Animated image ${idx + 1}`} />
+                          <meta itemProp="description" content={`Animated image ${idx + 1} from article: ${_pD.title}`} />
+                          <meta itemProp="license" content={IMAGE_LICENSE_URL} />
+                          <meta itemProp="copyrightNotice" content={IMAGE_COPYRIGHT_NOTICE} />
+                          <meta itemProp="acquireLicensePage" content={IMAGE_ACQUIRE_LICENSE_URL} />
+                          <span itemScope itemType="https://schema.org/Person" itemProp="creator" style={{ display: "none" }}>
+                            <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+                          </span>
+                          <img
+                            src={_fC(img)}
+                            alt={`${_pD.title} — Animated image ${idx + 1}`}
+                            className="w-full h-auto object-contain rounded-xl"
+                            loading="lazy"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                          <div
+                            className="absolute bottom-2 right-2 bg-black text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest border border-white rounded"
+                            aria-hidden="true"
+                          >
+                            GIF
+                          </div>
+                          <figcaption className="sr-only">
+                            {_pD.title} — Animated image {idx + 1}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </aside>
           </div>
