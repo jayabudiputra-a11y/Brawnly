@@ -124,7 +124,7 @@ const _safeLazy = (importFunc: () => Promise<any>) =>
     })
   );
 
-const _H = _safeLazy(() => import("@/pages/Home"));
+const _H  = _safeLazy(() => import("@/pages/Home"));
 const _As = _safeLazy(() => import("@/pages/Articles"));
 const _AP = _safeLazy(() => import("@/pages/ArticlePage"));
 const _Cy = _safeLazy(() => import("@/pages/Category"));
@@ -142,6 +142,8 @@ const _Py = _safeLazy(() => import("@/pages/Privacy"));
 const _Es = _safeLazy(() => import("@/pages/Ethics"));
 const _SU = _safeLazy(() => import("@/pages/SignUp"));
 const _SI = _safeLazy(() => import("@/pages/SignIn"));
+// ── NEW: License page ──────────────────────────────────────────────────────
+const _Lc = _safeLazy(() => import("@/pages/License"));
 
 const _preloadRoute = (importer: () => Promise<any>) => {
   const link = document.createElement("link");
@@ -383,6 +385,15 @@ function App() {
               element={
                 <_RouteTransition fallback={_PAGE_SHELL}>
                   <_Es />
+                </_RouteTransition>
+              }
+            />
+            {/* ── License page ───────────────────────────────────────── */}
+            <_Rt
+              path="license"
+              element={
+                <_RouteTransition fallback={_PAGE_SHELL}>
+                  <_Lc />
                 </_RouteTransition>
               }
             />
