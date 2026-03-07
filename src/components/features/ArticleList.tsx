@@ -516,6 +516,26 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
       <script type="application/ld+json">{JSON.stringify(_jLdCollection)}</script>
       <script type="application/ld+json">{JSON.stringify(_jLdBreadcrumb)}</script>
 
+      {/* ── CC BY 4.0 License — hidden from UI, visible to crawlers ── */}
+      <div
+        aria-hidden="true"
+        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+        itemScope
+        itemType="https://schema.org/CreativeWork"
+      >
+        <meta itemProp="license" content="https://creativecommons.org/licenses/by/4.0/" />
+        <a href="https://creativecommons.org/licenses/by/4.0/" itemProp="license" tabIndex={-1} rel="license noopener noreferrer">
+          This work is licensed under Creative Commons Attribution 4.0 International
+        </a>
+        <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
+        <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
+        <span itemProp="copyrightHolder" itemScope itemType="https://schema.org/Person">
+          <meta itemProp="name" content="Budi Putra Jaya" />
+          <a href="https://www.brawnly.online" itemProp="url" tabIndex={-1} rel="noopener noreferrer">Budi Putra Jaya</a>
+        </span>
+        <meta itemProp="copyrightYear" content="2026" />
+      </div>
+
       <div
         aria-hidden="true"
         style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}

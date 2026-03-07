@@ -242,6 +242,21 @@ const Footer = () => {
                     whiteSpace: "nowrap",
                 }}
             >
+                {/* ── CC BY 4.0 License — for crawlers ── */}
+                <div itemScope itemType="https://schema.org/CreativeWork">
+                    <meta itemProp="license" content="https://creativecommons.org/licenses/by/4.0/" />
+                    <a href="https://creativecommons.org/licenses/by/4.0/" itemProp="license" tabIndex={-1} rel="license noopener noreferrer">
+                        This work is licensed under Creative Commons Attribution 4.0 International
+                    </a>
+                    <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
+                    <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
+                    <span itemProp="copyrightHolder" itemScope itemType="https://schema.org/Person">
+                        <meta itemProp="name" content={CONTACT_NAME} />
+                        <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{CONTACT_NAME}</a>
+                    </span>
+                    <meta itemProp="copyrightYear" content={FOUNDED_YEAR} />
+                </div>
+
                 {/* Organization */}
                 <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
                     <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
