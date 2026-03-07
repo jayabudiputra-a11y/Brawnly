@@ -11,12 +11,13 @@
     <meta name="author" content="Budi Putra Jaya" />
     <meta name="robots" content="index, follow" />
     <meta name="p:domain_verify" content="b1ec3672b7e2152de235df12134d446c" />
+    <meta name="google-adsense-account" content="ca-pub-7678404408306696" />
+
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.brawnly.online/" />
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
     <meta property="og:image" content="/assets/myPride.gif" />
-
 
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https: http:;
@@ -28,6 +29,11 @@
         https://substack.com https://*.substack.com
         https://assets.pinterest.com
         https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://partner.googleadservices.com
+        https://*.googlesyndication.com
+        https://*.googletagservices.com
+        https://*.g.doubleclick.net
         https: http:;
       script-src-elem 'self' 'unsafe-inline' 'unsafe-eval'
         https://platform.twitter.com https://*.twimg.com
@@ -36,6 +42,11 @@
         https://substack.com https://*.substack.com
         https://assets.pinterest.com
         https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://partner.googleadservices.com
+        https://*.googlesyndication.com
+        https://*.googletagservices.com
+        https://*.g.doubleclick.net
         https: http:;
       style-src 'self' 'unsafe-inline' https: http:;
       img-src 'self' data: blob:
@@ -46,6 +57,10 @@
         https://substackcdn.com https://*.substack.com
         https://pinimg.com https://*.pinimg.com
         https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://*.googlesyndication.com
+        https://*.g.doubleclick.net
+        https://www.google.com
         https: http:;
       media-src 'self' https: http: blob: data:;
       connect-src 'self' blob: data:
@@ -60,7 +75,12 @@
         https://*.royaleapi.com https://royaleapi.com
         https://api.allorigins.win https://thingproxy.freeboard.io
         https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com
-        https://api.codetabs.com;
+        https://api.codetabs.com
+        https://pagead2.googlesyndication.com
+        https://*.googlesyndication.com
+        https://*.g.doubleclick.net
+        https://googleads.g.doubleclick.net
+        https://www.googletagmanager.com;
       font-src 'self' data: https: http:;
       frame-src 'self' https: http:
         https://www.youtube.com https://www.youtube-nocookie.com
@@ -69,7 +89,10 @@
         https://embed.tumblr.com https://*.tumblr.com
         https://substack.com https://*.substack.com
         https://www.pinterest.com https://ru.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com;
+        https://*.royaleapi.com https://royaleapi.com
+        https://googleads.g.doubleclick.net
+        https://*.googlesyndication.com
+        https://tpc.googlesyndication.com;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
@@ -105,6 +128,14 @@
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://zlwhvkexgjisyhakxyoe.supabase.co" />
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
+    <link rel="preconnect" href="https://partner.googleadservices.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://partner.googleadservices.com" />
+    <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />
 
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
@@ -122,6 +153,7 @@
 
     <link rel="icon" type="image/svg+xml" href="/assets/Brawnly-favicon.svg" />
     <link rel="apple-touch-icon" href="/assets/Brawnly-17aDfvayqUvay.gif" />
+
     <style>
       :root { font-display: swap; }
       .noscript-msg { padding: 20px; text-align: center; background: #000; color: #fff; }
@@ -131,8 +163,62 @@
       #root { min-height: 100vh; opacity: 0; animation: fadeIn 0.2s ease-in-out forwards; will-change: opacity; }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       img[loading="lazy"] { aspect-ratio: attr(width) / attr(height); background: rgba(128,128,128,0.05); }
+      .adsbygoogle { display: block; }
+      ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
     </style>
+
+    <script>
+      (function(){
+        var _origAEL = EventTarget.prototype.addEventListener;
+        var _origREL = EventTarget.prototype.removeEventListener;
+        EventTarget.prototype.addEventListener = function(type, listener, options) {
+          return _origAEL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+        };
+        EventTarget.prototype.removeEventListener = function(type, listener, options) {
+          return _origREL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+        };
+        function _isViolationNoise(args) {
+          var msg = args && args[0];
+          if (!msg) return false;
+          if (typeof msg === 'string') {
+            return msg.includes('unload') ||
+                   msg.includes('Permissions policy') ||
+                   msg.includes('[Violation]');
+          }
+          if (typeof msg === 'object' && msg.message) {
+            return String(msg.message).includes('unload') ||
+                   String(msg.message).includes('Permissions policy');
+          }
+          return false;
+        }
+        var _ow = console.warn;
+        console.warn = function() {
+          if (_isViolationNoise(arguments)) return;
+          _ow.apply(console, arguments);
+        };
+        var _oe = console.error;
+        console.error = function() {
+          if (_isViolationNoise(arguments)) return;
+          _oe.apply(console, arguments);
+        };
+        if (typeof window.reportError === 'function') {
+          var _origRE = window.reportError;
+          window.reportError = function(err) {
+            try { if (err && String(err).includes('unload')) return; } catch(e) {}
+            return _origRE.apply(this, arguments);
+          };
+        }
+      })();
+    </script>
+
+    <script>
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adsbygoogle.pauseAdRequests = 0;
+    </script>
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7678404408306696" crossorigin="anonymous"></script>
   </head>
+
   <body class="antialiased bg-white dark:bg-black selection:bg-emerald-500 selection:text-white">
     <noscript>
       <div class="noscript-msg">Please enable JavaScript to view Brawnly.</div>
@@ -146,122 +232,110 @@
     </div>
 
     <script>
-      
       (function() {
-        var _origAEL = EventTarget.prototype.addEventListener;
-        var _origREL = EventTarget.prototype.removeEventListener;
-        var _unloadMap = new WeakMap();
+        var failedUrls = new Set();
+        var originalFetch = window.fetch;
 
-        EventTarget.prototype.addEventListener = function(type, listener, options) {
-          if (type === 'unload') {
-            if (!_unloadMap.has(listener)) _unloadMap.set(listener, listener);
-            return _origAEL.call(this, 'pagehide', listener, options);
-          }
-          return _origAEL.call(this, type, listener, options);
-        };
+        window.fetch = async function(resource, options) {
+          var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
 
-        EventTarget.prototype.removeEventListener = function(type, listener, options) {
-          if (type === 'unload') {
-            return _origREL.call(this, 'pagehide', listener, options);
+          var isRSSTarget = url && (
+            url.includes('api.rss2json.com') ||
+            url.includes('youtube.com/feeds') ||
+            url.includes('substack.com/feed') ||
+            url.includes('tumblr.com/rss') ||
+            url.includes('cors.sh') ||
+            url.includes('thingproxy') ||
+            url.includes('allorigins.win')
+          );
+
+          var isAdSense = url && (
+            url.includes('googlesyndication.com') ||
+            url.includes('doubleclick.net') ||
+            url.includes('googleadservices.com') ||
+            url.includes('googletagservices.com')
+          );
+
+          if (!isRSSTarget || isAdSense) {
+            return originalFetch.apply(this, arguments);
           }
-          return _origREL.call(this, type, listener, options);
+
+          var cleanUrl = url;
+          if (url.includes('allorigins.win')) {
+            try {
+              var match = url.match(/[?&]url=([^&]+)/);
+              if (match) cleanUrl = decodeURIComponent(match[1]);
+            } catch(e) {}
+          }
+
+          var dummyXML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
+
+          if (failedUrls.has(cleanUrl)) {
+            return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+          }
+
+          var proxies = [
+            function(u) { return u; },
+            function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+            function(u) {
+              if (u.includes('api.rss2json.com')) return null;
+              return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
+            },
+            function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); }
+          ];
+
+          for (var i = 0; i < proxies.length; i++) {
+            var proxyUrl = proxies[i](cleanUrl);
+            if (!proxyUrl) continue;
+            try {
+              var ctrl = new AbortController();
+              var tid = setTimeout(function(c) { return function() { c.abort(); }; }(ctrl), i === 0 ? 5000 : 6000);
+              var res = await originalFetch(proxyUrl, {
+                signal: ctrl.signal,
+                headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
+              });
+              clearTimeout(tid);
+              if (res.ok) return res;
+            } catch(e) {
+              continue;
+            }
+          }
+
+          failedUrls.add(cleanUrl);
+          return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
         };
       })();
 
-      window.addEventListener('load', function() {
-
-        // dari domain brawnly.online (CORS + server error 500).
-        (function() {
-          var failedUrls = new Set();
-          var originalFetch = window.fetch;
-
-          window.fetch = async function(resource, options) {
-            var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
-
-            var isRSSTarget = url && (
-              url.includes('api.rss2json.com') ||
-              url.includes('youtube.com/feeds') ||
-              url.includes('substack.com/feed') ||
-              url.includes('tumblr.com/rss') ||
-              url.includes('cors.sh') ||
-              url.includes('thingproxy') ||
-              url.includes('allorigins.win')
-            );
-
-            if (!isRSSTarget) {
-              return originalFetch.apply(this, arguments);
-            }
-
-            var cleanUrl = url;
-            if (url.includes('allorigins.win')) {
-              try {
-                var match = url.match(/[?&]url=([^&]+)/);
-                if (match) cleanUrl = decodeURIComponent(match[1]);
-              } catch(e) {}
-            }
-
-            var dummyXML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
-
-            if (failedUrls.has(cleanUrl)) {
-              return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-            }
-
-            var proxies = [
-              function(u) { return u; },
-              function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-              function(u) {
-                if (u.includes('api.rss2json.com')) return null; // skip, sudah dicoba direct
-                return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
-              },
-              // 3: corsproxy.io - last resort
-              function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); }
-            ];
-
-            for (var i = 0; i < proxies.length; i++) {
-              var proxyUrl = proxies[i](cleanUrl);
-              if (!proxyUrl) continue;
-              try {
-                var ctrl = new AbortController();
-                var tid = setTimeout(function(c) { return function() { c.abort(); }; }(ctrl), i === 0 ? 5000 : 6000);
-                var res = await originalFetch(proxyUrl, {
-                  signal: ctrl.signal,
-                  headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
-                });
-                clearTimeout(tid);
-                if (res.ok) return res;
-              } catch(e) {
-                continue;
-              }
-            }
-
-            failedUrls.add(cleanUrl);
-            return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-          };
-        })();
-
-        // Suppress React DevTools noise
-        try {
-          if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
-            for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-              if (x !== 'renderers') {
-                __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null;
-              }
+      try {
+        if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
+          for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
+            if (x !== 'renderers') {
+              __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null;
             }
           }
-        } catch(e){}
+        }
+      } catch(e){}
 
-        // Suppress known non-critical console errors
-        var originalConsoleError = console.error;
-        console.error = function() {
-          if (arguments[0] && typeof arguments[0] === 'string' && (
-            arguments[0].includes('fetchPriority') ||
-            arguments[0].includes('Hydration') ||
-            arguments[0].includes('unload') ||
-            arguments[0].includes('Permissions policy')
-          )) return;
-          originalConsoleError.apply(console, arguments);
-        };
-      });
+      function _isSuppressed(args) {
+        var msg = args && args[0];
+        if (!msg) return false;
+        var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
+        return s.includes('fetchPriority') ||
+               s.includes('Hydration') ||
+               s.includes('unload') ||
+               s.includes('Permissions policy') ||
+               s.includes('[Violation]');
+      }
+      var originalConsoleError = console.error;
+      console.error = function() {
+        if (_isSuppressed(arguments)) return;
+        originalConsoleError.apply(console, arguments);
+      };
+      var originalConsoleWarn = console.warn;
+      console.warn = function() {
+        if (_isSuppressed(arguments)) return;
+        originalConsoleWarn.apply(console, arguments);
+      };
 
       window.__deferScript = function(src) {
         if (src && (src.endsWith('.js') || src.includes('.js?'))) {

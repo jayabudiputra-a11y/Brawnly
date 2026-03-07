@@ -32,6 +32,7 @@ import {
   ExternalLink as _El,
   Volume2,
   VolumeX,
+  Pause,
 } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,6 +70,11 @@ const IMAGE_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
 const IMAGE_COPYRIGHT_NOTICE = "© 2026 Budi Putra Jaya. All rights reserved.";
 const IMAGE_ACQUIRE_LICENSE_URL = "https://www.brawnly.online/license";
 const IMAGE_CREATOR_NAME = "Budi Putra Jaya";
+
+// ─── AdSense Constants ───────────────────────────────────────────────────────
+const ADSENSE_CLIENT = "ca-pub-7678404408306696";
+const ADSENSE_IN_ARTICLE_SLOT = "5568488303";
+const ADSENSE_SIDEBAR_SLOT = "5568488303";
 
 // ─── Social Media Constants ─────────────────────────────────────────────────
 
@@ -158,36 +164,42 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
-  try {
-    const res = await fetch(
-      `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
-      { signal: AbortSignal.timeout(5000) }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
-        const items: RSSItem[] = data.items.map((item: any) => ({
-          title: item.title || "",
-          link: item.link || "",
-          pubDate: item.pubDate || "",
-          description: (item.description || "")
-            .replace(/<[^>]+>/g, "")
-            .trim()
-            .slice(0, 160),
-          thumbnail:
-            item.thumbnail ||
-            (item.enclosure?.link) ||
-            "",
-          videoId: (item.link || "").match(
-            /(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/
-          )?.[1],
-        }));
-        _rssCache.set(feedUrl, { ts: Date.now(), items });
-        return items;
+  const _skipRss2json =
+    feedUrl.includes("youtube.com/feeds") ||
+    feedUrl.includes("tumblr.com/rss");
+
+  if (!_skipRss2json) {
+    try {
+      const res = await fetch(
+        `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
+          const items: RSSItem[] = data.items.map((item: any) => ({
+            title: item.title || "",
+            link: item.link || "",
+            pubDate: item.pubDate || "",
+            description: (item.description || "")
+              .replace(/<[^>]+>/g, "")
+              .trim()
+              .slice(0, 160),
+            thumbnail:
+              item.thumbnail ||
+              (item.enclosure?.link) ||
+              "",
+            videoId: (item.link || "").match(
+              /(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/
+            )?.[1],
+          }));
+          _rssCache.set(feedUrl, { ts: Date.now(), items });
+          return items;
+        }
       }
+    } catch (e) {
+      // continue to proxy chain
     }
-  } catch (e) {
-    // continue to proxy chain
   }
 
   for (const proxy of CORS_PROXIES.slice(1)) {
@@ -346,10 +358,14 @@ function useYouTubeFeed(handle: string, count = 4) {
 
 type ParsedBlock =
   | { type: "text"; html: string }
-  | { type: "tweet"; url: string };
+  | { type: "tweet"; url: string }
+  | { type: "ad" };
 
-function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
-  const result: ParsedBlock[] = [];
+function parseParagraphs(paragraphs: string[]): ({ type: "text"; html: string } | { type: "tweet"; url: string })[] {
+  const result: (
+    | { type: "text"; html: string }
+    | { type: "tweet"; url: string }
+  )[] = [];
 
   const standaloneTweetRe =
     /^(?:<[^>]+>)*\s*(https?:\/\/(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/statuse?s?\/\d+[^\s<"]*)\s*(?:<\/[^>]+>)*$/i;
@@ -389,12 +405,54 @@ function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
 }
 
 function fmtHtml(text: string): string {
+  if (/<[a-zA-Z!]/.test(text)) return text;
   return text
     .replace(
       /\*\*(.*?)\*\*/g,
       `<strong class="font-black text-black dark:text-white">$1</strong>`
     )
     .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
+}
+
+// ─── Inject ad marker after the Nth real body-text paragraph ─────────────────
+//
+// "Real body-text" excludes:
+//   • Pure <style>…</style> blocks
+//   • Blocks that are purely standalone section-header spans with NO surrounding prose
+//   • <p> whose sole child is a <style> block
+//   • Empty / whitespace-only blocks
+//
+// Layout: paragraph 1 → paragraph 2 → paragraph 3 → [AD] → paragraph 4 … N
+
+function _isAdCountable(html: string): boolean {
+  const t = html.trim();
+  if (!t) return false;
+  if (/^<style[\s>]/i.test(t)) return false;
+  if (/^<p[^>]*>\s*<style[\s>]/i.test(t)) return false;
+  if (/^<span[^>]+>[^<]*<\/span>\s*$/.test(t)) return false;
+  return true;
+}
+
+function injectAdAfterParagraph(
+  blocks: ({ type: "text"; html: string } | { type: "tweet"; url: string })[],
+  afterNth = 3  // ← ad after 3rd real paragraph
+): ParsedBlock[] {
+  let textCount = 0;
+  let adInserted = false;
+  const result: ParsedBlock[] = [];
+
+  for (const block of blocks) {
+    result.push(block);
+    if (!adInserted && block.type === "text" && _isAdCountable(block.html)) {
+      textCount++;
+      if (textCount === afterNth) {
+        result.push({ type: "ad" });
+        adInserted = true;
+      }
+    }
+  }
+
+  return result;
 }
 
 function safeBlobRevoke(url: string | null) {
@@ -415,6 +473,344 @@ function formatRSSDate(dateStr: string): string {
   } catch {
     return dateStr.slice(0, 16);
   }
+}
+
+// ─── AdSense Components ───────────────────────────────────────────────────────
+
+// ─── AdSense Placeholder Skeleton ─────────────────────────────────────────────
+/**
+ * Animated skeleton shown while AdSense in-article ad is loading.
+ * Mimics a typical mobile banner / rectangle shape so the layout
+ * doesn't jump when the real ad renders.
+ */
+function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ height }}
+      className="w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 relative"
+    >
+      {/* shimmer sweep */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.36) 50%, rgba(255,255,255,0.18) 60%, transparent 100%)",
+          backgroundSize: "200% 100%",
+          animation: "adSkeletonShimmer 1.6s infinite linear",
+        }}
+      />
+      {/* fake ad content blocks */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
+        <div className="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-60" />
+        <div className="w-3/5 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
+        <div className="w-2/5 h-2.5 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-40" />
+        <div className="mt-2 w-24 h-7 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
+      </div>
+    </div>
+  );
+}
+
+// Inject shimmer keyframes once
+if (typeof document !== "undefined") {
+  const _sid = "__adSkeletonStyles__";
+  if (!document.getElementById(_sid)) {
+    const s = document.createElement("style");
+    s.id = _sid;
+    s.textContent = `
+      @keyframes adSkeletonShimmer {
+        0%   { background-position: -200% 0; }
+        100% { background-position:  200% 0; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+}
+
+/**
+ * In-article fluid ad — inserted after the 3rd paragraph.
+ *
+ * Uses the exact Google-recommended code:
+ *   data-ad-layout="in-article"
+ *   data-ad-format="fluid"
+ *
+ * Shows an animated skeleton placeholder until AdSense fills the slot.
+ * A MutationObserver watches the <ins> element; once AdSense sets its
+ * height (> 0), the skeleton is hidden and the real ad is revealed.
+ * Falls back to hiding the skeleton after 8 s so layout doesn't stay
+ * locked forever if AdSense has no fill.
+ */
+function AdSenseInArticle() {
+  const _wrapRef   = _uR<HTMLDivElement>(null);
+  const _insRef    = _uR<HTMLModElement>(null);
+  const _pushed    = _uR(false);
+  const [_loaded, _setLoaded] = _s(false);
+
+  _e(() => {
+    // Push the ad slot exactly once
+    if (!_pushed.current) {
+      _pushed.current = true;
+      try {
+        const win = window as any;
+        (win.adsbygoogle = win.adsbygoogle || []).push({});
+      } catch (_) {}
+    }
+
+    // Watch for AdSense to inject height into the <ins>
+    const ins = _insRef.current;
+    if (!ins) return;
+
+    const _reveal = () => _setLoaded(true);
+
+    // MutationObserver: AdSense sets style.height when it renders
+    const mo = new MutationObserver(() => {
+      const h = parseInt(ins.style.height || "0", 10);
+      if (h > 0) { _reveal(); mo.disconnect(); }
+    });
+    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
+
+    // ResizeObserver fallback
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(([entry]) => {
+        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
+      });
+      ro.observe(ins);
+    }
+
+    // Hard timeout: remove skeleton after 8 s regardless
+    const _t = setTimeout(_reveal, 8000);
+
+    return () => {
+      mo.disconnect();
+      ro?.disconnect();
+      clearTimeout(_t);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={_wrapRef}
+      className="my-10 md:my-14 max-w-[840px] mx-auto"
+      aria-label="Advertisement"
+    >
+      {/* "Advertisement" micro-label */}
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
+        Advertisement
+      </p>
+
+      {/* Skeleton — visible until AdSense renders */}
+      {!_loaded && (
+        <_AdSkeletonInArticle height={280} />
+      )}
+
+      {/* Real AdSense slot — always in the DOM so AdSense can find it */}
+      <ins
+        ref={_insRef}
+        className="adsbygoogle"
+        style={{
+          display: "block",
+          textAlign: "center",
+          // hide until loaded so skeleton & real ad don't overlap
+          opacity: _loaded ? 1 : 0,
+          transition: "opacity 0.4s ease",
+        }}
+        data-ad-layout="in-article"
+        data-ad-format="fluid"
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
+      />
+      {/* Required push script inline (idiomatic React way) */}
+      {/* Note: adsbygoogle.push() is called in useEffect above */}
+    </div>
+  );
+}
+
+/**
+ * Mobile-only in-article fluid ad (hidden on lg+).
+ * Same skeleton + observer pattern as AdSenseInArticle.
+ * Uses a slightly shorter skeleton height (250px) for mobile screens.
+ */
+function AdSenseInArticleMobile() {
+  const _insRef = _uR<HTMLModElement>(null);
+  const _pushed = _uR(false);
+  const [_loaded, _setLoaded] = _s(false);
+
+  _e(() => {
+    if (!_pushed.current) {
+      _pushed.current = true;
+      try {
+        const win = window as any;
+        (win.adsbygoogle = win.adsbygoogle || []).push({});
+      } catch (_) {}
+    }
+
+    const ins = _insRef.current;
+    if (!ins) return;
+
+    const _reveal = () => _setLoaded(true);
+
+    const mo = new MutationObserver(() => {
+      const h = parseInt(ins.style.height || "0", 10);
+      if (h > 0) { _reveal(); mo.disconnect(); }
+    });
+    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(([entry]) => {
+        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
+      });
+      ro.observe(ins);
+    }
+
+    const _t = setTimeout(_reveal, 8000);
+    return () => {
+      mo.disconnect();
+      ro?.disconnect();
+      clearTimeout(_t);
+    };
+  }, []);
+
+  return (
+    <div
+      className="my-8 md:my-12 lg:hidden"
+      aria-label="Advertisement"
+    >
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
+        Advertisement
+      </p>
+
+      {!_loaded && (
+        <_AdSkeletonInArticle height={250} />
+      )}
+
+      <ins
+        ref={_insRef}
+        className="adsbygoogle"
+        style={{
+          display: "block",
+          textAlign: "center",
+          width: "100%",
+          opacity: _loaded ? 1 : 0,
+          transition: "opacity 0.4s ease",
+        }}
+        data-ad-layout="in-article"
+        data-ad-format="fluid"
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
+      />
+    </div>
+  );
+}
+
+/**
+ * Sidebar ad — below Pinterest widget on desktop.
+ * Sized properly so AdSense can render: min-height 280px,
+ * full container width, no unnecessary padding that would
+ * shrink the <ins> element below AdSense's minimum threshold.
+ */
+function AdSenseSidebar() {
+  const _insRef = _uR<HTMLModElement>(null);
+  const _pushed = _uR(false);
+  const [_loaded, _setLoaded] = _s(false);
+
+  _e(() => {
+    if (!_pushed.current) {
+      _pushed.current = true;
+      try {
+        const win = window as any;
+        (win.adsbygoogle = win.adsbygoogle || []).push({});
+      } catch (_) {}
+    }
+
+    const ins = _insRef.current;
+    if (!ins) return;
+
+    const _reveal = () => _setLoaded(true);
+
+    const mo = new MutationObserver(() => {
+      const h = parseInt(ins.style.height || "0", 10);
+      if (h > 0) { _reveal(); mo.disconnect(); }
+    });
+    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(([entry]) => {
+        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
+      });
+      ro.observe(ins);
+    }
+
+    const _t = setTimeout(_reveal, 8000);
+    return () => {
+      mo.disconnect();
+      ro?.disconnect();
+      clearTimeout(_t);
+    };
+  }, []);
+
+  return (
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
+      aria-label="Advertisement"
+    >
+      {/* Top accent stripe */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700" />
+
+      <div className="px-0 py-4">
+        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-3 text-center select-none">
+          Advertisement
+        </p>
+
+        {/* Skeleton shown while AdSense loads */}
+        {!_loaded && (
+          <div
+            aria-hidden="true"
+            style={{ height: 300 }}
+            className="w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 relative mx-auto"
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.36) 50%, rgba(255,255,255,0.18) 60%, transparent 100%)",
+                backgroundSize: "200% 100%",
+                animation: "adSkeletonShimmer 1.6s infinite linear",
+              }}
+            />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
+              <div className="w-14 h-14 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-60" />
+              <div className="w-3/5 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
+              <div className="w-2/5 h-2.5 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-40" />
+              <div className="mt-2 w-20 h-6 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
+            </div>
+          </div>
+        )}
+
+        {/* Real AdSense slot — always in DOM */}
+        <div style={{ minHeight: _loaded ? "auto" : 0, width: "100%", display: "block" }}>
+          <ins
+            ref={_insRef}
+            className="adsbygoogle"
+            style={{
+              display: "block",
+              width: "100%",
+              minWidth: "250px",
+              minHeight: "280px",
+              opacity: _loaded ? 1 : 0,
+              transition: "opacity 0.4s ease",
+            }}
+            data-ad-client={ADSENSE_CLIENT}
+            data-ad-slot={ADSENSE_SIDEBAR_SLOT}
+            data-ad-format="auto"
+            data-full-width-responsive="true"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Suspense Fallbacks ──────────────────────────────────────────────────────
@@ -1534,6 +1930,8 @@ function ClashRoyaleWidget() {
   );
 }
 
+// ─── Social Widget Groups ─────────────────────────────────────────────────────
+
 function SocialWidgetsDesktop() {
   return (
     <div className="flex flex-col gap-6">
@@ -1552,6 +1950,12 @@ function SocialWidgetsDesktop() {
       <Suspense fallback={<SuspenseFallbackWidget />}>
         <PinterestWidget />
       </Suspense>
+      {/*
+        ── AdSense sidebar ad — below Pinterest on desktop ──
+        Full-width responsive, min-height 300px so AdSense
+        renderer always has room to pick a proper format.
+      */}
+      <AdSenseSidebar />
     </div>
   );
 }
@@ -1585,6 +1989,218 @@ function SocialWidgetsMobileBottom() {
   );
 }
 
+// ─── MP4 / Native Video Shorts Player ────────────────────────────────────────
+//
+// Displays a local MP4 (or webm/mov) in a vertical 9:16 portrait container
+// styled like Bon Appétit / YouTube Shorts — auto-plays muted on scroll-into-
+// view, tap-to-unmute, tap-to-pause/resume.
+
+function VideoShortsPlayer({
+  videoUrl,
+  title,
+  index,
+  articleDate,
+  description,
+  compact = false,
+}: {
+  videoUrl: string;
+  title: string;
+  index: number;
+  articleDate?: string;
+  description?: string;
+  compact?: boolean;
+}) {
+  const videoRef = _uR<HTMLVideoElement>(null);
+  const wrapRef = _uR<HTMLDivElement>(null);
+  const [muted, setMuted] = _s(true);
+  const [playing, setPlaying] = _s(false);
+  const [loaded, setLoaded] = _s(false);
+
+  // Auto-play when ≥50 % of the player is in the viewport
+  _e(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!videoRef.current) return;
+        if (entry.isIntersecting) {
+          videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+        } else {
+          videoRef.current.pause();
+          setPlaying(false);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const handleTogglePlay = () => {
+    if (!videoRef.current) return;
+    if (playing) {
+      videoRef.current.pause();
+      setPlaying(false);
+    } else {
+      videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+    }
+  };
+
+  const handleUnmute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    videoRef.current.muted = false;
+    setMuted(false);
+  };
+
+  const playerWidth = compact ? "min(280px, 90vw)" : "min(360px, 82vw)";
+
+  return (
+    <div
+      className={`flex flex-col items-center justify-center ${compact ? "mb-6" : "mb-16"}`}
+      itemScope
+      itemType="https://schema.org/VideoObject"
+    >
+      <meta itemProp="position" content={String(index + 1)} />
+      <meta itemProp="name" content={title} />
+      <meta itemProp="description" content={description || title} />
+      <meta itemProp="contentUrl" content={videoUrl} />
+      {articleDate && <meta itemProp="uploadDate" content={articleDate} />}
+      <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
+        <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
+      </span>
+
+      <div ref={wrapRef} className="relative w-full flex justify-center">
+        {/* Ambient glow */}
+        <div
+          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-40 pointer-events-none"
+          aria-hidden="true"
+        />
+
+        {/* Portrait shell — identical border/shadow treatment to YT Shorts player */}
+        <div
+          className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black cursor-pointer"
+          style={{ width: playerWidth, aspectRatio: "9 / 16" }}
+          onClick={handleTogglePlay}
+          role="button"
+          aria-label={playing ? `Pause ${title}` : `Play ${title}`}
+        >
+          {/* Skeleton while buffering */}
+          {!loaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 animate-pulse z-10">
+              <div className="w-14 h-14 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+            </div>
+          )}
+
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            muted={muted}
+            loop
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-cover"
+            aria-label={`${title} — Video ${index + 1}`}
+            onCanPlay={() => setLoaded(true)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+          />
+
+          {/* Play overlay — only when paused */}
+          {!playing && loaded && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-2xl">
+                <_Pc size={28} className="text-white ml-1" aria-hidden="true" />
+              </div>
+            </div>
+          )}
+
+          {/* Unmute pill */}
+          {muted && playing && (
+            <button
+              onClick={handleUnmute}
+              aria-label="Tap to unmute video"
+              className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
+            >
+              <VolumeX size={12} aria-hidden="true" />
+              Unmute
+            </button>
+          )}
+
+          {/* Live indicator when sound is on */}
+          {!muted && playing && (
+            <div
+              className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
+              aria-hidden="true"
+            >
+              <Volume2 size={12} />
+              Live
+            </div>
+          )}
+
+          {/* Duration / progress bar at bottom */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20 pointer-events-none"
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+
+      {/* Caption row */}
+      <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
+        <_Pc size={16} aria-hidden="true" />
+        Watch Video
+      </div>
+    </div>
+  );
+}
+
+/** Grid wrapper: 1-col for single, 2-col sm+ for multiple MP4s */
+function VideoShortsGrid({
+  videos,
+  title,
+  articleDate,
+  description,
+}: {
+  videos: string[];
+  title: string;
+  articleDate?: string;
+  description?: string;
+}) {
+  if (videos.length === 0) return null;
+
+  if (videos.length === 1) {
+    return (
+      <VideoShortsPlayer
+        videoUrl={videos[0]}
+        title={title}
+        index={0}
+        articleDate={articleDate}
+        description={description}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 w-full"
+      aria-label={`${videos.length} videos`}
+    >
+      {videos.map((url, idx) => (
+        <VideoShortsPlayer
+          key={`mp4-grid-${idx}`}
+          videoUrl={url}
+          title={title}
+          index={idx}
+          articleDate={articleDate}
+          description={description}
+          compact
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── YouTube Shorts Player ────────────────────────────────────────────────────
 
 function YouTubeShortsPlayer({
@@ -1592,8 +2208,9 @@ function YouTubeShortsPlayer({
   title,
   index,
   thumbUrl,
-  articleDate,    // FIX: untuk uploadDate schema.org
-  description,    // FIX: untuk description schema.org
+  articleDate,
+  description,
+  compact = false,
 }: {
   videoUrl: string;
   title: string;
@@ -1601,6 +2218,7 @@ function YouTubeShortsPlayer({
   thumbUrl?: string;
   articleDate?: string;
   description?: string;
+  compact?: boolean;
 }) {
   const iframeRef = _uR<HTMLIFrameElement>(null);
   const [muted, _setMuted] = _s(true);
@@ -1622,7 +2240,6 @@ function YouTubeShortsPlayer({
     ? `https://www.youtube-nocookie.com/embed/${videoId}`
     : null;
 
-  // FIX: YouTube thumbnail dari videoId, selalu tersedia (tidak pakai blob/article image)
   const ytThumbnailUrl = videoId
     ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
     : thumbUrl;
@@ -1680,23 +2297,24 @@ function YouTubeShortsPlayer({
 
   if (!embedBase || !videoId) return null;
 
+  const playerWidth = compact
+    ? "min(280px, 90vw)"
+    : "min(340px, 80vw)";
+
   return (
     <div
-      className="flex flex-col items-center justify-center mb-16"
+      className={`flex flex-col items-center justify-center ${compact ? "mb-6" : "mb-16"}`}
       itemScope
       itemType="https://schema.org/VideoObject"
     >
-      {/* FIX: VideoObject — semua field wajib terpenuhi */}
       <meta itemProp="position" content={String(index + 1)} />
       <meta itemProp="name" content={title} />
       <meta itemProp="description" content={description || title} />
       <meta itemProp="embedUrl" content={embedBase} />
       <meta itemProp="contentUrl" content={videoUrl} />
-      {/* FIX: thumbnailUrl dari YouTube (bukan blob/article image) */}
       {ytThumbnailUrl && (
         <meta itemProp="thumbnailUrl" content={ytThumbnailUrl} />
       )}
-      {/* FIX: uploadDate wajib untuk Videos rich result */}
       {articleDate && (
         <meta itemProp="uploadDate" content={articleDate} />
       )}
@@ -1713,7 +2331,7 @@ function YouTubeShortsPlayer({
         <div
           className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
           style={{
-            width: "min(340px, 80vw)",
+            width: playerWidth,
             aspectRatio: "9 / 16",
           }}
         >
@@ -1765,6 +2383,57 @@ function YouTubeShortsPlayer({
       <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
         <_Pc size={16} aria-hidden="true" /> Watch Short
       </div>
+    </div>
+  );
+}
+
+// ─── YouTube Shorts Grid (multiple videos) ────────────────────────────────────
+
+function YouTubeShortsGrid({
+  shorts,
+  title,
+  thumbUrl,
+  articleDate,
+  description,
+}: {
+  shorts: string[];
+  title: string;
+  thumbUrl?: string;
+  articleDate?: string;
+  description?: string;
+}) {
+  if (shorts.length === 0) return null;
+
+  if (shorts.length === 1) {
+    return (
+      <YouTubeShortsPlayer
+        videoUrl={shorts[0]}
+        title={title}
+        index={0}
+        thumbUrl={thumbUrl}
+        articleDate={articleDate}
+        description={description}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 w-full"
+      aria-label={`${shorts.length} YouTube Shorts`}
+    >
+      {shorts.map((videoUrl, idx) => (
+        <YouTubeShortsPlayer
+          key={`yt-grid-${idx}`}
+          videoUrl={videoUrl}
+          title={title}
+          index={idx}
+          thumbUrl={thumbUrl}
+          articleDate={articleDate}
+          description={description}
+          compact
+        />
+      ))}
     </div>
   );
 }
@@ -1880,7 +2549,6 @@ function CommentItem({
   );
 }
 
-// FIX: CommentSectionInner — terima props article untuk DiscussionForumPosting schema
 function CommentSectionInner({
   articleId,
   articleTitle,
@@ -2012,20 +2680,15 @@ function CommentSectionInner({
       itemScope
       itemType="https://schema.org/DiscussionForumPosting"
     >
-      {/* FIX: DiscussionForumPosting — semua field wajib terpenuhi */}
-      {/* headline (non-critical) */}
       {articleTitle && (
         <meta itemProp="headline" content={`Discussion: ${articleTitle}`} />
       )}
-      {/* url (non-critical) */}
       {articleUrl && (
         <meta itemProp="url" content={`${articleUrl}#discussion-${articleId}`} />
       )}
-      {/* datePublished (critical) */}
       {articleDate && (
         <meta itemProp="datePublished" content={articleDate} />
       )}
-      {/* text (critical — either text, image, or video required) */}
       <meta
         itemProp="text"
         content={
@@ -2034,7 +2697,6 @@ function CommentSectionInner({
           "Discussion section for this Brawnly article."
         }
       />
-      {/* author (critical — must be valid Person object, not string) */}
       <span
         itemScope
         itemType="https://schema.org/Person"
@@ -2202,7 +2864,6 @@ function CommentSectionInner({
   );
 }
 
-// FIX: CommentSection — teruskan props artikel ke inner component
 function CommentSection({
   articleId,
   articleTitle,
@@ -2306,6 +2967,41 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
+  const _ytShortsFromCol = _uM<string[]>(() => {
+    const raw = (_art as any)?.youtube_shorts_url as string | null | undefined;
+    if (!raw) return [];
+    return raw
+      .split(/[\r\n,]+/)
+      .map((u: string) => u.trim())
+      .filter(
+        (u: string) =>
+          u.length > 0 &&
+          (u.includes("youtube.com") || u.includes("youtu.be"))
+      );
+  }, [_art]);
+
+  const _allYoutubeShorts = _uM<string[]>(() => {
+    const seen = new Set<string>();
+    return [..._youtubeShorts, ..._ytShortsFromCol].filter((u) => {
+      if (seen.has(u)) return false;
+      seen.add(u);
+      return true;
+    });
+  }, [_youtubeShorts, _ytShortsFromCol]);
+
+  // ── Native MP4 / video files from extra media ────────────────────────────
+  const _mp4Videos = _uM<string[]>(
+    () =>
+      _extraMedia.filter(
+        (url: string) =>
+          !isTweetUrl(url) &&
+          !url.includes("youtube.com") &&
+          !url.includes("youtu.be") &&
+          /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(url)
+      ),
+    [_extraMedia]
+  );
+
   const _animatedImages = _uM(
     () =>
       _extraMedia.filter(
@@ -2315,6 +3011,7 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
+  // Gallery: exclude tweets, youtube, gif/webp, AND mp4/video files
   const _galleryImages = _uM(
     () =>
       _extraMedia.filter(
@@ -2322,14 +3019,22 @@ export default function ArticleDetail() {
           !isTweetUrl(url) &&
           !url.includes("youtube.com") &&
           !url.includes("youtu.be") &&
-          !url.match(/\.(gif|gifv|webp)$/i)
+          !url.match(/\.(gif|gifv|webp)$/i) &&
+          !/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(url)
       ),
     [_extraMedia]
   );
 
-  const _parsedParagraphs = _uM<ParsedBlock[]>(
+  // Raw parsed paragraphs (no ad marker yet)
+  const _rawParsedParagraphs = _uM(
     () => (_pD ? parseParagraphs(_pD.paragraphs) : []),
     [_pD]
+  );
+
+  // ── Inject ad after 3rd real text paragraph ──────────────────────────────
+  const _parsedParagraphs = _uM<ParsedBlock[]>(
+    () => injectAdAfterParagraph(_rawParsedParagraphs, 3),
+    [_rawParsedParagraphs]
   );
 
   _e(() => {
@@ -2482,7 +3187,6 @@ export default function ArticleDetail() {
     initialViews: _art?.views ?? 0,
   });
 
-  // FIX: _jsonLdArticle — image sebagai ImageObject penuh (url, contentUrl, license, creator, dll)
   const _jsonLdArticle =
     _pD && _art
       ? JSON.stringify({
@@ -2556,34 +3260,53 @@ export default function ArticleDetail() {
         })
       : null;
 
-  // FIX: VideoObject JSON-LD untuk setiap YouTube Short
   const _jsonLdVideoObjects = _uM(() => {
-    if (!_pD || !_art || _youtubeShorts.length === 0) return null;
-    return _youtubeShorts.map((videoUrl: string) => {
-      const videoId = videoUrl.match(
-        /(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/
-      )?.[1];
-      return JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "VideoObject",
-        "name": _pD.title,
-        "description": _pD.excerpt || _pD.title,
-        "thumbnailUrl": videoId
-          ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-          : undefined,
-        "uploadDate": _art.published_at,
-        "embedUrl": videoId
-          ? `https://www.youtube-nocookie.com/embed/${videoId}`
-          : undefined,
-        "contentUrl": videoUrl,
-        "author": {
-          "@type": "Person",
-          "name": IMAGE_CREATOR_NAME,
-          "url": "https://www.brawnly.online",
-        },
-      });
-    });
-  }, [_pD, _art, _youtubeShorts]);
+    if (!_pD || !_art) return null;
+
+    const allVideos = [
+      ..._allYoutubeShorts.map((videoUrl: string) => {
+        const videoId = videoUrl.match(
+          /(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/
+        )?.[1];
+        return JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          "name": _pD.title,
+          "description": _pD.excerpt || _pD.title,
+          "thumbnailUrl": videoId
+            ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+            : undefined,
+          "uploadDate": _art.published_at,
+          "embedUrl": videoId
+            ? `https://www.youtube-nocookie.com/embed/${videoId}`
+            : undefined,
+          "contentUrl": videoUrl,
+          "author": {
+            "@type": "Person",
+            "name": IMAGE_CREATOR_NAME,
+            "url": "https://www.brawnly.online",
+          },
+        });
+      }),
+      ..._mp4Videos.map((videoUrl: string) =>
+        JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          "name": _pD.title,
+          "description": _pD.excerpt || _pD.title,
+          "uploadDate": _art.published_at,
+          "contentUrl": videoUrl,
+          "author": {
+            "@type": "Person",
+            "name": IMAGE_CREATOR_NAME,
+            "url": "https://www.brawnly.online",
+          },
+        })
+      ),
+    ];
+
+    return allVideos.length > 0 ? allVideos : null;
+  }, [_pD, _art, _allYoutubeShorts, _mp4Videos]);
 
   const _jsonLdBreadcrumb = _pD
     ? JSON.stringify({
@@ -2672,7 +3395,6 @@ export default function ArticleDetail() {
     ],
   });
 
-  // Canonical & article URL
   const _articleCanonical = `https://www.brawnly.online/article/${_slV}`;
 
   if (!isHydrated) {
@@ -2754,7 +3476,6 @@ export default function ArticleDetail() {
           {_jsonLdArticle && (
             <script type="application/ld+json">{_jsonLdArticle}</script>
           )}
-          {/* FIX: VideoObject JSON-LD untuk setiap YouTube Short */}
           {_jsonLdVideoObjects &&
             _jsonLdVideoObjects.map((ld, idx) => (
               <script key={`ld-video-${idx}`} type="application/ld+json">
@@ -2805,7 +3526,7 @@ export default function ArticleDetail() {
             </time>
           )}
           <div itemProp="articleBody">
-            {_parsedParagraphs.map((block, i) => {
+            {_rawParsedParagraphs.map((block, i) => {
               if (block.type === "text") {
                 return (
                   <p
@@ -2898,7 +3619,6 @@ export default function ArticleDetail() {
             )}
             <meta itemProp="author" content={_art.author || "Brawnly"} />
             <meta itemProp="url" content={_articleCanonical} />
-            {/* FIX: image meta dengan URL absolut valid */}
             {_rawImgSource && (
               <meta itemProp="image" content={_gOI(_rawImgSource, 1200)} />
             )}
@@ -3000,19 +3720,15 @@ export default function ArticleDetail() {
                     className="w-full drop-shadow-2xl"
                   />
                 </div>
-                {/* FIX: Cover ImageObject — url absolut, contentUrl dari _rawImgSource (bukan blob),
-                    ditambah license, creator, copyrightNotice, acquireLicensePage */}
                 <figure
                   className="relative overflow-hidden group rounded-2xl md:rounded-3xl border-2 border-black dark:border-white shadow-2xl z-20 bg-black"
                   itemScope
                   itemType="https://schema.org/ImageObject"
                 >
-                  {/* url: absolute, valid */}
                   <meta
                     itemProp="url"
                     content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""}
                   />
-                  {/* contentUrl: selalu pakai _rawImgSource (bukan blob), agar Google bisa validasi */}
                   <meta
                     itemProp="contentUrl"
                     content={_rawImgSource ? _gOI(_rawImgSource, 1200) : ""}
@@ -3069,8 +3785,15 @@ export default function ArticleDetail() {
                 <SocialWidgetsMobileTop />
               </Suspense>
 
+              {/* ── Main article body: paragraphs + in-article ad after 3rd paragraph ── */}
               <div className="max-w-[840px] mx-auto">
                 {_parsedParagraphs.map((block, i) => {
+                  // ── AdSense in-article ──────────────────────────────────
+                  if (block.type === "ad") {
+                    return <AdSenseInArticle key="adsense-in-article" />;
+                  }
+
+                  // ── Embedded tweet ──────────────────────────────────────
                   if (block.type === "tweet") {
                     return (
                       <div
@@ -3090,6 +3813,8 @@ export default function ArticleDetail() {
                       </div>
                     );
                   }
+
+                  // ── Regular text paragraph ──────────────────────────────
                   return (
                     <div
                       key={`para-text-${i}`}
@@ -3100,6 +3825,7 @@ export default function ArticleDetail() {
                 })}
               </div>
 
+              {/* ── Standalone tweet section (db tweets + media tweets) ────── */}
               {_allTweetUrls.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3143,8 +3869,37 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* FIX: YouTubeShortsPlayer — pass articleDate & description untuk VideoObject schema */}
-              {_youtubeShorts.length > 0 && (
+              {/* ── Native MP4 / video Shorts — vertical portrait player ───── */}
+              {_mp4Videos.length > 0 && (
+                <section
+                  className="my-16 max-w-[840px] mx-auto"
+                  aria-label="Embedded videos"
+                  itemScope
+                  itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="name" content="Embedded Videos" />
+
+                  {/* Section header */}
+                  <div className="flex items-center gap-3 mb-8 opacity-70">
+                    <_Pc size={18} className="text-red-600" aria-hidden="true" />
+                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-black dark:text-white">
+                      {_mp4Videos.length > 1
+                        ? `Videos (${_mp4Videos.length})`
+                        : "Video"}
+                    </span>
+                  </div>
+
+                  <VideoShortsGrid
+                    videos={_mp4Videos}
+                    title={_pD.title}
+                    articleDate={_art.published_at}
+                    description={_pD.excerpt || _pD.title}
+                  />
+                </section>
+              )}
+
+              {/* ── YouTube Shorts ─────────────────────────────────────────── */}
+              {_allYoutubeShorts.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
                   aria-label="Embedded YouTube Shorts"
@@ -3152,26 +3907,31 @@ export default function ArticleDetail() {
                   itemType="https://schema.org/ItemList"
                 >
                   <meta itemProp="name" content="Embedded YouTube Shorts" />
-                  {_youtubeShorts.map(
-                    (videoUrl: string, idx: number) => (
-                      <YouTubeShortsPlayer
-                        key={`yt-short-${idx}`}
-                        videoUrl={videoUrl}
-                        title={_pD.title}
-                        index={idx}
-                        thumbUrl={
-                          _rawImgSource
-                            ? _gOI(_rawImgSource, 600)
-                            : undefined
-                        }
-                        articleDate={_art.published_at}
-                        description={_pD.excerpt || _pD.title}
-                      />
-                    )
+
+                  {_allYoutubeShorts.length > 1 && (
+                    <div className="flex items-center gap-3 mb-8 opacity-70">
+                      <_Pc size={18} className="text-red-600" aria-hidden="true" />
+                      <span className="text-[10px] uppercase font-black tracking-[0.3em] text-black dark:text-white">
+                        YouTube_Shorts ({_allYoutubeShorts.length})
+                      </span>
+                    </div>
                   )}
+
+                  <YouTubeShortsGrid
+                    shorts={_allYoutubeShorts}
+                    title={_pD.title}
+                    thumbUrl={
+                      _rawImgSource
+                        ? _gOI(_rawImgSource, 600)
+                        : undefined
+                    }
+                    articleDate={_art.published_at}
+                    description={_pD.excerpt || _pD.title}
+                  />
                 </section>
               )}
 
+              {/* ── Animated GIFs / WebP ──────────────────────────────────── */}
               {_animatedImages.length > 0 && (
                 <section
                   className="my-20 max-w-[600px] mx-auto"
@@ -3205,7 +3965,6 @@ export default function ArticleDetail() {
                           style={{ contain: "layout" }}
                         >
                           <meta itemProp="position" content={String(idx + 1)} />
-                          {/* FIX: url & contentUrl absolut, tambah license/creator/copyright */}
                           <meta itemProp="url" content={_fC(img)} />
                           <meta itemProp="contentUrl" content={_fC(img)} />
                           <meta
@@ -3253,6 +4012,7 @@ export default function ArticleDetail() {
                 </section>
               )}
 
+              {/* ── Image gallery ─────────────────────────────────────────── */}
               {_galleryImages.length > 0 && (
                 <section
                   className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
@@ -3287,7 +4047,6 @@ export default function ArticleDetail() {
                         itemProp="image"
                         style={{ contain: "layout" }}
                       >
-                        {/* FIX: url & contentUrl absolut, tambah license/creator/copyright */}
                         <meta itemProp="url" content={_fC(img)} />
                         <meta itemProp="contentUrl" content={_fC(img)} />
                         <meta
@@ -3387,7 +4146,6 @@ export default function ArticleDetail() {
                 </button>
               </div>
 
-              {/* FIX: CommentSection — pass semua props artikel agar DiscussionForumPosting valid */}
               <CommentSection
                 articleId={_art.id}
                 articleTitle={_pD.title}
