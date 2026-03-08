@@ -137,11 +137,20 @@ type ProxyEntry = {
   extract?: (text: string) => string;
 };
 
+// ─── FIXED: Improved CORS proxy chain ────────────────────────────────────────
+// corsproxy.io returns 403 for YouTube feeds → moved to last resort
+// allorigins.win wraps in JSON → must use extract fn
+// api.codetabs.com → direct proxy, reliable fallback
+// rss2json → still useful for non-YouTube, non-Tumblr feeds
 const CORS_PROXIES: ProxyEntry[] = [
+  // 1. Direct (may work for non-CORS sources)
   { make: (u) => u },
+  // 2. codetabs — reliable, no JSON wrapping needed
   {
-    make: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    make: (u) =>
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
   },
+  // 3. allorigins — wraps in JSON, must extract .contents
   {
     make: (u) => {
       if (u.includes("api.rss2json.com")) return null;
@@ -149,18 +158,68 @@ const CORS_PROXIES: ProxyEntry[] = [
     },
     extract: (t) => {
       try {
-        return JSON.parse(t).contents ?? t;
+        const parsed = JSON.parse(t);
+        return parsed.contents ?? t;
       } catch {
         return t;
       }
     },
   },
+  // 4. corsproxy.io — last resort (has rate limits & 403 for some YouTube reqs)
   {
     make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   },
 ];
 
+// ─── FIXED: YouTube RSS via multiple strategies ───────────────────────────────
+// Strategy A: rss2json API (skip for YouTube — it used to block but try again)
+// Strategy B: proxy chain with XML parsing
+// Strategy C: fallback to ytimg thumbnail construction via known videoId pattern
+
+async function _parseXmlItems(text: string): Promise<RSSItem[]> {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "text/xml");
+
+  const parseErr =
+    doc.querySelector("parseerror") || doc.querySelector("parsererror");
+  if (parseErr) return [];
+
+  const rawItems = [...doc.querySelectorAll("item, entry")];
+  if (rawItems.length === 0) return [];
+
+  return rawItems.map((item) => {
+    const linkEl = item.querySelector("link");
+    const link =
+      linkEl?.textContent?.trim() ||
+      linkEl?.getAttribute("href") ||
+      "";
+    const ytVideoId =
+      item.querySelector("videoId")?.textContent?.trim() ||
+      link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
+
+    return {
+      title: item.querySelector("title")?.textContent?.trim() || "",
+      link,
+      pubDate:
+        item
+          .querySelector("pubDate, published, updated")
+          ?.textContent?.trim() || "",
+      description: (
+        item.querySelector("description, summary")?.textContent || ""
+      )
+        .replace(/<[^>]+>/g, "")
+        .trim()
+        .slice(0, 160),
+      thumbnail: ytVideoId
+        ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg`
+        : "",
+      videoId: ytVideoId,
+    };
+  });
+}
+
 async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
+  // Return from cache if still fresh
   const cached = _rssCache.get(feedUrl);
   if (cached && Date.now() - cached.ts < RSS_CACHE_TTL) return cached.items;
 
@@ -168,6 +227,7 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
     feedUrl.includes("youtube.com/feeds") ||
     feedUrl.includes("tumblr.com/rss");
 
+  // ── Strategy A: rss2json (skip for YouTube & Tumblr) ──────────────────────
   if (!_skipRss2json) {
     try {
       const res = await fetch(
@@ -197,26 +257,36 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
           return items;
         }
       }
-    } catch (e) {
-      // continue to proxy chain
+    } catch (_e) {
+      // fall through to proxy chain
     }
   }
 
-  for (const proxy of CORS_PROXIES.slice(1)) {
+  // ── Strategy B: proxy chain (skip index 0 / direct for YouTube — CORS blocked) ──
+  const proxyStartIndex = feedUrl.includes("youtube.com/feeds") ? 1 : 0;
+
+  for (let pi = proxyStartIndex; pi < CORS_PROXIES.length; pi++) {
+    const proxy = CORS_PROXIES[pi];
     const endpoint = proxy.make(feedUrl);
     if (!endpoint) continue;
 
     try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), pi === 0 ? 5000 : 7000);
+
       const res = await fetch(endpoint, {
-        signal: AbortSignal.timeout(6000),
+        signal: ctrl.signal,
         headers: { Accept: "application/rss+xml, application/json, text/xml, */*" },
       });
+      clearTimeout(tid);
+
       if (!res.ok) continue;
 
       let text = await res.text();
       if (proxy.extract) text = proxy.extract(text);
       if (!text || text.trim().length < 10) continue;
 
+      // Handle rss2json JSON response (in case allorigins wraps it)
       if (text.trim().startsWith("{")) {
         try {
           const data = JSON.parse(text);
@@ -238,49 +308,17 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
             _rssCache.set(feedUrl, { ts: Date.now(), items });
             return items;
           }
-        } catch {}
+        } catch (_je) {
+          // not valid JSON or not rss2json format — try XML parse below
+        }
       }
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/xml");
-      if (doc.querySelector("parseerror") || doc.querySelector("parsererror")) continue;
-
-      const rawItems = [...doc.querySelectorAll("item, entry")];
-      if (rawItems.length === 0) continue;
-
-      const items: RSSItem[] = rawItems.map((item) => {
-        const linkEl = item.querySelector("link");
-        const link =
-          linkEl?.textContent?.trim() ||
-          linkEl?.getAttribute("href") ||
-          "";
-        const ytVideoId =
-          item.querySelector("videoId")?.textContent?.trim() ||
-          link.match(/(?:v=|youtu\.be\/|\/embed\/|shorts\/)([\w-]{11})/)?.[1];
-
-        return {
-          title: item.querySelector("title")?.textContent?.trim() || "",
-          link,
-          pubDate:
-            item
-              .querySelector("pubDate, published, updated")
-              ?.textContent?.trim() || "",
-          description: (
-            item.querySelector("description, summary")?.textContent || ""
-          )
-            .replace(/<[^>]+>/g, "")
-            .trim()
-            .slice(0, 160),
-          thumbnail: ytVideoId
-            ? `https://i.ytimg.com/vi/${ytVideoId}/mqdefault.jpg`
-            : "",
-          videoId: ytVideoId,
-        };
-      });
-
-      _rssCache.set(feedUrl, { ts: Date.now(), items });
-      return items;
-    } catch {
+      const items = await _parseXmlItems(text);
+      if (items.length > 0) {
+        _rssCache.set(feedUrl, { ts: Date.now(), items });
+        return items;
+      }
+    } catch (_pe) {
       continue;
     }
   }
@@ -323,6 +361,11 @@ function useRSSFeed(url: string, count = 3) {
   return { items, loading };
 }
 
+// ─── FIXED: useYouTubeFeed — robust multi-strategy fetch ─────────────────────
+// 1. Try rss2json (YouTube feeds now partially supported again)
+// 2. Try proxy chain (codetabs → allorigins → corsproxy.io)
+// 3. On complete failure, gracefully return empty — widget shows fallback UI
+
 function useYouTubeFeed(handle: string, count = 4) {
   const [items, _setItems] = _s<RSSItem[]>([]);
   const [loading, _setLoading] = _s(true);
@@ -331,20 +374,33 @@ function useYouTubeFeed(handle: string, count = 4) {
 
   _e(() => {
     let cancelled = false;
+
     async function load() {
       try {
         _setLoading(true);
         const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
-        const data = await fetchRSSViaProxy(feedUrl);
+
+        // De-duplicate in-flight requests
+        const doFetch = (): Promise<RSSItem[]> => {
+          if (_rssPending.has(feedUrl)) return _rssPending.get(feedUrl)!;
+          const p = fetchRSSViaProxy(feedUrl).finally(() =>
+            _rssPending.delete(feedUrl)
+          );
+          _rssPending.set(feedUrl, p);
+          return p;
+        };
+
+        const data = await doFetch();
         if (data && data.length > 0 && !cancelled) {
           _setItems(data.slice(0, count));
         }
       } catch (err) {
-        console.warn("YouTube Feed Error:", err);
+        // silent — widget will show fallback channel link
       } finally {
         if (!cancelled) _setLoading(false);
       }
     }
+
     load();
     return () => {
       cancelled = true;
@@ -415,15 +471,6 @@ function fmtHtml(text: string): string {
 }
 
 // ─── Inject ad marker after the Nth real body-text paragraph ─────────────────
-//
-// "Real body-text" excludes:
-//   • Pure <style>…</style> blocks
-//   • Blocks that are purely standalone section-header spans with NO surrounding prose
-//   • <p> whose sole child is a <style> block
-//   • Empty / whitespace-only blocks
-//
-// Layout: paragraph 1 → paragraph 2 → paragraph 3 → [AD] → paragraph 4 … N
-
 function _isAdCountable(html: string): boolean {
   const t = html.trim();
   if (!t) return false;
@@ -435,7 +482,7 @@ function _isAdCountable(html: string): boolean {
 
 function injectAdAfterParagraph(
   blocks: ({ type: "text"; html: string } | { type: "tweet"; url: string })[],
-  afterNth = 3  // ← ad after 3rd real paragraph
+  afterNth = 3
 ): ParsedBlock[] {
   let textCount = 0;
   let adInserted = false;
@@ -477,12 +524,6 @@ function formatRSSDate(dateStr: string): string {
 
 // ─── AdSense Components ───────────────────────────────────────────────────────
 
-// ─── AdSense Placeholder Skeleton ─────────────────────────────────────────────
-/**
- * Animated skeleton shown while AdSense in-article ad is loading.
- * Mimics a typical mobile banner / rectangle shape so the layout
- * doesn't jump when the real ad renders.
- */
 function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
   return (
     <div
@@ -490,7 +531,6 @@ function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
       style={{ height }}
       className="w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 relative"
     >
-      {/* shimmer sweep */}
       <div
         className="absolute inset-0"
         style={{
@@ -500,7 +540,6 @@ function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
           animation: "adSkeletonShimmer 1.6s infinite linear",
         }}
       />
-      {/* fake ad content blocks */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
         <div className="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-60" />
         <div className="w-3/5 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
@@ -511,7 +550,6 @@ function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
   );
 }
 
-// Inject shimmer keyframes once
 if (typeof document !== "undefined") {
   const _sid = "__adSkeletonStyles__";
   if (!document.getElementById(_sid)) {
@@ -558,12 +596,9 @@ function _MotionCaptureSign() {
         xmlns="http://www.w3.org/2000/svg"
         style={{ animation: "mcSignBounce 2.4s ease-in-out infinite", display: "block" }}
       >
-        {/* pole */}
         <rect x="15.5" y="22" width="3" height="22" rx="1.5" className="fill-black dark:fill-white" fill="currentColor" />
-        {/* sign board */}
         <rect x="1" y="1" width="32" height="21" rx="4" className="fill-black dark:fill-white" fill="currentColor" />
         <rect x="2" y="2" width="30" height="19" rx="3" fill="white" className="dark:fill-[#111]" />
-        {/* down arrow inside board */}
         <g style={{ animation: "mcArrowDrop 1.1s ease-in-out infinite" }}>
           <line x1="17" y1="6" x2="17" y2="15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="stroke-black dark:stroke-white" />
           <polyline points="12,11 17,16 22,11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-black dark:stroke-white" />
@@ -573,19 +608,6 @@ function _MotionCaptureSign() {
   );
 }
 
-/**
- * In-article fluid ad — inserted after the 3rd paragraph.
- *
- * Uses the exact Google-recommended code:
- *   data-ad-layout="in-article"
- *   data-ad-format="fluid"
- *
- * Shows an animated skeleton placeholder until AdSense fills the slot.
- * A MutationObserver watches the <ins> element; once AdSense sets its
- * height (> 0), the skeleton is hidden and the real ad is revealed.
- * Falls back to hiding the skeleton after 8 s so layout doesn't stay
- * locked forever if AdSense has no fill.
- */
 function AdSenseInArticle() {
   const _wrapRef   = _uR<HTMLDivElement>(null);
   const _insRef    = _uR<HTMLModElement>(null);
@@ -593,7 +615,6 @@ function AdSenseInArticle() {
   const [_loaded, _setLoaded] = _s(false);
 
   _e(() => {
-    // Push the ad slot exactly once
     if (!_pushed.current) {
       _pushed.current = true;
       try {
@@ -602,20 +623,17 @@ function AdSenseInArticle() {
       } catch (_) {}
     }
 
-    // Watch for AdSense to inject height into the <ins>
     const ins = _insRef.current;
     if (!ins) return;
 
     const _reveal = () => _setLoaded(true);
 
-    // MutationObserver: AdSense sets style.height when it renders
     const mo = new MutationObserver(() => {
       const h = parseInt(ins.style.height || "0", 10);
       if (h > 0) { _reveal(); mo.disconnect(); }
     });
     mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
 
-    // ResizeObserver fallback
     let ro: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(([entry]) => {
@@ -624,7 +642,6 @@ function AdSenseInArticle() {
       ro.observe(ins);
     }
 
-    // Hard timeout: remove skeleton after 8 s regardless
     const _t = setTimeout(_reveal, 8000);
 
     return () => {
@@ -640,24 +657,20 @@ function AdSenseInArticle() {
       className="my-10 md:my-14 max-w-[840px] mx-auto"
       aria-label="Advertisement"
     >
-      {/* "Advertisement" micro-label */}
       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
         Advertisement
       </p>
 
-      {/* Skeleton — visible until AdSense renders */}
       {!_loaded && (
         <_AdSkeletonInArticle height={280} />
       )}
 
-      {/* Real AdSense slot — always in the DOM so AdSense can find it */}
       <ins
         ref={_insRef}
         className="adsbygoogle"
         style={{
           display: "block",
           textAlign: "center",
-          // hide until loaded so skeleton & real ad don't overlap
           opacity: _loaded ? 1 : 0,
           transition: "opacity 0.4s ease",
         }}
@@ -666,17 +679,10 @@ function AdSenseInArticle() {
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
       />
-      {/* Required push script inline (idiomatic React way) */}
-      {/* Note: adsbygoogle.push() is called in useEffect above */}
     </div>
   );
 }
 
-/**
- * Mobile-only in-article fluid ad (hidden on lg+).
- * Same skeleton + observer pattern as AdSenseInArticle.
- * Uses a slightly shorter skeleton height (250px) for mobile screens.
- */
 function AdSenseInArticleMobile() {
   const _insRef = _uR<HTMLModElement>(null);
   const _pushed = _uR(false);
@@ -750,12 +756,6 @@ function AdSenseInArticleMobile() {
   );
 }
 
-/**
- * Sidebar ad — below Pinterest widget on desktop.
- * Sized properly so AdSense can render: min-height 280px,
- * full container width, no unnecessary padding that would
- * shrink the <ins> element below AdSense's minimum threshold.
- */
 function AdSenseSidebar() {
   const _insRef = _uR<HTMLModElement>(null);
   const _pushed = _uR(false);
@@ -802,7 +802,6 @@ function AdSenseSidebar() {
       className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
       aria-label="Advertisement"
     >
-      {/* Top accent stripe */}
       <div className="h-1.5 w-full bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700" />
 
       <div className="px-0 py-4">
@@ -810,7 +809,6 @@ function AdSenseSidebar() {
           Advertisement
         </p>
 
-        {/* Skeleton shown while AdSense loads */}
         {!_loaded && (
           <div
             aria-hidden="true"
@@ -835,7 +833,6 @@ function AdSenseSidebar() {
           </div>
         )}
 
-        {/* Real AdSense slot — always in DOM */}
         <div style={{ minHeight: _loaded ? "auto" : 0, width: "100%", display: "block" }}>
           <ins
             ref={_insRef}
@@ -1996,11 +1993,6 @@ function SocialWidgetsDesktop() {
       <Suspense fallback={<SuspenseFallbackWidget />}>
         <PinterestWidget />
       </Suspense>
-      {/*
-        ── AdSense sidebar ad — below Pinterest on desktop ──
-        Full-width responsive, min-height 300px so AdSense
-        renderer always has room to pick a proper format.
-      */}
       <AdSenseSidebar />
     </div>
   );
@@ -2036,10 +2028,6 @@ function SocialWidgetsMobileBottom() {
 }
 
 // ─── MP4 / Native Video Shorts Player ────────────────────────────────────────
-//
-// Displays a local MP4 (or webm/mov) in a vertical 9:16 portrait container
-// styled like Bon Appétit / YouTube Shorts — auto-plays muted on scroll-into-
-// view, tap-to-unmute, tap-to-pause/resume.
 
 function VideoShortsPlayer({
   videoUrl,
@@ -2062,7 +2050,6 @@ function VideoShortsPlayer({
   const [playing, setPlaying] = _s(false);
   const [loaded, setLoaded] = _s(false);
 
-  // Auto-play when ≥50 % of the player is in the viewport
   _e(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -2117,13 +2104,11 @@ function VideoShortsPlayer({
       </span>
 
       <div ref={wrapRef} className="relative w-full flex justify-center">
-        {/* Ambient glow */}
         <div
           className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-40 pointer-events-none"
           aria-hidden="true"
         />
 
-        {/* Portrait shell — identical border/shadow treatment to YT Shorts player */}
         <div
           className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black cursor-pointer"
           style={{ width: playerWidth, aspectRatio: "9 / 16" }}
@@ -2131,7 +2116,6 @@ function VideoShortsPlayer({
           role="button"
           aria-label={playing ? `Pause ${title}` : `Play ${title}`}
         >
-          {/* Skeleton while buffering */}
           {!loaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 animate-pulse z-10">
               <div className="w-14 h-14 rounded-full border-4 border-white/20 border-t-white animate-spin" />
@@ -2152,7 +2136,6 @@ function VideoShortsPlayer({
             onPause={() => setPlaying(false)}
           />
 
-          {/* Play overlay — only when paused */}
           {!playing && loaded && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-2xl">
@@ -2161,7 +2144,6 @@ function VideoShortsPlayer({
             </div>
           )}
 
-          {/* Unmute pill */}
           {muted && playing && (
             <button
               onClick={handleUnmute}
@@ -2173,7 +2155,6 @@ function VideoShortsPlayer({
             </button>
           )}
 
-          {/* Live indicator when sound is on */}
           {!muted && playing && (
             <div
               className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
@@ -2184,7 +2165,6 @@ function VideoShortsPlayer({
             </div>
           )}
 
-          {/* Duration / progress bar at bottom */}
           <div
             className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20 pointer-events-none"
             aria-hidden="true"
@@ -2192,7 +2172,6 @@ function VideoShortsPlayer({
         </div>
       </div>
 
-      {/* Caption row */}
       <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
         <_Pc size={16} aria-hidden="true" />
         Watch Video
@@ -2201,7 +2180,6 @@ function VideoShortsPlayer({
   );
 }
 
-/** Grid wrapper: 1-col for single, 2-col sm+ for multiple MP4s */
 function VideoShortsGrid({
   videos,
   title,
@@ -2432,8 +2410,6 @@ function YouTubeShortsPlayer({
     </div>
   );
 }
-
-// ─── YouTube Shorts Grid (multiple videos) ────────────────────────────────────
 
 function YouTubeShortsGrid({
   shorts,
@@ -3035,7 +3011,6 @@ export default function ArticleDetail() {
     });
   }, [_youtubeShorts, _ytShortsFromCol]);
 
-  // ── Native MP4 / video files from extra media ────────────────────────────
   const _mp4Videos = _uM<string[]>(
     () =>
       _extraMedia.filter(
@@ -3057,7 +3032,6 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
-  // Gallery: exclude tweets, youtube, gif/webp, AND mp4/video files
   const _galleryImages = _uM(
     () =>
       _extraMedia.filter(
@@ -3071,13 +3045,11 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
-  // Raw parsed paragraphs (no ad marker yet)
   const _rawParsedParagraphs = _uM(
     () => (_pD ? parseParagraphs(_pD.paragraphs) : []),
     [_pD]
   );
 
-  // ── Inject ad after 3rd real text paragraph ──────────────────────────────
   const _parsedParagraphs = _uM<ParsedBlock[]>(
     () => injectAdAfterParagraph(_rawParsedParagraphs, 3),
     [_rawParsedParagraphs]
@@ -3831,15 +3803,12 @@ export default function ArticleDetail() {
                 <SocialWidgetsMobileTop />
               </Suspense>
 
-              {/* ── Main article body: paragraphs + in-article ad after 3rd paragraph ── */}
               <div className="max-w-[840px] mx-auto">
                 {_parsedParagraphs.map((block, i) => {
-                  // ── AdSense in-article ──────────────────────────────────
                   if (block.type === "ad") {
                     return <AdSenseInArticle key="adsense-in-article" />;
                   }
 
-                  // ── Embedded tweet ──────────────────────────────────────
                   if (block.type === "tweet") {
                     return (
                       <div
@@ -3860,7 +3829,6 @@ export default function ArticleDetail() {
                     );
                   }
 
-                  // ── Regular text paragraph ──────────────────────────────
                   return (
                     <div
                       key={`para-text-${i}`}
@@ -3871,7 +3839,6 @@ export default function ArticleDetail() {
                 })}
               </div>
 
-              {/* ── Standalone tweet section (db tweets + media tweets) ────── */}
               {_allTweetUrls.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3915,7 +3882,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* ── Native MP4 / video Shorts — vertical portrait player ───── */}
               {_mp4Videos.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3925,7 +3891,6 @@ export default function ArticleDetail() {
                 >
                   <meta itemProp="name" content="Embedded Videos" />
 
-                  {/* Section header */}
                   <div className="flex items-center gap-3 mb-8 opacity-70">
                     <_Pc size={18} className="text-red-600" aria-hidden="true" />
                     <span className="text-[10px] uppercase font-black tracking-[0.3em] text-black dark:text-white">
@@ -3944,7 +3909,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* ── YouTube Shorts ─────────────────────────────────────────── */}
               {_allYoutubeShorts.length > 0 && (
                 <section
                   className="my-16 max-w-[840px] mx-auto"
@@ -3977,7 +3941,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* ── Animated GIFs / WebP ──────────────────────────────────── */}
               {_animatedImages.length > 0 && (
                 <section
                   className="my-20 max-w-[600px] mx-auto lg:hidden"
@@ -4061,7 +4024,6 @@ export default function ArticleDetail() {
                 </section>
               )}
 
-              {/* ── Image gallery ─────────────────────────────────────────── */}
               {_galleryImages.length > 0 && (
                 <section
                   className="mt-20 mb-12 border-t-2 border-neutral-100 dark:border-neutral-900 pt-16"
@@ -4283,7 +4245,6 @@ export default function ArticleDetail() {
                   <SocialWidgetsDesktop />
                 </Suspense>
 
-                {/* ── Motion Capture GIFs — sidebar desktop only ── */}
                 {_animatedImages.length > 0 && _pD && (
                   <div
                     className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"

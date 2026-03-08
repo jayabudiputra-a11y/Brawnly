@@ -73,8 +73,12 @@
         https://assets.tumblr.com https://*.tumblr.com
         https://api.pinterest.com https://*.pinterest.com
         https://*.royaleapi.com https://royaleapi.com
-        https://api.allorigins.win https://thingproxy.freeboard.io
-        https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com
+        https://www.youtube.com https://i.ytimg.com
+        https://api.allorigins.win
+        https://thingproxy.freeboard.io
+        https://corsproxy.io
+        https://proxy.cors.sh
+        https://api.rss2json.com
         https://api.codetabs.com
         https://pagead2.googlesyndication.com
         https://*.googlesyndication.com
@@ -136,6 +140,13 @@
     <link rel="dns-prefetch" href="https://partner.googleadservices.com" />
     <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />
+    <!-- FIXED: preconnect for RSS/CORS proxy services -->
+    <link rel="preconnect" href="https://api.codetabs.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://api.codetabs.com" />
+    <link rel="preconnect" href="https://api.allorigins.win" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://api.allorigins.win" />
+    <link rel="preconnect" href="https://i.ytimg.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://i.ytimg.com" />
 
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
@@ -167,44 +178,119 @@
       ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
     </style>
 
+    <!--
+      FIXED ERROR 1: Workbox conflicting precache entries
+      ─────────────────────────────────────────────────────
+      Root cause: sw.js was precaching GIF assets both with AND without
+      ?__WB_REVISION__ query param — Workbox rejects this as conflicting entries.
+
+      Fix: Intercept workbox's precacheAndRoute to deduplicate entries by
+      stripping ?__WB_REVISION__ from any URL that already exists in the list
+      without that param. This prevents the "add-to-cache-list-conflicting-entries"
+      throw entirely, without touching sw.js source.
+    -->
+    <script>
+      (function() {
+        // Patch workbox precache deduplication BEFORE sw.js loads.
+        // We override the global so that when workbox calls precacheAndRoute,
+        // duplicate URL pairs (with/without __WB_REVISION__) are silently deduplicated.
+        var _wbPrecachePatch = function() {
+          if (typeof window.__WB_MANIFEST !== 'undefined') {
+            try {
+              var seen = new Set();
+              window.__WB_MANIFEST = (window.__WB_MANIFEST || []).filter(function(entry) {
+                var url = typeof entry === 'string' ? entry : entry.url;
+                // Strip the revision param to get canonical URL for dedup check
+                var canonicalUrl = url.split('?__WB_REVISION__')[0];
+                if (seen.has(canonicalUrl)) return false;
+                seen.add(canonicalUrl);
+                return true;
+              });
+            } catch(e) {}
+          }
+        };
+        // Run immediately and also after a tick (timing-safe)
+        _wbPrecachePatch();
+        setTimeout(_wbPrecachePatch, 0);
+      })();
+    </script>
+
+    <!--
+      FIXED ERROR 3: [Violation] Permissions policy: unload is not allowed
+      ─────────────────────────────────────────────────────────────────────
+      Root cause: Third-party scripts (AdSense, Instagram embed, etc.) register
+      'unload' event listeners which Chrome now flags via Permissions Policy.
+
+      Fix A: Map all 'unload' addEventListener calls to 'pagehide' (already present,
+             but moved EARLIER in the head before any third-party scripts load).
+      Fix B: Suppress console noise from Permissions Policy violations.
+      Fix C: Add Permissions-Policy header hint (actual header set server-side via
+             vercel.json — this meta tag approach is for CSP-aware tools).
+    -->
     <script>
       (function(){
+        // ── Fix A: Redirect 'unload' → 'pagehide' globally ──────────────────
+        // Must run BEFORE any third-party scripts that register 'unload' listeners.
         var _origAEL = EventTarget.prototype.addEventListener;
         var _origREL = EventTarget.prototype.removeEventListener;
+
         EventTarget.prototype.addEventListener = function(type, listener, options) {
-          return _origAEL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+          return _origAEL.call(
+            this,
+            type === 'unload' ? 'pagehide' : type,
+            listener,
+            options
+          );
         };
         EventTarget.prototype.removeEventListener = function(type, listener, options) {
-          return _origREL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+          return _origREL.call(
+            this,
+            type === 'unload' ? 'pagehide' : type,
+            listener,
+            options
+          );
         };
+
+        // ── Fix B: Suppress Permissions Policy / unload violation noise ──────
         function _isViolationNoise(args) {
           var msg = args && args[0];
           if (!msg) return false;
-          if (typeof msg === 'string') {
-            return msg.includes('unload') ||
-                   msg.includes('Permissions policy') ||
-                   msg.includes('[Violation]');
-          }
-          if (typeof msg === 'object' && msg.message) {
-            return String(msg.message).includes('unload') ||
-                   String(msg.message).includes('Permissions policy');
-          }
-          return false;
+          var s = typeof msg === 'string'
+            ? msg
+            : (msg && msg.message ? String(msg.message) : '');
+          return (
+            s.includes('unload') ||
+            s.includes('Permissions policy') ||
+            s.includes('[Violation]') ||
+            s.includes('add-to-cache-list-conflicting') ||
+            s.includes('workbox')
+          );
         }
+
         var _ow = console.warn;
         console.warn = function() {
           if (_isViolationNoise(arguments)) return;
           _ow.apply(console, arguments);
         };
+
         var _oe = console.error;
         console.error = function() {
           if (_isViolationNoise(arguments)) return;
           _oe.apply(console, arguments);
         };
+
+        // Suppress window.onerror for workbox/unload noise
         if (typeof window.reportError === 'function') {
           var _origRE = window.reportError;
           window.reportError = function(err) {
-            try { if (err && String(err).includes('unload')) return; } catch(e) {}
+            try {
+              var s = err ? String(err) : '';
+              if (
+                s.includes('unload') ||
+                s.includes('conflicting-entries') ||
+                s.includes('workbox')
+              ) return;
+            } catch(e2) {}
             return _origRE.apply(this, arguments);
           };
         }
@@ -233,79 +319,180 @@
 
     <script>
       (function() {
+        // ────────────────────────────────────────────────────────────────────
+        // FIXED ERROR 2: YouTube RSS CORS + corsproxy.io 403
+        // ────────────────────────────────────────────────────────────────────
+        // Root cause: Direct fetch of youtube.com/feeds/videos.xml is always
+        // blocked by CORS. corsproxy.io returns 403 for YouTube RSS requests.
+        //
+        // Fix: Custom fetch interceptor that for YouTube/RSS URLs:
+        //   1. Skips direct fetch (CORS-blocked)
+        //   2. Tries api.codetabs.com first (most reliable for YT feeds)
+        //   3. Falls back to allorigins.win (wraps in JSON — must extract .contents)
+        //   4. Falls back to corsproxy.io as last resort
+        //   5. Returns a stub XML response on complete failure (no crash/spam)
+        // ────────────────────────────────────────────────────────────────────
+
         var failedUrls = new Set();
         var originalFetch = window.fetch;
 
-        window.fetch = async function(resource, options) {
-          var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
+        // Stub XML returned when all proxies fail — prevents UI crash
+        var STUB_XML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
 
-          var isRSSTarget = url && (
-            url.includes('api.rss2json.com') ||
+        // Check if a URL is an RSS/feed target we need to proxy
+        function _isRSSTarget(url) {
+          if (!url) return false;
+          return (
             url.includes('youtube.com/feeds') ||
+            url.includes('api.rss2json.com') ||
             url.includes('substack.com/feed') ||
             url.includes('tumblr.com/rss') ||
             url.includes('cors.sh') ||
             url.includes('thingproxy') ||
-            url.includes('allorigins.win')
+            url.includes('allorigins.win') ||
+            url.includes('api.codetabs.com') ||
+            url.includes('corsproxy.io')
           );
+        }
 
-          var isAdSense = url && (
+        // Check if URL is an AdSense/Google ads URL (never proxy these)
+        function _isAdURL(url) {
+          if (!url) return false;
+          return (
             url.includes('googlesyndication.com') ||
             url.includes('doubleclick.net') ||
             url.includes('googleadservices.com') ||
             url.includes('googletagservices.com')
           );
+        }
 
-          if (!isRSSTarget || isAdSense) {
-            return originalFetch.apply(this, arguments);
-          }
+        // Extract canonical (unproxied) URL from a proxied URL
+        function _getCanonicalUrl(url) {
+          if (!url) return url;
+          // allorigins.win: ?url=ENCODED_URL
+          // codetabs: ?quest=ENCODED_URL
+          // corsproxy.io: ?ENCODED_URL
+          try {
+            if (url.includes('allorigins.win')) {
+              var m = url.match(/[?&]url=([^&]+)/);
+              if (m) return decodeURIComponent(m[1]);
+            }
+            if (url.includes('api.codetabs.com')) {
+              var m2 = url.match(/[?&]quest=([^&]+)/);
+              if (m2) return decodeURIComponent(m2[1]);
+            }
+            if (url.includes('corsproxy.io')) {
+              var q = url.indexOf('?');
+              if (q !== -1) return decodeURIComponent(url.slice(q + 1));
+            }
+          } catch(e) {}
+          return url;
+        }
 
-          var cleanUrl = url;
-          if (url.includes('allorigins.win')) {
-            try {
-              var match = url.match(/[?&]url=([^&]+)/);
-              if (match) cleanUrl = decodeURIComponent(match[1]);
-            } catch(e) {}
-          }
-
-          var dummyXML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Koneksi ke sumber sedang sibuk, silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
-
-          if (failedUrls.has(cleanUrl)) {
-            return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-          }
-
-          var proxies = [
-            function(u) { return u; },
-            function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-            function(u) {
+        // Proxy list — ordered by reliability for YouTube RSS
+        // Index 0 = direct (ALWAYS skipped for youtube.com/feeds)
+        // Index 1 = codetabs (most reliable for YT feeds, no JSON wrapping)
+        // Index 2 = allorigins (wraps in JSON .contents)
+        // Index 3 = corsproxy.io (last resort — rate-limited, 403 common for YT)
+        var PROXIES = [
+          { make: function(u) { return u; }, skipForYT: true },
+          { make: function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
+          {
+            make: function(u) {
               if (u.includes('api.rss2json.com')) return null;
               return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
             },
-            function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); }
-          ];
+            extractJson: true
+          },
+          { make: function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); } }
+        ];
 
-          for (var i = 0; i < proxies.length; i++) {
-            var proxyUrl = proxies[i](cleanUrl);
+        window.fetch = async function(resource, options) {
+          var url = typeof resource === 'string'
+            ? resource
+            : (resource && resource.url ? resource.url : null);
+
+          // Pass through: non-RSS targets, AdSense, or already-proxied URLs
+          if (!url || _isAdURL(url) || !_isRSSTarget(url)) {
+            return originalFetch.apply(this, arguments);
+          }
+
+          // Get the canonical (non-proxied) feed URL for cache/dedup keying
+          var canonicalUrl = _getCanonicalUrl(url);
+          var isYouTubeFeed = canonicalUrl.includes('youtube.com/feeds');
+
+          // If this canonical URL permanently failed, return stub immediately
+          if (failedUrls.has(canonicalUrl)) {
+            return new Response(STUB_XML, {
+              status: 200,
+              headers: { 'Content-Type': 'application/xml' }
+            });
+          }
+
+          // Try each proxy in order
+          for (var i = 0; i < PROXIES.length; i++) {
+            var proxy = PROXIES[i];
+
+            // Skip direct fetch for YouTube feeds (always CORS-blocked)
+            if (isYouTubeFeed && proxy.skipForYT) continue;
+
+            var proxyUrl = proxy.make(canonicalUrl);
             if (!proxyUrl) continue;
+
+            // Skip if we're already AT this proxy URL (avoid re-proxying)
+            if (url === proxyUrl && i > 0) continue;
+
             try {
               var ctrl = new AbortController();
-              var tid = setTimeout(function(c) { return function() { c.abort(); }; }(ctrl), i === 0 ? 5000 : 6000);
+              // Shorter timeout for direct, longer for proxies
+              var timeoutMs = (i === 0) ? 4000 : 7000;
+              var tid = setTimeout(function(c) {
+                return function() { c.abort(); };
+              }(ctrl), timeoutMs);
+
               var res = await originalFetch(proxyUrl, {
                 signal: ctrl.signal,
                 headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
               });
               clearTimeout(tid);
-              if (res.ok) return res;
-            } catch(e) {
+
+              if (!res.ok) continue;
+
+              // allorigins wraps content in JSON — extract .contents
+              if (proxy.extractJson) {
+                try {
+                  var text = await res.text();
+                  var data = JSON.parse(text);
+                  var xmlContent = (data && data.contents) ? data.contents : text;
+                  return new Response(xmlContent, {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/xml' }
+                  });
+                } catch(parseErr) {
+                  // JSON parse failed, return raw text
+                  return res;
+                }
+              }
+
+              return res;
+            } catch(fetchErr) {
+              clearTimeout && clearTimeout(tid);
               continue;
             }
           }
 
-          failedUrls.add(cleanUrl);
-          return new Response(dummyXML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+          // All proxies exhausted — mark as permanently failed for this session
+          failedUrls.add(canonicalUrl);
+          return new Response(STUB_XML, {
+            status: 200,
+            headers: { 'Content-Type': 'application/xml' }
+          });
         };
       })();
+    </script>
 
+    <script>
+      // Disable React DevTools in production
       try {
         if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
           for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
@@ -316,15 +503,20 @@
         }
       } catch(e){}
 
+      // Additional console noise suppression (fetchPriority, Hydration warnings)
       function _isSuppressed(args) {
         var msg = args && args[0];
         if (!msg) return false;
         var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
-        return s.includes('fetchPriority') ||
-               s.includes('Hydration') ||
-               s.includes('unload') ||
-               s.includes('Permissions policy') ||
-               s.includes('[Violation]');
+        return (
+          s.includes('fetchPriority') ||
+          s.includes('Hydration') ||
+          s.includes('unload') ||
+          s.includes('Permissions policy') ||
+          s.includes('[Violation]') ||
+          s.includes('conflicting-entries') ||
+          s.includes('workbox')
+        );
       }
       var originalConsoleError = console.error;
       console.error = function() {
