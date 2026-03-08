@@ -70,7 +70,7 @@
         https://syndication.twitter.com
         https://www.instagram.com https://graph.instagram.com
         https://substack.com https://*.substack.com
-        https://assets.tumblr.com https://*.tumblr.com
+        https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com
         https://api.pinterest.com https://*.pinterest.com
         https://*.royaleapi.com https://royaleapi.com
         https://www.youtube.com https://i.ytimg.com
@@ -191,16 +191,12 @@
     -->
     <script>
       (function() {
-        // Patch workbox precache deduplication BEFORE sw.js loads.
-        // We override the global so that when workbox calls precacheAndRoute,
-        // duplicate URL pairs (with/without __WB_REVISION__) are silently deduplicated.
         var _wbPrecachePatch = function() {
           if (typeof window.__WB_MANIFEST !== 'undefined') {
             try {
               var seen = new Set();
               window.__WB_MANIFEST = (window.__WB_MANIFEST || []).filter(function(entry) {
                 var url = typeof entry === 'string' ? entry : entry.url;
-                // Strip the revision param to get canonical URL for dedup check
                 var canonicalUrl = url.split('?__WB_REVISION__')[0];
                 if (seen.has(canonicalUrl)) return false;
                 seen.add(canonicalUrl);
@@ -209,7 +205,6 @@
             } catch(e) {}
           }
         };
-        // Run immediately and also after a tick (timing-safe)
         _wbPrecachePatch();
         setTimeout(_wbPrecachePatch, 0);
       })();
@@ -218,19 +213,13 @@
     <!--
       FIXED ERROR 3: [Violation] Permissions policy: unload is not allowed
       ─────────────────────────────────────────────────────────────────────
-      Root cause: Third-party scripts (AdSense, Instagram embed, etc.) register
-      'unload' event listeners which Chrome now flags via Permissions Policy.
-
-      Fix A: Map all 'unload' addEventListener calls to 'pagehide' (already present,
-             but moved EARLIER in the head before any third-party scripts load).
+      Fix A: Map all 'unload' addEventListener calls to 'pagehide'.
+             Runs BEFORE any third-party scripts.
       Fix B: Suppress console noise from Permissions Policy violations.
-      Fix C: Add Permissions-Policy header hint (actual header set server-side via
-             vercel.json — this meta tag approach is for CSP-aware tools).
     -->
     <script>
       (function(){
         // ── Fix A: Redirect 'unload' → 'pagehide' globally ──────────────────
-        // Must run BEFORE any third-party scripts that register 'unload' listeners.
         var _origAEL = EventTarget.prototype.addEventListener;
         var _origREL = EventTarget.prototype.removeEventListener;
 
@@ -279,7 +268,6 @@
           _oe.apply(console, arguments);
         };
 
-        // Suppress window.onerror for workbox/unload noise
         if (typeof window.reportError === 'function') {
           var _origRE = window.reportError;
           window.reportError = function(err) {
@@ -321,16 +309,12 @@
       (function() {
         // ────────────────────────────────────────────────────────────────────
         // FIXED ERROR 2: YouTube RSS CORS + corsproxy.io 403
+        // FIXED ERROR 4: Tumblr RSS CORS blocked (*.tumblr.com/rss)
         // ────────────────────────────────────────────────────────────────────
-        // Root cause: Direct fetch of youtube.com/feeds/videos.xml is always
-        // blocked by CORS. corsproxy.io returns 403 for YouTube RSS requests.
-        //
-        // Fix: Custom fetch interceptor that for YouTube/RSS URLs:
-        //   1. Skips direct fetch (CORS-blocked)
-        //   2. Tries api.codetabs.com first (most reliable for YT feeds)
-        //   3. Falls back to allorigins.win (wraps in JSON — must extract .contents)
-        //   4. Falls back to corsproxy.io as last resort
-        //   5. Returns a stub XML response on complete failure (no crash/spam)
+        // Both youtube.com/feeds AND tumblr.com/rss have no CORS headers —
+        // direct browser fetch is always blocked. Fix: skipForCORS flag on
+        // PROXIES[0] causes interceptor to skip direct fetch for these domains
+        // and jump straight to proxy chain (codetabs → allorigins → corsproxy).
         // ────────────────────────────────────────────────────────────────────
 
         var failedUrls = new Set();
@@ -344,14 +328,25 @@
           if (!url) return false;
           return (
             url.includes('youtube.com/feeds') ||
+            url.includes('tumblr.com/rss') ||
             url.includes('api.rss2json.com') ||
             url.includes('substack.com/feed') ||
-            url.includes('tumblr.com/rss') ||
             url.includes('cors.sh') ||
             url.includes('thingproxy') ||
             url.includes('allorigins.win') ||
             url.includes('api.codetabs.com') ||
             url.includes('corsproxy.io')
+          );
+        }
+
+        // Domains that ALWAYS have CORS blocked on direct browser fetch.
+        // These skip PROXIES[0] (direct) and start at PROXIES[1] (codetabs).
+        // Add new always-CORS-blocked RSS domains here as needed.
+        function _isCORSBlocked(url) {
+          if (!url) return false;
+          return (
+            url.includes('youtube.com/feeds') ||
+            url.includes('tumblr.com/rss')
           );
         }
 
@@ -369,9 +364,6 @@
         // Extract canonical (unproxied) URL from a proxied URL
         function _getCanonicalUrl(url) {
           if (!url) return url;
-          // allorigins.win: ?url=ENCODED_URL
-          // codetabs: ?quest=ENCODED_URL
-          // corsproxy.io: ?ENCODED_URL
           try {
             if (url.includes('allorigins.win')) {
               var m = url.match(/[?&]url=([^&]+)/);
@@ -389,13 +381,13 @@
           return url;
         }
 
-        // Proxy list — ordered by reliability for YouTube RSS
-        // Index 0 = direct (ALWAYS skipped for youtube.com/feeds)
-        // Index 1 = codetabs (most reliable for YT feeds, no JSON wrapping)
-        // Index 2 = allorigins (wraps in JSON .contents)
-        // Index 3 = corsproxy.io (last resort — rate-limited, 403 common for YT)
+        // Proxy list — ordered by reliability
+        // PROXIES[0] direct fetch: skipForCORS:true → skipped for youtube+tumblr
+        // PROXIES[1] codetabs: primary proxy, no JSON wrapping
+        // PROXIES[2] allorigins: JSON wrapper, must extract .contents
+        // PROXIES[3] corsproxy.io: last resort, rate-limited
         var PROXIES = [
-          { make: function(u) { return u; }, skipForYT: true },
+          { make: function(u) { return u; }, skipForCORS: true },
           { make: function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
           {
             make: function(u) {
@@ -419,7 +411,7 @@
 
           // Get the canonical (non-proxied) feed URL for cache/dedup keying
           var canonicalUrl = _getCanonicalUrl(url);
-          var isYouTubeFeed = canonicalUrl.includes('youtube.com/feeds');
+          var corsBlocked = _isCORSBlocked(canonicalUrl);
 
           // If this canonical URL permanently failed, return stub immediately
           if (failedUrls.has(canonicalUrl)) {
@@ -433,8 +425,8 @@
           for (var i = 0; i < PROXIES.length; i++) {
             var proxy = PROXIES[i];
 
-            // Skip direct fetch for YouTube feeds (always CORS-blocked)
-            if (isYouTubeFeed && proxy.skipForYT) continue;
+            // Skip direct fetch for CORS-blocked domains (youtube feeds + tumblr rss)
+            if (corsBlocked && proxy.skipForCORS) continue;
 
             var proxyUrl = proxy.make(canonicalUrl);
             if (!proxyUrl) continue;
@@ -444,7 +436,6 @@
 
             try {
               var ctrl = new AbortController();
-              // Shorter timeout for direct, longer for proxies
               var timeoutMs = (i === 0) ? 4000 : 7000;
               var tid = setTimeout(function(c) {
                 return function() { c.abort(); };
@@ -469,7 +460,6 @@
                     headers: { 'Content-Type': 'application/xml' }
                   });
                 } catch(parseErr) {
-                  // JSON parse failed, return raw text
                   return res;
                 }
               }
