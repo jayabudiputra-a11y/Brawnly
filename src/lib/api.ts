@@ -13,6 +13,10 @@ const _0xD = [
   "increment_views",
   "songs",
   "created_at",
+  // index 11: movies table
+  "brawnly_movies",
+  // index 12: movie view tracking rpc
+  "increment_movie_views",
 ] as const;
 
 const _v = (_i: number) => _0xD[_i];
@@ -27,22 +31,101 @@ export interface Song {
   created_at: string;
 }
 
+// ─── Movie Types ──────────────────────────────────────────────────────────
+
+export interface MovieItem {
+  id: string;
+  title: string;
+  /** "movie" | "series" */
+  type: "movie" | "series";
+  quality: string;
+  genre: string[];
+  director?: string;
+  creators?: string;
+  starring: string[];
+  writers?: string;
+  release_date?: string;
+  release_year?: number;
+  country?: string;
+  language?: string;
+  runtime?: string;
+  description?: string;
+  poster_url?: string;
+  /** External m4uhd watch URL */
+  m4uhd_url: string;
+  /** For series: number of seasons */
+  total_seasons?: number;
+  /** For series: season/episode info JSON */
+  seasons_meta?: Record<string, number>;
+  views?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ─── Ad/tracker URL patterns to block (obfuscated base64) ─────────────────
+// Covers: v2006.com/link2, hatcheskoeri.shop, hatcheskoeri (all subdomains),
+//         doubleclick.net, googlesyndication, adserver, popads,
+//         trafficjunkie, adcash.com, exosrv.com, popcash.net,
+//         juicyads.com, propellerads.com, hilltopads.net, adsterra.com
+const _0xAD = [
+  "djYyMDA2LmNvbS9saW5rMg==",     // v2006.com/link2
+  "aGF0Y2hlc2tvZXJpLnNob3A=",    // hatcheskoeri.shop
+  "aGF0Y2hlc2tvZXJp",             // hatcheskoeri (catch all subdomains)
+  "aWsuaGF0Y2hlc2tvZXJp",        // ik.hatcheskoeri (exact subdomain used in ad)
+  "ZG91YmxlY2xpY2submV0",        // doubleclick.net
+  "Z29vZ2xlc3luZGljYXRpb24=",   // googlesyndication
+  "YWRzZXJ2ZXI=",                 // adserver
+  "cG9wYWRz",                     // popads
+  "dHJhZmZpY2p1bmtpZQ==",        // trafficjunkie
+  "YWRjYXNoLmNvbQ==",             // adcash.com
+  "ZXhvc3J2LmNvbQ==",             // exosrv.com
+  "cG9wY2FzaC5uZXQ=",             // popcash.net
+  "anVpY3lhZHMuY29t",             // juicyads.com
+  "cHJvcGVsbGVyYWRzLmNvbQ==",    // propellerads.com
+  "aGlsbHRvcGFkcy5uZXQ=",         // hilltopads.net
+  "YWRzdGVycmEuY29t",             // adsterra.com
+  "djYyMDA2LmNvbQ==",              // v2006.com (domain level catch-all)
+] as const;
+
+// Query-param patterns that signal ad redirect (not base64 — checked separately)
+const _0xADQ = ["var=", "ymid=", "var_3="] as const;
+
+/** 
+ * Check if a URL matches known ad/tracker patterns.
+ * Blocks: v2006.com/link2, hatcheskoeri.shop subdomains, doubleclick,
+ * googlesyndication, popads, trafficjunkie, adcash, exosrv, popcash,
+ * juicyads, propellerads, hilltopads, adsterra.
+ * Also blocks URLs whose query string contains ad redirect params (var=, ymid=).
+ */
+export function isAdUrl(_u: string): boolean {
+  if (!_u) return false;
+  // base64 domain/path patterns
+  const _domainHit = _0xAD.some((_enc) => {
+    try { return _u.includes(atob(_enc)); } catch { return false; }
+  });
+  if (_domainHit) return true;
+  // query param heuristic — v2006 uses var=, ymid=, var_3= as fingerprints
+  try {
+    const _url = new URL(_u);
+    const _qHit = _0xADQ.every((_q) => _url.search.includes(_q.split("=")[0]));
+    if (_qHit) return true;
+  } catch { /* non-parseable URL — skip */ }
+  return false;
+}
+
 /**
- * REVISI: Logika Media URL yang cerdas. 
+ * Logika Media URL yang cerdas.
  * Tidak akan menambahkan prefix jika URL sudah valid (HTTP/Blob).
  */
 const _oM = (_u?: string | null): string => {
   if (!_u) return "";
-  // Jika sudah URL lengkap (http) atau blob lokal, jangan tambahkan prefix
   if (_u.startsWith("http") || _u.startsWith("blob:") || _u.startsWith("data:")) return _u;
-  // Hanya tambahkan Cloudinary jika itu hanya ID/Path
   return _CB + _u;
 };
 
 const _sC = (_k: string, _d: any) => {
   try {
     const _pL = JSON.stringify({ ts: Date.now(), data: _d });
-    // Hindari caching jika data mengandung error string tertentu
     if (_pL.includes('mmwxnbhyhu6yewzmy6d0') || _pL.includes('ž')) return;
     localStorage.setItem(`brawnly_api_${_k}`, _pL);
   } catch {
@@ -55,7 +138,6 @@ const _gC = (_k: string) => {
     const _r = localStorage.getItem(`brawnly_api_${_k}`);
     if (!_r) return null;
     const _parsed = JSON.parse(_r);
-    // Cache valid selama 24 jam
     if (navigator.onLine && (Date.now() - _parsed.ts > 864e5)) return null;
     return _parsed.data;
   } catch (e) {
@@ -66,7 +148,6 @@ const _gC = (_k: string) => {
 
 const _hE = (_e: any, _c: string) => {
   if (!navigator.onLine) return null;
-  // Abaikan error abort karena itu normal saat perpindahan halaman
   if (_e?.name === 'AbortError') return null;
   if (import.meta.env.DEV) console.error(`[SYS_API_FAULT_${_c}]`, _e);
   throw _e;
@@ -96,6 +177,139 @@ export const articlesApi = {
   },
 };
 
+// ─── Movies API ───────────────────────────────────────────────────────────
+
+export const moviesApi = {
+  /**
+   * Get all movies/series from Supabase.
+   * Cache: 24h localStorage. Falls back to cache when offline.
+   */
+  getAll: async (): Promise<MovieItem[]> => {
+    const _k = "movies_all";
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
+
+    const { data: _d, error: _e } = await _sb
+      .from(_v(11))
+      .select("*")
+      .order(_v(10), { ascending: false });
+
+    if (_e) {
+      if (_cached) return _cached;
+      if (import.meta.env.DEV) console.error("[MOVIES_API_FAIL]", _e);
+      return [];
+    }
+
+    const _p: MovieItem[] = (_d || []).map((_m: any) => ({
+      ..._m,
+      poster_url: _oM(_m.poster_url),
+      genre: Array.isArray(_m.genre)
+        ? _m.genre
+        : (_m.genre ? String(_m.genre).split(",").map((g: string) => g.trim()) : []),
+      starring: Array.isArray(_m.starring)
+        ? _m.starring
+        : (_m.starring ? String(_m.starring).split(",").map((s: string) => s.trim()) : []),
+    }));
+
+    _sC(_k, _p);
+    return _p;
+  },
+
+  /**
+   * Get single movie by id.
+   */
+  getById: async (_id: string): Promise<MovieItem | null> => {
+    const _k = `movie_${_id}`;
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
+
+    const { data: _d, error: _e } = await _sb
+      .from(_v(11))
+      .select("*")
+      .eq("id", _id)
+      .single();
+
+    if (_e || !_d) {
+      if (_cached) return _cached;
+      return null;
+    }
+
+    const _p: MovieItem = {
+      ..._d,
+      poster_url: _oM(_d.poster_url),
+      genre: Array.isArray(_d.genre)
+        ? _d.genre
+        : (_d.genre ? String(_d.genre).split(",").map((g: string) => g.trim()) : []),
+      starring: Array.isArray(_d.starring)
+        ? _d.starring
+        : (_d.starring ? String(_d.starring).split(",").map((s: string) => s.trim()) : []),
+    };
+
+    _sC(_k, _p);
+    return _p;
+  },
+
+  /**
+   * Track view for a movie.
+   * SILENT FAIL on ALL errors — tracking is non-critical.
+   * PGRST202 = RPC function not found (migration not run yet) → skip silently.
+   * Network errors → skip silently.
+   * No console.error in production to avoid noise.
+   */
+  trackView: async (_id: string): Promise<void> => {
+    if (!navigator.onLine || !_id) return;
+    try {
+      const { error: _e } = await _sb.rpc(_v(12), { movie_id: _id });
+      if (_e) {
+        // PGRST202 = function does not exist → migration pending, fully silent
+        if (_e.code === "PGRST202") return;
+        // Any other error → dev-only warn, never throw
+        if (import.meta.env.DEV) console.warn("[MOVIE_TRACK]", _e.code, _e.message);
+        return;
+      }
+      // Success: invalidate cache so views count refreshes on next load
+      localStorage.removeItem(`brawnly_api_movie_${_id}`);
+      localStorage.removeItem("brawnly_api_movies_all");
+    } catch {
+      // Network abort / fetch error — always silent, tracking is non-critical
+    }
+  },
+
+  /**
+   * Get movies by type filter.
+   */
+  getByType: async (_type: "movie" | "series"): Promise<MovieItem[]> => {
+    const _k = `movies_type_${_type}`;
+    const _cached = _gC(_k);
+    if (!navigator.onLine && _cached) return _cached;
+
+    const { data: _d, error: _e } = await _sb
+      .from(_v(11))
+      .select("*")
+      .eq("type", _type)
+      .order(_v(10), { ascending: false });
+
+    if (_e) {
+      if (_cached) return _cached;
+      return [];
+    }
+
+    const _p: MovieItem[] = (_d || []).map((_m: any) => ({
+      ..._m,
+      poster_url: _oM(_m.poster_url),
+      genre: Array.isArray(_m.genre)
+        ? _m.genre
+        : (_m.genre ? String(_m.genre).split(",").map((g: string) => g.trim()) : []),
+      starring: Array.isArray(_m.starring)
+        ? _m.starring
+        : (_m.starring ? String(_m.starring).split(",").map((s: string) => s.trim()) : []),
+    }));
+
+    _sC(_k, _p);
+    return _p;
+  },
+};
+
 export const songsApi = {
   getAll: async (): Promise<Song[]> => {
     const _k = "songs";
@@ -120,7 +334,6 @@ export const authApi = {
   getCurrentUser: async (): Promise<_Au | null> => {
     const { data: _d } = await _sb.auth.getUser();
     if (!_d?.user) return null;
-    // REVISI: Pastikan metadata avatar_url diproses dengan _oM yang sudah diperbaiki
     return { 
       ..._d.user, 
       user_metadata: { 

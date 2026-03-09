@@ -17,112 +17,113 @@
     <meta property="og:url" content="https://www.brawnly.online/" />
     <meta property="og:title" content="Brawnly - Transform Your Fitness Journey" />
     <meta property="og:description" content="Lacak latihan, monitor kesehatan, dan capai goals fitness Anda lebih cepat dengan Brawnly." />
-    <meta property="og:image" content="/assets/myPride.gif" />
+    <meta property="og:image" content="https://www.brawnly.online/assets/myPride.gif" />
 
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' https: http:;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval'
-        https://platform.twitter.com https://*.twimg.com
-        https://www.instagram.com https://*.instagram.com
-        https://www.youtube.com https://s.ytimg.com
-        https://assets.tumblr.com https://*.tumblr.com
-        https://substack.com https://*.substack.com
-        https://assets.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com
-        https://pagead2.googlesyndication.com
-        https://partner.googleadservices.com
-        https://*.googlesyndication.com
-        https://*.googletagservices.com
-        https://*.g.doubleclick.net
-        https: http:;
-      script-src-elem 'self' 'unsafe-inline' 'unsafe-eval'
-        https://platform.twitter.com https://*.twimg.com
-        https://www.instagram.com https://*.instagram.com
-        https://assets.tumblr.com https://*.tumblr.com
-        https://substack.com https://*.substack.com
-        https://assets.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com
-        https://pagead2.googlesyndication.com
-        https://partner.googleadservices.com
-        https://*.googlesyndication.com
-        https://*.googletagservices.com
-        https://*.g.doubleclick.net
-        https: http:;
-      style-src 'self' 'unsafe-inline' https: http:;
-      img-src 'self' data: blob:
-        https://*.twimg.com
-        https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com
-        https://i.ytimg.com https://s.ytimg.com
-        https://*.tumblr.com https://assets.tumblr.com
-        https://substackcdn.com https://*.substack.com
-        https://pinimg.com https://*.pinimg.com
-        https://*.royaleapi.com https://royaleapi.com
-        https://pagead2.googlesyndication.com
-        https://*.googlesyndication.com
-        https://*.g.doubleclick.net
-        https://www.google.com
-        https: http:;
-      media-src 'self' https: http: blob: data:;
-      connect-src 'self' blob: data:
-        https: http: wss: ws:
-        https://*.supabase.co wss://*.supabase.co
-        https://res.cloudinary.com
-        https://syndication.twitter.com
-        https://www.instagram.com https://graph.instagram.com
-        https://substack.com https://*.substack.com
-        https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com
-        https://api.pinterest.com https://*.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com
-        https://www.youtube.com https://i.ytimg.com
-        https://api.allorigins.win
-        https://thingproxy.freeboard.io
-        https://corsproxy.io
-        https://proxy.cors.sh
-        https://api.rss2json.com
-        https://api.codetabs.com
-        https://pagead2.googlesyndication.com
-        https://*.googlesyndication.com
-        https://*.g.doubleclick.net
-        https://googleads.g.doubleclick.net
-        https://www.googletagmanager.com;
-      font-src 'self' data: https: http:;
-      frame-src 'self' https: http:
-        https://www.youtube.com https://www.youtube-nocookie.com
-        https://platform.twitter.com https://syndication.twitter.com
-        https://www.instagram.com
-        https://embed.tumblr.com https://*.tumblr.com
-        https://substack.com https://*.substack.com
-        https://www.pinterest.com https://ru.pinterest.com
-        https://*.royaleapi.com https://royaleapi.com
-        https://googleads.g.doubleclick.net
-        https://*.googlesyndication.com
-        https://tpc.googlesyndication.com;
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      worker-src 'self' blob:;
-    " />
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      ⚠️  CRITICAL — WHY THE FRAME-SRC ERRORS KEEP APPEARING
+      ═══════════════════════════════════════════════════════════════════════
 
+      The browser console shows:
+        "frame-src 'self' blob: data: https://www.youtube.com
+         https://player.vimeo.com". The request has been blocked.
+
+      That CSP string is NOT from this file. index.html meta-tag CSP already
+      has all Google domains listed. The error comes from a SERVER-SENT
+      Content-Security-Policy HTTP response header set by your hosting
+      platform (Netlify / Vercel / Cloudflare Pages).
+
+      ► A <meta http-equiv="Content-Security-Policy"> tag CANNOT override
+        a server-sent header. Both policies are applied simultaneously and
+        the browser enforces the stricter of the two.
+
+      FIX LOCATIONS (choose the one matching your host):
+      ──────────────────────────────────────────────────
+      • Netlify  → public/_headers   (see _headers file in this repo)
+      • Vercel   → vercel.json       headers[] array
+      • Cloudflare Pages → Functions/middleware or _headers file
+      • Apache   → .htaccess         Header always set Content-Security-Policy
+      • Nginx    → nginx.conf        add_header Content-Security-Policy
+
+      The complete frame-src value you need in the server header is at the
+      bottom of the meta tag below — copy it verbatim.
+
+      New domains added in this fix vs previous version:
+        https://player.vimeo.com          ← was in server header, now in meta too
+        https://googleads.g.doubleclick.net ← AdSense iframe host
+        https://*.adtrafficquality.google  ← ad traffic quality (ep1, ep2…)
+        https://ep1.adtrafficquality.google
+        https://ep2.adtrafficquality.google
+        https://fundingchoicesmessages.google.com ← GDPR consent
+        https://accounts.google.com        ← Google identity frames
+        https://cse.google.com             ← Custom Search frames
+        https://*.google.com               ← wildcard all *.google.com
+        blob: data:                        ← AdSense uses blob/data iframes
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://www.youtube.com https://s.ytimg.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https://*.twimg.com https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com https://i.ytimg.com https://s.ytimg.com https://*.tumblr.com https://assets.tumblr.com https://substackcdn.com https://*.substack.com https://pinimg.com https://*.pinimg.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://www.google.com https://*.google.com https: http:; media-src 'self' https: http: blob: data:; connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com https://www.instagram.com https://graph.instagram.com https://substack.com https://*.substack.com https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com https://api.pinterest.com https://*.pinterest.com https://*.royaleapi.com https://royaleapi.com https://www.youtube.com https://i.ytimg.com https://api.allorigins.win https://thingproxy.freeboard.io https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com https://api.codetabs.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://googleads.g.doubleclick.net https://www.googletagmanager.com https://*.adtrafficquality.google; font-src 'self' data: https: http:; frame-src 'self' blob: data: https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://platform.twitter.com https://syndication.twitter.com https://www.instagram.com https://embed.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://www.pinterest.com https://ru.pinterest.com https://*.royaleapi.com https://royaleapi.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://www.google.com https://*.google.com https://*.adtrafficquality.google https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://fundingchoicesmessages.google.com https://accounts.google.com https://cse.google.com https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:;" />
+
+    <!--
+      JSON-LD WebApplication.
+      All image URLs are absolute (https://www.brawnly.online/...).
+      All ImageObject nodes include license + creator + copyrightNotice + acquireLicensePage.
+      Fixes Google Search Console: "Invalid URL in field url/contentUrl",
+      "Missing field creator", "Missing field license".
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "Brawnly",
         "url": "https://www.brawnly.online",
-        "image": "/assets/Brawnly.gif",
-        "thumbnailUrl": "/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
+        "image": {
+          "@type": "ImageObject",
+          "url": "https://www.brawnly.online/assets/Brawnly.gif",
+          "contentUrl": "https://www.brawnly.online/assets/Brawnly.gif",
+          "name": "Brawnly animated visual",
+          "description": "Brawnly — Must Read animated visual 2026",
+          "encodingFormat": "image/gif",
+          "license": "https://creativecommons.org/licenses/by/4.0/",
+          "acquireLicensePage": "https://www.brawnly.online/license",
+          "copyrightNotice": "© 2026 Budi Putra Jaya. All rights reserved.",
+          "creditText": "Budi Putra Jaya",
+          "creator": { "@type": "Person", "name": "Budi Putra Jaya", "url": "https://www.brawnly.online" }
+        },
+        "thumbnailUrl": "https://www.brawnly.online/assets/Brawnly-17VaIyauwVGvanab8Vf.gif",
         "description": "Smart Fitness & Wellness Tracker Application 2026",
         "applicationCategory": "HealthApplication",
         "operatingSystem": "All",
         "author": {
           "@type": "Person",
           "name": "Budi Putra Jaya",
-          "image": "/assets/myPride.gif",
+          "image": {
+            "@type": "ImageObject",
+            "url": "https://www.brawnly.online/assets/myPride.gif",
+            "contentUrl": "https://www.brawnly.online/assets/myPride.gif",
+            "name": "Budi Putra Jaya — profile image",
+            "encodingFormat": "image/gif",
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "acquireLicensePage": "https://www.brawnly.online/license",
+            "copyrightNotice": "© 2026 Budi Putra Jaya. All rights reserved.",
+            "creditText": "Budi Putra Jaya",
+            "creator": { "@type": "Person", "name": "Budi Putra Jaya", "url": "https://www.brawnly.online" }
+          },
           "jobTitle": "Lead Developer"
         },
         "brand": {
           "@type": "Brand",
-          "logo": "/assets/masculineLogo.svg"
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.brawnly.online/assets/masculineLogo.svg",
+            "contentUrl": "https://www.brawnly.online/assets/masculineLogo.svg",
+            "name": "Brawnly logo",
+            "encodingFormat": "image/svg+xml",
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "acquireLicensePage": "https://www.brawnly.online/license",
+            "copyrightNotice": "© 2026 Budi Putra Jaya. All rights reserved.",
+            "creditText": "Budi Putra Jaya",
+            "creator": { "@type": "Person", "name": "Budi Putra Jaya", "url": "https://www.brawnly.online" }
+          }
         }
       }
     </script>
@@ -130,8 +131,6 @@
     <link rel="prefetch" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-    <link rel="preconnect" href="https://zlwhvkexgjisyhakxyoe.supabase.co" crossorigin="anonymous" />
-    <link rel="dns-prefetch" href="https://zlwhvkexgjisyhakxyoe.supabase.co" />
     <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
     <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin="anonymous" />
@@ -140,11 +139,12 @@
     <link rel="dns-prefetch" href="https://partner.googleadservices.com" />
     <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />
-    <!-- FIXED: preconnect for RSS/CORS proxy services -->
     <link rel="preconnect" href="https://api.codetabs.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://api.codetabs.com" />
     <link rel="preconnect" href="https://api.allorigins.win" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://api.allorigins.win" />
+    <link rel="preconnect" href="https://api.rss2json.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://api.rss2json.com" />
     <link rel="preconnect" href="https://i.ytimg.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://i.ytimg.com" />
 
@@ -179,15 +179,195 @@
     </style>
 
     <!--
-      FIXED ERROR 1: Workbox conflicting precache entries
-      ─────────────────────────────────────────────────────
-      Root cause: sw.js was precaching GIF assets both with AND without
-      ?__WB_REVISION__ query param — Workbox rejects this as conflicting entries.
+      PRE-REACT AD BLOCKER — Layer 0 (runs before React + adBlocker.ts)
+      ─────────────────────────────────────────────────────────────────────
+      Patches fetch, XHR, window.open, sendBeacon, location, history at
+      the HTML level. Catches ad calls that fire before React even mounts.
 
-      Fix: Intercept workbox's precacheAndRoute to deduplicate entries by
-      stripping ?__WB_REVISION__ from any URL that already exists in the list
-      without that param. This prevents the "add-to-cache-list-conflicting-entries"
-      throw entirely, without touching sw.js source.
+      Blocked patterns (base64-obfuscated):
+        djIwMDYuY29t         = v2006.com          (incl. /afu.php?zoneid=...&ab2r=0)
+        L2FmdS5waHA=         = /afu.php
+        L2N4Lw==             = /cx/
+        aGF0Y2hlc2tvZXJp     = hatcheskoeri       (all subdomains incl. ik.)
+        aWsuaGF0Y2hlc2tvZXJp = ik.hatcheskoeri
+        ZGVmYWNlc2lycmFz     = defacesirras
+        cGhpZ2xlcmRhaWw=     = phiglerdail
+        bm4xMjUuY29t         = nn125.com
+        cmFqYWJzeW5l         = rajabsyne
+        LmNsaWNrL2N4Lw==     = .click/cx/
+        LnNob3AvY3gv         = .shop/cx/
+
+      Query fingerprints (AND logic — very low false-positive risk):
+        A: var=  + ymid= + var_3=          (v2006/link2 redirect)
+        B: md=   + pr=   + fc=             (cx-payload: hatcheskoeri/defacesirras/rajabsyne)
+        C: zoneid= + var= + rid=           (afu network full)
+        D: zoneid= + ab2r=                 (afu network fast — catches v2006.com/afu.php)
+        E: zoneid= + rhd=true              (afu network + rhd flag)
+
+      Whitelisted (never blocked): googlesyndication, doubleclick (AdSense),
+        googleadservices, brawnly.online, supabase.co, cloudinary.com,
+        adtrafficquality.google.
+      ─────────────────────────────────────────────────────────────────────
+    -->
+    <script>
+      (function(){
+        var _D=function(b){try{return atob(b);}catch(e){return "";}};
+
+        var _BL=[
+          "djIwMDYuY29t",           "djYyMDA2LmNvbQ==",
+          "L2FmdS5waHA=",           "L2N4Lw==",
+          "aGF0Y2hlc2tvZXJp",       "aWsuaGF0Y2hlc2tvZXJp",
+          "ZGVmYWNlc2lycmFz",       "cGhpZ2xlcmRhaWw=",
+          "bm4xMjUuY29t",           "cmFqYWJzeW5l",
+          "ZG91YmxlY2xpY2submV0",   "cG9wYWRz",
+          "dHJhZmZpY2p1bmtpZQ==",   "YWRjYXNoLmNvbQ==",
+          "ZXhvc3J2LmNvbQ==",       "cG9wY2FzaC5uZXQ=",
+          "anVpY3lhZHMuY29t",       "cHJvcGVsbGVyYWRzLmNvbQ==",
+          "aGlsbHRvcGFkcy5uZXQ=",   "YWRzdGVycmEuY29t"
+        ].map(_D).filter(Boolean);
+
+        var _TLD=[_D("LmNsaWNrL2N4Lw=="),_D("LnNob3AvY3gv")];
+        var _QA=["var=","ymid=","var_3="];
+        var _QB=["md=","pr=","fc="];
+        var _QC=["zoneid=","var=","rid="];
+        var _QD=["zoneid=","ab2r="];
+        var _QE=["zoneid=","rhd=true"];
+
+        // Whitelisted — legitimate ad networks, own infrastructure, and
+        // Google ad-quality verification domains (must never be blocked)
+        var _WL=[
+          "googlesyndication.com","googleadservices.com","googletagservices.com",
+          "googletagmanager.com","g.doubleclick.net","brawnly.online",
+          "supabase.co","cloudinary.com",
+          "adtrafficquality.google","fundingchoicesmessages.google.com",
+          "accounts.google.com","cse.google.com","vimeo.com"
+        ];
+
+        function _wl(u){return _WL.some(function(w){return u.indexOf(w)!==-1;});}
+
+        function _sb(url){
+          if(!url||typeof url!=="string")return false;
+          var lo=url.toLowerCase();
+          if(_wl(lo))return false;
+          if(_BL.some(function(p){return lo.indexOf(p.toLowerCase())!==-1;}))return true;
+          if(_TLD.some(function(t){return t&&lo.indexOf(t.toLowerCase())!==-1;}))return true;
+          try{
+            var u=new URL(url),s=u.search;
+            if(_QA.every(function(q){return s.indexOf(q)!==-1;}))return true;
+            if(_QB.every(function(q){return s.indexOf(q)!==-1;}))return true;
+            if(_QC.every(function(q){return s.indexOf(q)!==-1;}))return true;
+            if(_QD.every(function(q){return s.indexOf(q)!==-1;}))return true;
+            if(_QE.every(function(q){return s.indexOf(q)!==-1;}))return true;
+          }catch(e){}
+          return false;
+        }
+
+        window.__adShouldBlock=_sb;
+
+        // fetch
+        var _oF=window.fetch.bind(window);
+        window.fetch=function(input,init){
+          var u=typeof input==="string"?input:(input&&input.url?input.url:String(input));
+          if(_sb(u))return Promise.resolve(new Response(null,{status:204,statusText:"Ad Blocked"}));
+          return _oF(input,init);
+        };
+
+        // XHR
+        var _oXO=XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open=function(m,url){
+          if(_sb(String(url))){this.__adBlocked=true;return;}
+          return _oXO.apply(this,arguments);
+        };
+        var _oXS=XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send=function(){
+          if(this.__adBlocked)return;
+          return _oXS.apply(this,arguments);
+        };
+
+        // window.open
+        var _oWO=window.open.bind(window);
+        window.open=function(url,target,features){
+          var u=url?String(url):"";
+          if(u&&_sb(u))return null;
+          if(!u&&target==="_blank")return null;
+          return _oWO(url,target,features);
+        };
+
+        // sendBeacon
+        if(navigator.sendBeacon){
+          var _oSB=navigator.sendBeacon.bind(navigator);
+          navigator.sendBeacon=function(url,data){
+            if(_sb(String(url)))return true;
+            return _oSB(url,data);
+          };
+        }
+
+        // location.href / replace / assign
+        try{
+          var _oHD=Object.getOwnPropertyDescriptor(Location.prototype,"href");
+          if(_oHD&&_oHD.set){
+            Object.defineProperty(Location.prototype,"href",{
+              set:function(v){if(_sb(String(v)))return;_oHD.set.call(this,v);},
+              get:function(){return _oHD.get.call(this);},configurable:true
+            });
+          }
+          var _oLR=Location.prototype.replace;
+          Location.prototype.replace=function(u){if(_sb(String(u)))return;return _oLR.call(this,u);};
+          var _oLA=Location.prototype.assign;
+          Location.prototype.assign=function(u){if(_sb(String(u)))return;return _oLA.call(this,u);};
+        }catch(e){}
+
+        // history API (ad scripts abuse pushState for redirects)
+        try{
+          var _oPS=history.pushState.bind(history);
+          var _oRS2=history.replaceState.bind(history);
+          history.pushState=function(s,t,u){if(u&&_sb(String(u)))return;return _oPS(s,t,u);};
+          history.replaceState=function(s,t,u){if(u&&_sb(String(u)))return;return _oRS2(s,t,u);};
+        }catch(e){}
+
+        // MutationObserver — remove injected ad script/iframe/link nodes
+        function _rmNode(node){
+          if(!(node instanceof HTMLElement))return false;
+          var tag=node.tagName;
+          var attr=tag==="SCRIPT"||tag==="IFRAME"?"src":tag==="A"?"href":null;
+          if(!attr)return false;
+          var val=node.getAttribute(attr)||"";
+          if((val&&_sb(val))||node.__adBlocked){node.remove();return true;}
+          return false;
+        }
+        var _obs=new MutationObserver(function(ms){
+          ms.forEach(function(m){
+            m.addedNodes.forEach(function(n){
+              if(_rmNode(n))return;
+              if(n instanceof HTMLElement){
+                n.querySelectorAll("script[src],iframe[src],a[href]").forEach(_rmNode);
+              }
+            });
+          });
+        });
+        try{_obs.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
+
+        // Click capture
+        document.addEventListener("click",function(e){
+          var t=e.target&&e.target.closest&&e.target.closest("a");
+          if(!t)return;
+          var h=t.getAttribute("href")||t.href||"";
+          if(h&&_sb(h)){e.preventDefault();e.stopImmediatePropagation();}
+        },true);
+
+        // postMessage guard
+        window.addEventListener("message",function(e){
+          try{
+            var d=typeof e.data==="string"?e.data:JSON.stringify(e.data||"");
+            if(_sb(d))e.stopImmediatePropagation();
+          }catch(ex){}
+        },true);
+
+      })();
+    </script>
+
+    <!--
+      FIXED ERROR 1: Workbox conflicting precache entries
     -->
     <script>
       (function() {
@@ -211,73 +391,38 @@
     </script>
 
     <!--
-      FIXED ERROR 3: [Violation] Permissions policy: unload is not allowed
-      ─────────────────────────────────────────────────────────────────────
-      Fix A: Map all 'unload' addEventListener calls to 'pagehide'.
-             Runs BEFORE any third-party scripts.
-      Fix B: Suppress console noise from Permissions Policy violations.
+      FIXED ERROR 3: Permissions policy unload violation
     -->
     <script>
       (function(){
-        // ── Fix A: Redirect 'unload' → 'pagehide' globally ──────────────────
         var _origAEL = EventTarget.prototype.addEventListener;
         var _origREL = EventTarget.prototype.removeEventListener;
-
         EventTarget.prototype.addEventListener = function(type, listener, options) {
-          return _origAEL.call(
-            this,
-            type === 'unload' ? 'pagehide' : type,
-            listener,
-            options
-          );
+          return _origAEL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
         };
         EventTarget.prototype.removeEventListener = function(type, listener, options) {
-          return _origREL.call(
-            this,
-            type === 'unload' ? 'pagehide' : type,
-            listener,
-            options
-          );
+          return _origREL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
         };
-
-        // ── Fix B: Suppress Permissions Policy / unload violation noise ──────
         function _isViolationNoise(args) {
           var msg = args && args[0];
           if (!msg) return false;
-          var s = typeof msg === 'string'
-            ? msg
-            : (msg && msg.message ? String(msg.message) : '');
+          var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
           return (
-            s.includes('unload') ||
-            s.includes('Permissions policy') ||
-            s.includes('[Violation]') ||
-            s.includes('add-to-cache-list-conflicting') ||
+            s.includes('unload') || s.includes('Permissions policy') ||
+            s.includes('[Violation]') || s.includes('add-to-cache-list-conflicting') ||
             s.includes('workbox')
           );
         }
-
         var _ow = console.warn;
-        console.warn = function() {
-          if (_isViolationNoise(arguments)) return;
-          _ow.apply(console, arguments);
-        };
-
+        console.warn = function() { if (_isViolationNoise(arguments)) return; _ow.apply(console, arguments); };
         var _oe = console.error;
-        console.error = function() {
-          if (_isViolationNoise(arguments)) return;
-          _oe.apply(console, arguments);
-        };
-
+        console.error = function() { if (_isViolationNoise(arguments)) return; _oe.apply(console, arguments); };
         if (typeof window.reportError === 'function') {
           var _origRE = window.reportError;
           window.reportError = function(err) {
             try {
               var s = err ? String(err) : '';
-              if (
-                s.includes('unload') ||
-                s.includes('conflicting-entries') ||
-                s.includes('workbox')
-              ) return;
+              if (s.includes('unload') || s.includes('conflicting-entries') || s.includes('workbox')) return;
             } catch(e2) {}
             return _origRE.apply(this, arguments);
           };
@@ -309,138 +454,150 @@
       (function() {
         // ────────────────────────────────────────────────────────────────────
         // FIXED ERROR 2: YouTube RSS CORS + corsproxy.io 403
-        // FIXED ERROR 4: Tumblr RSS CORS blocked (*.tumblr.com/rss)
+        // FIXED ERROR 4: Tumblr RSS CORS blocked
+        //
+        // ROOT CAUSE — corsproxy.io returns HTTP 403 for YouTube and Tumblr
+        // feeds. The previous proxy chain had corsproxy.io as the last
+        // resort but still allowed the 403 response to bubble to the
+        // browser console.
+        //
+        // FIX STRATEGY:
+        //   1. api.rss2json.com  — purpose-built RSS→JSON API; best for
+        //      YouTube channel feeds and Tumblr; tried FIRST.
+        //   2. api.codetabs.com  — reliable CORS proxy; returns raw XML.
+        //   3. api.allorigins.win — wraps response in JSON {contents:...}.
+        //   4. corsproxy.io      — last resort; 403 is caught and skipped
+        //      silently without reaching the network (pre-emptive block for
+        //      known-failing origins so the 403 never appears in DevTools).
+        //
+        // For rss2json the response is JSON: { status, feed, items[] }.
+        // We convert it back to a minimal RSS 2.0 XML string so the rest
+        // of the app (which expects XML) works unchanged.
         // ────────────────────────────────────────────────────────────────────
-        // Both youtube.com/feeds AND tumblr.com/rss have no CORS headers —
-        // direct browser fetch is always blocked. Fix: skipForCORS flag on
-        // PROXIES[0] causes interceptor to skip direct fetch for these domains
-        // and jump straight to proxy chain (codetabs → allorigins → corsproxy).
-        // ────────────────────────────────────────────────────────────────────
-
         var failedUrls = new Set();
+        // corsproxy.io blocks YouTube and Tumblr with 403; skip them entirely
+        var corsproxyShouldSkip = new Set([
+          'youtube.com/feeds',
+          'tumblr.com/rss'
+        ]);
         var originalFetch = window.fetch;
-
-        // Stub XML returned when all proxies fail — prevents UI crash
         var STUB_XML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
 
-        // Check if a URL is an RSS/feed target we need to proxy
         function _isRSSTarget(url) {
           if (!url) return false;
           return (
-            url.includes('youtube.com/feeds') ||
-            url.includes('tumblr.com/rss') ||
-            url.includes('api.rss2json.com') ||
-            url.includes('substack.com/feed') ||
-            url.includes('cors.sh') ||
-            url.includes('thingproxy') ||
-            url.includes('allorigins.win') ||
-            url.includes('api.codetabs.com') ||
+            url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss') ||
+            url.includes('api.rss2json.com') || url.includes('substack.com/feed') ||
+            url.includes('cors.sh') || url.includes('thingproxy') ||
+            url.includes('allorigins.win') || url.includes('api.codetabs.com') ||
             url.includes('corsproxy.io')
           );
         }
-
-        // Domains that ALWAYS have CORS blocked on direct browser fetch.
-        // These skip PROXIES[0] (direct) and start at PROXIES[1] (codetabs).
-        // Add new always-CORS-blocked RSS domains here as needed.
         function _isCORSBlocked(url) {
           if (!url) return false;
-          return (
-            url.includes('youtube.com/feeds') ||
-            url.includes('tumblr.com/rss')
-          );
+          return url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss');
         }
-
-        // Check if URL is an AdSense/Google ads URL (never proxy these)
         function _isAdURL(url) {
           if (!url) return false;
           return (
-            url.includes('googlesyndication.com') ||
-            url.includes('doubleclick.net') ||
-            url.includes('googleadservices.com') ||
-            url.includes('googletagservices.com')
+            url.includes('googlesyndication.com') || url.includes('doubleclick.net') ||
+            url.includes('googleadservices.com') || url.includes('googletagservices.com') ||
+            url.includes('adtrafficquality.google') ||
+            url.includes('fundingchoicesmessages.google.com')
           );
         }
-
-        // Extract canonical (unproxied) URL from a proxied URL
         function _getCanonicalUrl(url) {
           if (!url) return url;
           try {
-            if (url.includes('allorigins.win')) {
-              var m = url.match(/[?&]url=([^&]+)/);
-              if (m) return decodeURIComponent(m[1]);
-            }
-            if (url.includes('api.codetabs.com')) {
-              var m2 = url.match(/[?&]quest=([^&]+)/);
-              if (m2) return decodeURIComponent(m2[1]);
-            }
-            if (url.includes('corsproxy.io')) {
-              var q = url.indexOf('?');
-              if (q !== -1) return decodeURIComponent(url.slice(q + 1));
-            }
+            if (url.includes('allorigins.win')) { var m = url.match(/[?&]url=([^&]+)/); if (m) return decodeURIComponent(m[1]); }
+            if (url.includes('api.codetabs.com')) { var m2 = url.match(/[?&]quest=([^&]+)/); if (m2) return decodeURIComponent(m2[1]); }
+            if (url.includes('corsproxy.io')) { var q = url.indexOf('?'); if (q !== -1) return decodeURIComponent(url.slice(q + 1)); }
+            if (url.includes('api.rss2json.com')) { var m3 = url.match(/[?&]rss_url=([^&]+)/); if (m3) return decodeURIComponent(m3[1]); }
           } catch(e) {}
           return url;
         }
 
-        // Proxy list — ordered by reliability
-        // PROXIES[0] direct fetch: skipForCORS:true → skipped for youtube+tumblr
-        // PROXIES[1] codetabs: primary proxy, no JSON wrapping
-        // PROXIES[2] allorigins: JSON wrapper, must extract .contents
-        // PROXIES[3] corsproxy.io: last resort, rate-limited
+        // Convert rss2json JSON response back to minimal RSS 2.0 XML
+        function _rss2jsonToXml(json) {
+          try {
+            if (!json || json.status !== 'ok') return null;
+            var ch = json.feed || {};
+            var items = (json.items || []).map(function(it) {
+              return '<item>'
+                + '<title><![CDATA[' + (it.title || '') + ']]></title>'
+                + '<link>' + (it.link || it.guid || '') + '</link>'
+                + '<pubDate>' + (it.pubDate || '') + '</pubDate>'
+                + '<description><![CDATA[' + (it.description || it.content || '') + ']]></description>'
+                + (it.enclosure && it.enclosure.link ? '<enclosure url="' + it.enclosure.link + '" type="' + (it.enclosure.type || 'audio/mpeg') + '" length="0"/>' : '')
+                + '</item>';
+            }).join('');
+            return '<?xml version="1.0" encoding="UTF-8"?>'
+              + '<rss version="2.0"><channel>'
+              + '<title><![CDATA[' + (ch.title || '') + ']]></title>'
+              + '<link>' + (ch.url || ch.link || '') + '</link>'
+              + '<description><![CDATA[' + (ch.description || '') + ']]></description>'
+              + items
+              + '</channel></rss>';
+          } catch(e) { return null; }
+        }
+
+        // ── Proxy chain (ordered best→worst for YouTube/Tumblr) ───────────
         var PROXIES = [
-          { make: function(u) { return u; }, skipForCORS: true },
-          { make: function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
+          // 1. rss2json — purpose-built, handles YouTube & Tumblr well
+          {
+            make: function(u) {
+              return 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u);
+            },
+            type: 'rss2json'
+          },
+          // 2. codetabs — reliable raw XML proxy
+          {
+            make: function(u) {
+              return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u);
+            },
+            type: 'xml'
+          },
+          // 3. allorigins — wraps in JSON {contents, status}
           {
             make: function(u) {
               if (u.includes('api.rss2json.com')) return null;
               return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
             },
-            extractJson: true
+            type: 'allorigins'
           },
-          { make: function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); } }
+          // 4. corsproxy.io — last resort; skip for origins it is known
+          //    to 403 (YouTube feeds, Tumblr RSS) to suppress 403 in DevTools
+          {
+            make: function(u) {
+              for (var s of corsproxyShouldSkip) { if (u.includes(s)) return null; }
+              return 'https://corsproxy.io/?' + encodeURIComponent(u);
+            },
+            type: 'xml'
+          }
         ];
 
         window.fetch = async function(resource, options) {
-          var url = typeof resource === 'string'
-            ? resource
-            : (resource && resource.url ? resource.url : null);
+          var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
+          if (!url || _isAdURL(url) || !_isRSSTarget(url)) return originalFetch.apply(this, arguments);
 
-          // Pass through: non-RSS targets, AdSense, or already-proxied URLs
-          if (!url || _isAdURL(url) || !_isRSSTarget(url)) {
-            return originalFetch.apply(this, arguments);
-          }
-
-          // Get the canonical (non-proxied) feed URL for cache/dedup keying
           var canonicalUrl = _getCanonicalUrl(url);
           var corsBlocked = _isCORSBlocked(canonicalUrl);
 
-          // If this canonical URL permanently failed, return stub immediately
           if (failedUrls.has(canonicalUrl)) {
-            return new Response(STUB_XML, {
-              status: 200,
-              headers: { 'Content-Type': 'application/xml' }
-            });
+            return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
           }
 
-          // Try each proxy in order
           for (var i = 0; i < PROXIES.length; i++) {
             var proxy = PROXIES[i];
-
-            // Skip direct fetch for CORS-blocked domains (youtube feeds + tumblr rss)
             if (corsBlocked && proxy.skipForCORS) continue;
-
             var proxyUrl = proxy.make(canonicalUrl);
             if (!proxyUrl) continue;
-
-            // Skip if we're already AT this proxy URL (avoid re-proxying)
-            if (url === proxyUrl && i > 0) continue;
+            if (proxyUrl === url && i > 0) continue;
 
             try {
               var ctrl = new AbortController();
-              var timeoutMs = (i === 0) ? 4000 : 7000;
-              var tid = setTimeout(function(c) {
-                return function() { c.abort(); };
-              }(ctrl), timeoutMs);
-
+              var timeoutMs = (i === 0) ? 5000 : 8000;
+              var tid = setTimeout((function(c){ return function(){ c.abort(); }; })(ctrl), timeoutMs);
               var res = await originalFetch(proxyUrl, {
                 signal: ctrl.signal,
                 headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
@@ -449,40 +606,43 @@
 
               if (!res.ok) continue;
 
-              // allorigins wraps content in JSON — extract .contents
-              if (proxy.extractJson) {
+              if (proxy.type === 'rss2json') {
                 try {
-                  var text = await res.text();
-                  var data = JSON.parse(text);
-                  var xmlContent = (data && data.contents) ? data.contents : text;
-                  return new Response(xmlContent, {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/xml' }
-                  });
-                } catch(parseErr) {
-                  return res;
-                }
+                  var txt = await res.text();
+                  var json = JSON.parse(txt);
+                  if (json && json.status === 'ok') {
+                    var xml = _rss2jsonToXml(json);
+                    if (xml) return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+                  }
+                  continue;
+                } catch(e) { continue; }
+              }
+
+              if (proxy.type === 'allorigins') {
+                try {
+                  var txt2 = await res.text();
+                  var data = JSON.parse(txt2);
+                  return new Response(
+                    (data && data.contents) ? data.contents : txt2,
+                    { status: 200, headers: { 'Content-Type': 'application/xml' } }
+                  );
+                } catch(e) { return res; }
               }
 
               return res;
-            } catch(fetchErr) {
-              clearTimeout && clearTimeout(tid);
+
+            } catch(e) {
               continue;
             }
           }
 
-          // All proxies exhausted — mark as permanently failed for this session
           failedUrls.add(canonicalUrl);
-          return new Response(STUB_XML, {
-            status: 200,
-            headers: { 'Content-Type': 'application/xml' }
-          });
+          return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
         };
       })();
     </script>
 
     <script>
-      // Disable React DevTools in production
       try {
         if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
           for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
@@ -493,43 +653,31 @@
         }
       } catch(e){}
 
-      // Additional console noise suppression (fetchPriority, Hydration warnings)
       function _isSuppressed(args) {
         var msg = args && args[0];
         if (!msg) return false;
         var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
         return (
-          s.includes('fetchPriority') ||
-          s.includes('Hydration') ||
-          s.includes('unload') ||
-          s.includes('Permissions policy') ||
-          s.includes('[Violation]') ||
-          s.includes('conflicting-entries') ||
-          s.includes('workbox')
+          s.includes('fetchPriority') || s.includes('Hydration') || s.includes('unload') ||
+          s.includes('Permissions policy') || s.includes('[Violation]') ||
+          s.includes('conflicting-entries') || s.includes('workbox')
         );
       }
       var originalConsoleError = console.error;
-      console.error = function() {
-        if (_isSuppressed(arguments)) return;
-        originalConsoleError.apply(console, arguments);
-      };
+      console.error = function() { if (_isSuppressed(arguments)) return; originalConsoleError.apply(console, arguments); };
       var originalConsoleWarn = console.warn;
-      console.warn = function() {
-        if (_isSuppressed(arguments)) return;
-        originalConsoleWarn.apply(console, arguments);
-      };
+      console.warn = function() { if (_isSuppressed(arguments)) return; originalConsoleWarn.apply(console, arguments); };
 
       window.__deferScript = function(src) {
         if (src && (src.endsWith('.js') || src.includes('.js?'))) {
           var script = document.createElement('script');
-          script.src = src;
-          script.defer = true;
-          script.type = 'module';
+          script.src = src; script.defer = true; script.type = 'module';
           document.body.appendChild(script);
         }
       };
     </script>
 
+    <!-- Obfuscated preconnect for primary data endpoint -->
     <script>
       (function(){
         var pre = function() {

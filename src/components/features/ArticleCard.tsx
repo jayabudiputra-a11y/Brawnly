@@ -146,7 +146,7 @@ function _detectImageSource(url: string): SourceProfile {
 }
 
 /**
- * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
+ * Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
  * Mencegah "Invalid URL in field url/contentUrl" di GSC.
  */
 function _validateUrl(url: string | null | undefined): string | null {
@@ -257,7 +257,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
 
   const _rP = _a.featured_image ? String(_a.featured_image).split(/[\r\n]+/)[0]?.trim() : null;
   const _hQRaw = _rP ? _fC(_rP) : null;
-  // FIX: Validasi URL — mencegah "Invalid URL in field url/contentUrl" di GSC
+  // Validasi URL — mencegah "Invalid URL in field url/contentUrl" di GSC
   const _hQ = _validateUrl(_hQRaw);
   const _isLow = _iE && _sD.quality === "low";
   const _tW = _isLow ? 200 : 400;
@@ -316,7 +316,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
     "headline": _t,
     "name": _t,
     "description": _a.excerpt || _a.description || `Read ${_t} on Brawnly.`,
-    // FIX: image sebagai ImageObject penuh dengan semua field copyright GSC
+    // image sebagai ImageObject penuh dengan semua field copyright GSC
     "image": _buildImageObject(
       _hQ,
       `${_t} — cover image`,
@@ -373,7 +373,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       "url": `${SITE_URL}/article/${_a.slug}`,
       "headline": _t,
       "name": _t,
-      // FIX: image sebagai ImageObject penuh (bukan raw URL string)
+      // image sebagai ImageObject penuh (bukan raw URL string)
       "image": _buildImageObject(
         _hQ,
         `${_t} — cover image`,
@@ -429,7 +429,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
       {_a.category && (
         <meta itemProp="articleSection" content={_a.category} />
       )}
-      {/* FIX: Hanya emit meta image jika URL valid */}
+      {/* Hanya emit meta image jika URL valid */}
       {_hQ && <meta itemProp="image" content={_hQ} />}
       <meta
         itemProp="interactionStatistic"
@@ -488,7 +488,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           >
             {SITE_NAME}
           </a>
-          {/* FIX: logo publisher ImageObject lengkap dengan copyright own content */}
+          {/* logo publisher ImageObject lengkap dengan copyright own content */}
           <span itemScope itemType="https://schema.org/ImageObject" itemProp="logo">
             <meta itemProp="url"                content={`${SITE_URL}/masculineLogo.svg`} />
             <meta itemProp="contentUrl"         content={`${SITE_URL}/masculineLogo.svg`} />
@@ -503,7 +503,7 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
           </span>
         </span>
 
-        {/* FIX: ImageObject microdata dengan semua field copyright per sumber */}
+        {/* ImageObject microdata dengan semua field copyright per sumber */}
         {_hQ && _cp && (
           <figure
             itemScope
@@ -518,15 +518,15 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               width={400}
               height={260}
             />
-            <meta itemProp="contentUrl"         content={_hQ} />
-            <meta itemProp="name"               content={`${_t} — cover image`} />
-            <meta itemProp="description"        content={`Cover image for article: ${_t}`} />
+            <meta itemProp="contentUrl"           content={_hQ} />
+            <meta itemProp="name"                 content={`${_t} — cover image`} />
+            <meta itemProp="description"          content={`Cover image for article: ${_t}`} />
             <meta itemProp="representativeOfPage" content="true" />
-            {/* FIX: copyright fields wajib GSC */}
-            <meta itemProp="license"            content={_cp.license} />
-            <meta itemProp="copyrightNotice"    content={_cp.copyright} />
-            <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
-            <meta itemProp="creditText"         content={_cp.creatorName} />
+            {/* copyright fields wajib GSC */}
+            <meta itemProp="license"              content={_cp.license} />
+            <meta itemProp="copyrightNotice"      content={_cp.copyright} />
+            <meta itemProp="acquireLicensePage"   content={_cp.acquireUrl} />
+            <meta itemProp="creditText"           content={_cp.creatorName} />
             <span
               itemScope
               itemType={`https://schema.org/${_cp.creatorType}`}
@@ -619,7 +619,11 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               src={_displayImg}
               alt={`${_t} — thumbnail`}
               loading={_p ? "eager" : "lazy"}
-              fetchPriority={_p ? "high" : "auto"}
+              // ── FIX: lowercase fetchpriority ──────────────────────────────
+              // React 18 tidak mengenali camelCase fetchPriority pada DOM element.
+              // Harus lowercase agar tidak memunculkan warning di console.
+              // Ref: https://reactjs.org/docs/dom-elements.html
+              fetchpriority={_p ? "high" : "auto"}
               decoding={_p ? "sync" : "async"}
               onLoad={() => _siL(true)}
               itemProp="thumbnailUrl"

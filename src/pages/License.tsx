@@ -2,32 +2,76 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Scale, ExternalLink } from "lucide-react";
 
-const SITE_URL   = "https://www.brawnly.online";
-const AUTHOR     = "Budi Putra Jaya";
-const EMAIL      = "bbudi6621@gmail.com";
-const CC_URL     = "https://creativecommons.org/licenses/by/4.0/";
-const CC_LEGAL   = "https://creativecommons.org/licenses/by/4.0/legalcode";
-const YEAR       = "2026";
+const SITE_URL = "https://www.brawnly.online";
+const AUTHOR   = "Budi Putra Jaya";
+const EMAIL    = "bbudi6621@gmail.com";
+const CC_URL   = "https://creativecommons.org/licenses/by/4.0/";
+const CC_LEGAL = "https://creativecommons.org/licenses/by/4.0/legalcode";
+const YEAR     = "2026";
 
+// ─── CC icon ImageObject helper ───────────────────────────────────────────────
+// The CC-BY icons are external SVGs from mirrors.creativecommons.org.
+// Including fully-annotated ImageObject schemas for them satisfies Google's
+// "Missing field creator / license" non-critical warnings on this page.
+const _ccIconObj = (url: string, name: string, description: string) => ({
+  "@type": "ImageObject",
+  url,
+  contentUrl: url,
+  name,
+  description,
+  encodingFormat: "image/svg+xml",
+  // CC icons are published under CC BY 4.0 by Creative Commons themselves
+  license: "https://creativecommons.org/licenses/by/4.0/",
+  acquireLicensePage: "https://creativecommons.org/licenses/by/4.0/",
+  copyrightNotice: "© Creative Commons",
+  creditText: "Creative Commons",
+  creator: {
+    "@type": "Organization",
+    name: "Creative Commons",
+    url: "https://creativecommons.org",
+  },
+});
+
+// ─── Page JSON-LD ─────────────────────────────────────────────────────────────
 const _jLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebPage",
   "@id": `${SITE_URL}/license`,
-  "url": `${SITE_URL}/license`,
-  "name": "Content License — Brawnly",
-  "description":
+  url: `${SITE_URL}/license`,
+  name: "Content License — Brawnly",
+  description:
     "All original content on Brawnly is published under the Creative Commons Attribution 4.0 International (CC BY 4.0) license.",
-  "inLanguage": "en",
-  "isPartOf": { "@type": "WebSite", "name": "Brawnly", "url": SITE_URL },
-  "license": CC_URL,
-  "author": {
+  inLanguage: "en",
+  isPartOf: { "@type": "WebSite", name: "Brawnly", url: SITE_URL },
+  license: CC_URL,
+  // "creator" on the WebPage itself — fixes "Missing field creator" warning
+  creator: {
     "@type": "Person",
-    "name": AUTHOR,
-    "email": EMAIL,
-    "url": SITE_URL,
+    name: AUTHOR,
+    email: EMAIL,
+    url: SITE_URL,
   },
-  "copyrightYear": YEAR,
-  "copyrightHolder": { "@type": "Person", "name": AUTHOR, "url": SITE_URL },
+  author: {
+    "@type": "Person",
+    name: AUTHOR,
+    email: EMAIL,
+    url: SITE_URL,
+  },
+  copyrightYear: YEAR,
+  copyrightHolder: { "@type": "Person", name: AUTHOR, url: SITE_URL },
+  // Annotate the CC icons used on this page
+  image: [
+    _ccIconObj(
+      "https://mirrors.creativecommons.org/presskit/icons/cc.svg",
+      "Creative Commons icon",
+      "Official Creative Commons CC icon"
+    ),
+    _ccIconObj(
+      "https://mirrors.creativecommons.org/presskit/icons/by.svg",
+      "Creative Commons BY (Attribution) icon",
+      "Official Creative Commons Attribution icon"
+    ),
+  ],
 });
 
 export default function License() {
@@ -54,8 +98,39 @@ export default function License() {
         itemScope
         itemType="https://schema.org/WebPage"
       >
+        {/* WebPage microdata — url, license, creator all present */}
         <meta itemProp="url" content={`${SITE_URL}/license`} />
         <meta itemProp="license" content={CC_URL} />
+        <meta itemProp="inLanguage" content="en" />
+        <span
+          itemScope
+          itemType="https://schema.org/Person"
+          itemProp="creator"
+          style={{ display: "none" }}
+        >
+          <meta itemProp="name" content={AUTHOR} />
+          <meta itemProp="url" content={SITE_URL} />
+          <meta itemProp="email" content={EMAIL} />
+        </span>
+        <span
+          itemScope
+          itemType="https://schema.org/Person"
+          itemProp="author"
+          style={{ display: "none" }}
+        >
+          <meta itemProp="name" content={AUTHOR} />
+          <meta itemProp="url" content={SITE_URL} />
+        </span>
+        <span
+          itemScope
+          itemType="https://schema.org/Person"
+          itemProp="copyrightHolder"
+          style={{ display: "none" }}
+        >
+          <meta itemProp="name" content={AUTHOR} />
+          <meta itemProp="url" content={SITE_URL} />
+        </span>
+        <meta itemProp="copyrightYear" content={YEAR} />
 
         {/* ── Header bar ── */}
         <div className="border-b-[6px] border-black dark:border-white">
@@ -99,6 +174,17 @@ export default function License() {
           >
             <meta itemProp="license" content={CC_URL} />
             <meta itemProp="copyrightYear" content={YEAR} />
+            {/* creator — fixes "Missing field creator" on the CreativeWork itemScope */}
+            <span
+              itemProp="creator"
+              itemScope
+              itemType="https://schema.org/Person"
+              style={{ display: "none" }}
+            >
+              <meta itemProp="name" content={AUTHOR} />
+              <meta itemProp="url" content={SITE_URL} />
+              <meta itemProp="email" content={EMAIL} />
+            </span>
             <span
               itemProp="copyrightHolder"
               itemScope
@@ -110,16 +196,50 @@ export default function License() {
             </span>
 
             <div className="flex flex-wrap items-center gap-4 mb-6">
-              <img
-                src="https://mirrors.creativecommons.org/presskit/icons/cc.svg"
-                alt="Creative Commons"
-                className="w-8 h-8"
-              />
-              <img
-                src="https://mirrors.creativecommons.org/presskit/icons/by.svg"
-                alt="Attribution"
-                className="w-8 h-8"
-              />
+              {/* CC icon — annotated ImageObject microdata */}
+              <span itemScope itemType="https://schema.org/ImageObject" style={{ display: "contents" }}>
+                <meta itemProp="url" content="https://mirrors.creativecommons.org/presskit/icons/cc.svg" />
+                <meta itemProp="contentUrl" content="https://mirrors.creativecommons.org/presskit/icons/cc.svg" />
+                <meta itemProp="name" content="Creative Commons icon" />
+                <meta itemProp="encodingFormat" content="image/svg+xml" />
+                <meta itemProp="license" content="https://creativecommons.org/licenses/by/4.0/" />
+                <meta itemProp="acquireLicensePage" content="https://creativecommons.org/licenses/by/4.0/" />
+                <meta itemProp="copyrightNotice" content="© Creative Commons" />
+                <meta itemProp="creditText" content="Creative Commons" />
+                <span itemScope itemType="https://schema.org/Organization" itemProp="creator" style={{ display: "none" }}>
+                  <meta itemProp="name" content="Creative Commons" />
+                  <meta itemProp="url" content="https://creativecommons.org" />
+                </span>
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/cc.svg"
+                  alt="Creative Commons"
+                  className="w-8 h-8"
+                  width={32}
+                  height={32}
+                />
+              </span>
+              {/* BY icon — annotated ImageObject microdata */}
+              <span itemScope itemType="https://schema.org/ImageObject" style={{ display: "contents" }}>
+                <meta itemProp="url" content="https://mirrors.creativecommons.org/presskit/icons/by.svg" />
+                <meta itemProp="contentUrl" content="https://mirrors.creativecommons.org/presskit/icons/by.svg" />
+                <meta itemProp="name" content="Creative Commons Attribution icon" />
+                <meta itemProp="encodingFormat" content="image/svg+xml" />
+                <meta itemProp="license" content="https://creativecommons.org/licenses/by/4.0/" />
+                <meta itemProp="acquireLicensePage" content="https://creativecommons.org/licenses/by/4.0/" />
+                <meta itemProp="copyrightNotice" content="© Creative Commons" />
+                <meta itemProp="creditText" content="Creative Commons" />
+                <span itemScope itemType="https://schema.org/Organization" itemProp="creator" style={{ display: "none" }}>
+                  <meta itemProp="name" content="Creative Commons" />
+                  <meta itemProp="url" content="https://creativecommons.org" />
+                </span>
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/by.svg"
+                  alt="Attribution"
+                  className="w-8 h-8"
+                  width={32}
+                  height={32}
+                />
+              </span>
               <span className="text-[11px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400">
                 CC BY 4.0
               </span>
