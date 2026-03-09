@@ -22,7 +22,7 @@ import _IF from "@/components/common/IframeA11yFixer";
 import _ST from "@/components/features/ScrollToTopButton";
 import _MT from "@/components/seo/MetaTags";
 import { useAuth } from "@/hooks/useAuth";
-import { _shouldBlock } from "@/lib/adBlocker";
+import { _shouldBlock } from "@/lib/adblocker";
 
 import _mP from "@/assets/myPride.gif";
 
