@@ -1,22 +1,13 @@
 /*
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Brawnly — Netlify _headers
-  # Place this file in: D:\projects\BRAWNLY\public\_headers
-  # (or project root if you don't use a public/ folder)
-  #
-  # WHY THIS FILE IS REQUIRED:
-  # The browser error "Framing '...' violates Content-Security-Policy
-  # directive: frame-src 'self' blob: data: https://www.youtube.com
-  # https://player.vimeo.com" comes from a SERVER-SENT CSP header set by
-  # Netlify, NOT from the <meta http-equiv="Content-Security-Policy"> tag
-  # in index.html.
-  #
-  # A meta-tag CSP cannot override a server-sent header — both policies are
-  # enforced simultaneously and the browser applies the stricter one.
-  # The server header must be updated here to include all required domains.
-  # ═══════════════════════════════════════════════════════════════════════════
-  Content-Security-Policy: default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://www.youtube.com https://s.ytimg.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https://*.twimg.com https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com https://i.ytimg.com https://s.ytimg.com https://*.tumblr.com https://assets.tumblr.com https://substackcdn.com https://*.substack.com https://pinimg.com https://*.pinimg.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://www.google.com https://*.google.com https: http:; media-src 'self' https: http: blob: data:; connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com https://www.instagram.com https://graph.instagram.com https://substack.com https://*.substack.com https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com https://api.pinterest.com https://*.pinterest.com https://*.royaleapi.com https://royaleapi.com https://www.youtube.com https://i.ytimg.com https://api.allorigins.win https://thingproxy.freeboard.io https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com https://api.codetabs.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://googleads.g.doubleclick.net https://www.googletagmanager.com https://*.adtrafficquality.google; font-src 'self' data: https: http:; frame-src 'self' blob: data: https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://platform.twitter.com https://syndication.twitter.com https://www.instagram.com https://embed.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://www.pinterest.com https://ru.pinterest.com https://*.royaleapi.com https://royaleapi.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://www.google.com https://*.google.com https://*.adtrafficquality.google https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://fundingchoicesmessages.google.com https://accounts.google.com https://cse.google.com https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:;
+  # ──────────────────────────────────────────────────────────────────────────
+  # Netlify server-side HTTP headers (public/_headers)
+  # Dibaca oleh Netlify CDN — berlaku sebelum HTML dikirim ke browser.
+  # CSP di sini adalah PELENGKAP meta-tag CSP di adblocker.ts.
+  # ──────────────────────────────────────────────────────────────────────────
+
+  Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; frame-src 'self' blob: data: https://www.youtube.com https://player.vimeo.com https://vimeo.com https://accounts.google.com https://www.google.com https://*.google.com https://fundingchoices.google.com https://td.doubleclick.net https://www.instagram.com https://instagram.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' * blob:; connect-src 'self' * blob: data:; img-src 'self' data: blob: *; font-src 'self' data: *; style-src 'self' 'unsafe-inline' *
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer-when-downgrade
-  Permissions-Policy: interest-cohort=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-XSS-Protection: 1; mode=block
