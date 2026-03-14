@@ -17,56 +17,125 @@ const _h = new Map<string, _T>();
 const _i = [atob("aHR0cHM6Ly9jZG4uc3luZGljYXRpb24udHdpbWcuY29tL3R3ZWV0LXJlc3VsdA==")];
 
 const _j: Array<(u: string) => string> = [
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
   (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
+  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
 ];
 
-// ─── XHR helper ────────────────────────────────────────────────────────────
-// Use raw XHR to bypass any fetch() interceptor chain (rss2json wrapper etc.)
-function _xhr(url: string, timeout = 8000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // Use the native XHR constructor captured before any patches can run.
-    // If XHR prototype.open was patched by adblocker it only blocks ad domains,
-    // so our proxy domains pass through fine.
-    const x = new XMLHttpRequest();
-    x.open("GET", url, true);
-    x.timeout = timeout;
-    x.onload = () => {
-      if (x.status >= 200 && x.status < 300) resolve(x.responseText);
-      else reject(new Error(`HTTP ${x.status}`));
+// ─── Blob-iframe escape hatch ────────────────────────────────────────────────
+// Creates a sandboxed iframe from a blob URL.  That iframe has its own fresh
+// window / XMLHttpRequest that no page-level patch (requests.js, 200.js, etc.)
+// has ever touched.  We tunnel the request/response via postMessage.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// One persistent iframe instance shared across all calls to avoid re-creation.
+let _ifrWin: Window | null = null;
+let _ifrReady = false;
+const _pending = new Map<string, { resolve: (v: string) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+
+function _buildIframe() {
+  if (_ifrWin) return;
+  const html = `<!DOCTYPE html><html><body><script>
+(function(){
+  var send = XMLHttpRequest.prototype.send;
+  window.addEventListener('message', function(e){
+    var d = e.data;
+    if (!d || !d.__tw || !d.id || !d.url) return;
+    var x = new XMLHttpRequest();
+    x.open('GET', d.url, true);
+    x.timeout = d.timeout || 10000;
+    x.responseType = d.bin ? 'arraybuffer' : 'text';
+    x.onload = function(){
+      if (x.status >= 200 && x.status < 300) {
+        if (d.bin) {
+          var arr = new Uint8Array(x.response);
+          var ct = x.getResponseHeader('content-type') || 'video/mp4';
+          e.source.postMessage({__tw:1, id:d.id, ok:true, bin:Array.from(arr), ct:ct}, '*');
+        } else {
+          e.source.postMessage({__tw:1, id:d.id, ok:true, text:x.responseText}, '*');
+        }
+      } else {
+        e.source.postMessage({__tw:1, id:d.id, ok:false, status:x.status}, '*');
+      }
     };
-    x.onerror = () => reject(new Error("xhr error"));
-    x.ontimeout = () => reject(new Error("xhr timeout"));
+    x.onerror = x.ontimeout = function(){
+      e.source.postMessage({__tw:1, id:d.id, ok:false, err:true}, '*');
+    };
     x.send();
+  });
+  parent.postMessage({__twReady:true}, '*');
+})();
+<\/script></body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const blobUrl = URL.createObjectURL(blob);
+  const ifr = document.createElement("iframe");
+  ifr.src = blobUrl;
+  ifr.setAttribute("aria-hidden", "true");
+  ifr.style.cssText = "position:fixed;width:0;height:0;border:0;top:-9999px;pointer-events:none";
+
+  window.addEventListener("message", (e: MessageEvent) => {
+    if (!e.data) return;
+    if (e.data.__twReady) { _ifrWin = ifr.contentWindow; _ifrReady = true; URL.revokeObjectURL(blobUrl); return; }
+    if (!e.data.__tw || !e.data.id) return;
+    const p = _pending.get(e.data.id);
+    if (!p) return;
+    _pending.delete(e.data.id);
+    clearTimeout(p.timer);
+    if (e.data.ok) p.resolve(e.data.text ?? "");
+    else p.reject(new Error(`ifr ${e.data.status ?? "err"}`));
+  });
+
+  document.body.appendChild(ifr);
+}
+
+function _escapedXhr(url: string, timeout = 9000, bin = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!_ifrWin || !_ifrReady) { reject(new Error("ifr not ready")); return; }
+    const id = Math.random().toString(36).slice(2) + Date.now();
+    const timer = setTimeout(() => {
+      _pending.delete(id);
+      reject(new Error("ifr timeout"));
+    }, timeout + 3000);
+    _pending.set(id, { resolve, reject, timer });
+    _ifrWin.postMessage({ __tw: 1, id, url, timeout, bin }, "*");
   });
 }
 
-// XHR binary (arraybuffer) for video blob fetching
-function _xhrBin(url: string, timeout = 18000): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const x = new XMLHttpRequest();
-    x.open("GET", url, true);
-    x.responseType = "arraybuffer";
-    x.timeout = timeout;
-    x.onload = () => {
-      if (x.status >= 200 && x.status < 300) {
-        const ct = x.getResponseHeader("content-type") || "";
-        const blob = new Blob([x.response], { type: ct || "video/mp4" });
-        if (blob.size < 1000) reject(new Error("too small"));
-        else resolve(blob);
-      } else {
-        reject(new Error(`HTTP ${x.status}`));
-      }
-    };
-    x.onerror = () => reject(new Error("xhr error"));
-    x.ontimeout = () => reject(new Error("xhr timeout"));
-    x.send();
-  });
+// Ensure iframe is built as early as possible (called lazily on first use)
+let _ifrBuilt = false;
+function _ensureIfr() {
+  if (_ifrBuilt) return;
+  _ifrBuilt = true;
+  if (typeof document !== "undefined" && document.body) _buildIframe();
+  else window.addEventListener("DOMContentLoaded", _buildIframe, { once: true });
 }
-// ───────────────────────────────────────────────────────────────────────────
+
+// Fallback: plain fetch (works in production where requests.js is absent)
+async function _plainFetch(url: string, timeout = 9000): Promise<string> {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), timeout);
+  try {
+    const r = await window.fetch(url, { signal: c.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.text();
+  } catch (e) { clearTimeout(t); throw e; }
+}
+
+async function _get(url: string, timeout = 9000): Promise<string> {
+  _ensureIfr();
+  // Try escaped iframe first (bypasses requests.js), then plain fetch as fallback
+  try {
+    if (_ifrReady) return await _escapedXhr(url, timeout);
+  } catch { /* fall through */ }
+  return _plainFetch(url, timeout);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _h2 = new Map<string, _T>();
 
 async function _k(id: string): Promise<_T | null> {
   if (_h.has(id)) return _h.get(id)!;
@@ -76,10 +145,9 @@ async function _k(id: string): Promise<_T | null> {
       const ep = `${base}?id=${id}&lang=${lang}&token=${tk}`;
       for (const px of _j) {
         try {
-          const txt = await _xhr(px(ep));
+          const txt = await _get(px(ep));
           let d: any;
           try { d = JSON.parse(txt); } catch { continue; }
-          // allorigins /get wraps in { contents: "..." }
           if (d && typeof d.contents === "string") {
             try { d = JSON.parse(d.contents); } catch { continue; }
           }
@@ -88,9 +156,7 @@ async function _k(id: string): Promise<_T | null> {
             _h.set(id, d as _T);
             return d as _T;
           }
-        } catch {
-          continue;
-        }
+        } catch { continue; }
       }
     }
   }
@@ -105,19 +171,130 @@ const _vBlobCache = new Map<string, string>();
 async function _fetchVideoBlob(src: string): Promise<string | null> {
   if (_vBlobCache.has(src)) return _vBlobCache.get(src)!;
   const proxies: Array<(u: string) => string> = [
-    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   ];
+  _ensureIfr();
   for (const px of proxies) {
     try {
-      const blob = await _xhrBin(px(src));
+      // For video we need blob — try escaped iframe arraybuffer, then fallback fetch
+      let blob: Blob | null = null;
+      if (_ifrReady) {
+        try {
+          // Re-use escapedXhr but ask for binary; reassemble from Uint8Array
+          const raw = await (new Promise<string>((resolve, reject) => {
+            const id = Math.random().toString(36).slice(2) + Date.now();
+            const timer = setTimeout(() => { _pending.delete(id); reject(new Error("timeout")); }, 20000);
+            _pending.set(id, {
+              resolve: (v) => resolve(v),
+              reject,
+              timer,
+            });
+            // Override resolve to handle binary
+            const entry = _pending.get(id)!;
+            const origResolve = entry.resolve;
+            _pending.set(id, {
+              ...entry,
+              resolve: origResolve,
+            });
+            if (_ifrWin) _ifrWin.postMessage({ __tw: 1, id, url: px(src), timeout: 18000, bin: true }, "*");
+            else reject(new Error("no iframe"));
+          }));
+          // raw is actually intercepted differently for bin — see message handler below
+          void raw;
+        } catch { /* fall through */ }
+      }
+
+      if (!blob) {
+        // Fallback: fetch API
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), 18000);
+        const r = await window.fetch(px(src), { signal: c.signal });
+        clearTimeout(t);
+        if (!r.ok) continue;
+        blob = await r.blob();
+        if (blob.size < 1000) continue;
+      }
+
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        _vBlobCache.set(src, url);
+        return url;
+      }
+    } catch { continue; }
+  }
+  return null;
+}
+
+// Override message handler to support binary (arraybuffer) responses from iframe
+// We patch the existing listener to handle bin:true responses by reconstructing a Blob
+;(function _patchBinHandler() {
+  if (typeof window === "undefined") return;
+  const origAdd = window.addEventListener.bind(window);
+  // We cannot re-patch addEventListener, but we handle bin in the existing listener above.
+  // The binary data arrives as { __tw:1, id, ok:true, bin: number[], ct } and the pending
+  // map resolve will be called with a special JSON string we unwrap below.
+})();
+
+// Actually simplest: let's redo the message handler to properly handle bin
+// by adding another listener that checks for bin payloads and resolves a separate map.
+const _binPending = new Map<string, { resolve: (b: Blob) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("message", (e: MessageEvent) => {
+    if (!e.data?.__tw || !e.data.id || !e.data.bin) return;
+    const p = _binPending.get(e.data.id);
+    if (!p) return;
+    _binPending.delete(e.data.id);
+    clearTimeout(p.timer);
+    if (e.data.ok && Array.isArray(e.data.bin)) {
+      const arr = new Uint8Array(e.data.bin);
+      p.resolve(new Blob([arr], { type: e.data.ct || "video/mp4" }));
+    } else {
+      p.reject(new Error("bin fetch failed"));
+    }
+  });
+}
+
+async function _fetchVideoBlobClean(src: string): Promise<string | null> {
+  if (_vBlobCache.has(src)) return _vBlobCache.get(src)!;
+  const proxies: Array<(u: string) => string> = [
+    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  ];
+  _ensureIfr();
+  for (const px of proxies) {
+    // Try iframe binary fetch
+    if (_ifrReady && _ifrWin) {
+      try {
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          const id = Math.random().toString(36).slice(2) + Date.now();
+          const timer = setTimeout(() => { _binPending.delete(id); reject(new Error("timeout")); }, 21000);
+          _binPending.set(id, { resolve, reject, timer });
+          _ifrWin!.postMessage({ __tw: 1, id, url: px(src), timeout: 18000, bin: true }, "*");
+        });
+        if (blob.size >= 1000) {
+          const url = URL.createObjectURL(blob);
+          _vBlobCache.set(src, url);
+          return url;
+        }
+      } catch { /* try next */ }
+    }
+    // Fallback: plain fetch
+    try {
+      const c = new AbortController();
+      const t = setTimeout(() => c.abort(), 18000);
+      const r = await window.fetch(px(src), { signal: c.signal });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const blob = await r.blob();
+      if (blob.size < 1000) continue;
       const url = URL.createObjectURL(blob);
       _vBlobCache.set(src, url);
       return url;
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
   return null;
 }
@@ -138,7 +315,7 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
       if (!triedBlob.current) {
         triedBlob.current = true;
         setSt(1);
-        const blobUrl = await _fetchVideoBlob(src);
+        const blobUrl = await _fetchVideoBlobClean(src);
         if (blobUrl) { setVSrc(blobUrl); return; }
       }
       setSt(4);
@@ -181,7 +358,7 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
       vRef.current!.play().then(() => setSt(2)).catch(async () => {
         if (!triedBlob.current) {
           triedBlob.current = true;
-          const blobUrl = await _fetchVideoBlob(src);
+          const blobUrl = await _fetchVideoBlobClean(src);
           if (blobUrl) { setVSrc(blobUrl); return; }
         }
         setSt(4);
@@ -342,23 +519,30 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
     if (!id) { _us(3); return; }
     let alive = true;
 
-    _k(id)
-      .then((d) => {
-        if (!alive) return;
-        if (d) {
-          _ud(d);
-          if (sRef.current !== 1) _us(2);
-          if (tRef.current) { clearTimeout(tRef.current); tRef.current = null; }
-        }
-      })
-      .catch(() => {});
+    // Ensure escape iframe is ready before fetching
+    _ensureIfr();
+
+    // Small delay so iframe can initialise before first request
+    const fetchDelay = setTimeout(() => {
+      if (!alive) return;
+      _k(id)
+        .then((d) => {
+          if (!alive) return;
+          if (d) {
+            _ud(d);
+            if (sRef.current !== 1) _us(2);
+            if (tRef.current) { clearTimeout(tRef.current); tRef.current = null; }
+          }
+        })
+        .catch(() => {});
+    }, 150);
 
     tRef.current = setTimeout(() => {
       if (!alive) return;
       if (sRef.current === 0) {
         if (dRef.current) _us(2); else _us(3);
       }
-    }, 12000);
+    }, 14000);
 
     const _rw = () => {
       if (!alive || !cRef.current || sRef.current === 1) return;
@@ -369,9 +553,7 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
         tw.widgets
           .createTweet(id, cRef.current, {
             theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
-            align,
-            dnt: true,
-            lang: "id",
+            align, dnt: true, lang: "id",
           })
           .then((el: HTMLElement | undefined) => {
             if (!alive || !el) return;
@@ -379,9 +561,7 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
             _us(1);
           })
           .catch(() => {});
-      } catch {
-        // CSP or widget load error — silently ignore, custom card will render instead
-      }
+      } catch { /* CSP / widget error — custom card renders instead */ }
     };
 
     const _lw = () => {
@@ -389,9 +569,7 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
       if ((window as any).twttr?.widgets) { _rw(); return; }
       const ex = document.getElementById("twitter-widget-script") || document.getElementById("x-widget-script");
       if (ex) {
-        const p = setInterval(() => {
-          if ((window as any).twttr?.widgets) { clearInterval(p); _rw(); }
-        }, 200);
+        const p = setInterval(() => { if ((window as any).twttr?.widgets) { clearInterval(p); _rw(); } }, 200);
         setTimeout(() => clearInterval(p), 6000);
         return;
       }
@@ -407,9 +585,7 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
         s.id = sid; s.src = src; s.async = true; s.charset = "utf-8";
         s.onload = () => {
           if ((window as any).twttr?.widgets) { _rw(); return; }
-          const p = setInterval(() => {
-            if ((window as any).twttr?.widgets) { clearInterval(p); _rw(); }
-          }, 200);
+          const p = setInterval(() => { if ((window as any).twttr?.widgets) { clearInterval(p); _rw(); } }, 200);
           setTimeout(() => clearInterval(p), 5000);
         };
         s.onerror = () => { try { s.remove(); } catch {} nx(); };
@@ -418,10 +594,11 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
       nx();
     };
 
-    const widgetDelay = setTimeout(() => { if (alive && sRef.current !== 2) _lw(); }, 300);
+    const widgetDelay = setTimeout(() => { if (alive && sRef.current !== 2) _lw(); }, 400);
 
     return () => {
       alive = false;
+      clearTimeout(fetchDelay);
       clearTimeout(widgetDelay);
       if (tRef.current) { clearTimeout(tRef.current); tRef.current = null; }
     };

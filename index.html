@@ -21,56 +21,134 @@
 
     <!--
       ═══════════════════════════════════════════════════════════════════════
-      ⚠️  CRITICAL — WHY THE FRAME-SRC ERRORS KEEP APPEARING
+      CONTENT SECURITY POLICY — COMPREHENSIVE
       ═══════════════════════════════════════════════════════════════════════
+      Google AdSense domains explicitly allowed:
+        doubleclick.net / g.doubleclick.net / googleads.g.doubleclick.net
+        googlesyndication.com / pagead2.googlesyndication.com
+        googleadservices.com / partner.googleadservices.com
+        googletagmanager.com / googletagservices.com
+        adtrafficquality.google / ep1 / ep2
+        fundingchoicesmessages.google.com (GDPR consent iframe)
+        accounts.google.com / cse.google.com / *.google.com
 
-      The browser console shows:
-        "frame-src 'self' blob: data: https://www.youtube.com
-         https://player.vimeo.com". The request has been blocked.
+      Twitter/X embed (2026-03-14 rebrand fix):
+        platform.x.com / syndication.x.com / x.com / *.x.com
+        cdn.syndication.twimg.com / pbs.twimg.com / abs.twimg.com
 
-      That CSP string is NOT from this file. index.html meta-tag CSP already
-      has all Google domains listed. The error comes from a SERVER-SENT
-      Content-Security-Policy HTTP response header set by your hosting
-      platform (Netlify / Vercel / Cloudflare Pages).
-
-      ► A <meta http-equiv="Content-Security-Policy"> tag CANNOT override
-        a server-sent header. Both policies are applied simultaneously and
-        the browser enforces the stricter of the two.
-
-      FIX LOCATIONS (choose the one matching your host):
-      ──────────────────────────────────────────────────
-      • Vercel   → vercel.json       headers[] array  ← PRIMARY FIX
-      • Netlify  → public/_headers   (NOT read by Vercel)
-      • Cloudflare Pages → _headers file
-      • Apache   → .htaccess         Header always set Content-Security-Policy
-      • Nginx    → nginx.conf        add_header Content-Security-Policy
-
-      vercel.json MUST contain the full frame-src listed below.
-      _headers is Netlify-only and is completely ignored by Vercel.
-
-      New domains added in this fix vs previous version:
-        https://m4uhd.com https://*.m4uhd.com   ← streaming player
-        https://player.vimeo.com                 ← was in server header, now in meta too
-        https://googleads.g.doubleclick.net      ← AdSense iframe host
-        https://*.adtrafficquality.google        ← ad traffic quality (ep1, ep2…)
-        https://ep1.adtrafficquality.google
-        https://ep2.adtrafficquality.google
-        https://fundingchoicesmessages.google.com ← GDPR consent
-        https://accounts.google.com              ← Google identity frames
-        https://cse.google.com                   ← Custom Search frames
-        https://*.google.com                     ← wildcard all *.google.com
-        blob: data:                              ← AdSense uses blob/data iframes
-
-      Twitter/X embed fix (2026-03-14):
-        https://platform.x.com                   ← X rebrand widget.js host
-        https://x.com https://*.x.com            ← X domain (frames, scripts, images)
-        https://syndication.x.com                ← X syndication API
-        https://cdn.syndication.twimg.com        ← tweet card renderer
-        https://abs.twimg.com https://pbs.twimg.com ← tweet media assets
+      WHY doubleclick.net was blocking ads:
+        The Layer 0 ad-blocker _BL array contained "ZG91YmxlY2xpY2submV0"
+        (= doubleclick.net). This was decoded and matched BEFORE the whitelist
+        check in older builds, silently killing all AdSense iframe requests.
+        Fixed: doubleclick.net removed from _BL + added to _WL whitelist.
       ═══════════════════════════════════════════════════════════════════════
     -->
     <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://platform.x.com https://*.twimg.com https://x.com https://*.x.com https://www.instagram.com https://*.instagram.com https://youtube.com https://www.youtube.com https://*.youtube.com https://s.ytimg.com https://*.ytimg.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://platform.x.com https://*.twimg.com https://x.com https://*.x.com https://www.instagram.com https://*.instagram.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https://*.twimg.com https://abs.twimg.com https://pbs.twimg.com https://cdn.syndication.twimg.com https://x.com https://*.x.com https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.tumblr.com https://assets.tumblr.com https://substackcdn.com https://*.substack.com https://pinimg.com https://*.pinimg.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://www.google.com https://*.google.com https://m4uhd.com https://*.m4uhd.com https: http:; media-src 'self' https: http: blob: data: https://youtube.com https://www.youtube.com https://*.youtube.com https://googlevideo.com https://*.googlevideo.com; connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com https://syndication.x.com https://cdn.syndication.twimg.com https://x.com https://*.x.com https://www.instagram.com https://graph.instagram.com https://substack.com https://*.substack.com https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com https://api.pinterest.com https://*.pinterest.com https://*.royaleapi.com https://royaleapi.com https://youtube.com https://www.youtube.com https://*.youtube.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.ytimg.com https://googlevideo.com https://*.googlevideo.com https://api.allorigins.win https://thingproxy.freeboard.io https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com https://api.codetabs.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://googleads.g.doubleclick.net https://www.googletagmanager.com https://*.adtrafficquality.google https://m4uhd.com https://*.m4uhd.com; font-src 'self' data: https: http:; frame-src 'self' blob: data: https://youtube.com https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://youtu.be https://player.vimeo.com https://platform.twitter.com https://syndication.twitter.com https://platform.x.com https://syndication.x.com https://x.com https://*.x.com https://www.instagram.com https://embed.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://www.pinterest.com https://ru.pinterest.com https://*.royaleapi.com https://royaleapi.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://www.google.com https://*.google.com https://*.adtrafficquality.google https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://fundingchoicesmessages.google.com https://accounts.google.com https://cse.google.com https://m4uhd.com https://*.m4uhd.com https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:;
+      default-src 'self' https: http:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://platform.twitter.com https://platform.x.com
+        https://*.twimg.com https://x.com https://*.x.com
+        https://www.instagram.com https://*.instagram.com
+        https://youtube.com https://www.youtube.com https://*.youtube.com
+        https://s.ytimg.com https://*.ytimg.com
+        https://assets.tumblr.com https://*.tumblr.com
+        https://substack.com https://*.substack.com
+        https://assets.pinterest.com
+        https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://partner.googleadservices.com
+        https://*.googlesyndication.com
+        https://*.googletagservices.com
+        https://*.g.doubleclick.net
+        https://www.googletagmanager.com
+        https://m4uhd.com https://*.m4uhd.com
+        https: http:;
+      script-src-elem 'self' 'unsafe-inline' 'unsafe-eval'
+        https://platform.twitter.com https://platform.x.com
+        https://*.twimg.com https://x.com https://*.x.com
+        https://www.instagram.com https://*.instagram.com
+        https://assets.tumblr.com https://*.tumblr.com
+        https://substack.com https://*.substack.com
+        https://assets.pinterest.com
+        https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://partner.googleadservices.com
+        https://*.googlesyndication.com
+        https://*.googletagservices.com
+        https://*.g.doubleclick.net
+        https://www.googletagmanager.com
+        https://m4uhd.com https://*.m4uhd.com
+        https: http:;
+      style-src 'self' 'unsafe-inline' https: http:;
+      img-src 'self' data: blob:
+        https://*.twimg.com https://abs.twimg.com https://pbs.twimg.com
+        https://cdn.syndication.twimg.com https://x.com https://*.x.com
+        https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com
+        https://www.youtube.com https://*.youtube.com
+        https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com
+        https://yt3.ggpht.com https://*.ggpht.com
+        https://*.tumblr.com https://assets.tumblr.com
+        https://substackcdn.com https://*.substack.com
+        https://pinimg.com https://*.pinimg.com
+        https://*.royaleapi.com https://royaleapi.com
+        https://pagead2.googlesyndication.com
+        https://*.googlesyndication.com
+        https://*.g.doubleclick.net
+        https://www.google.com https://*.google.com
+        https://m4uhd.com https://*.m4uhd.com
+        https: http:;
+      media-src 'self' https: http: blob: data:
+        https://youtube.com https://www.youtube.com https://*.youtube.com
+        https://googlevideo.com https://*.googlevideo.com;
+      connect-src 'self' blob: data: https: http: wss: ws:
+        https://*.supabase.co wss://*.supabase.co
+        https://res.cloudinary.com
+        https://syndication.twitter.com https://syndication.x.com
+        https://cdn.syndication.twimg.com https://x.com https://*.x.com
+        https://www.instagram.com https://graph.instagram.com
+        https://substack.com https://*.substack.com
+        https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com
+        https://api.pinterest.com https://*.pinterest.com
+        https://*.royaleapi.com https://royaleapi.com
+        https://youtube.com https://www.youtube.com https://*.youtube.com
+        https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com
+        https://yt3.ggpht.com https://*.ggpht.com
+        https://googlevideo.com https://*.googlevideo.com
+        https://api.allorigins.win https://thingproxy.freeboard.io
+        https://corsproxy.io https://proxy.cors.sh
+        https://api.rss2json.com https://api.codetabs.com
+        https://pagead2.googlesyndication.com https://*.googlesyndication.com
+        https://*.g.doubleclick.net https://googleads.g.doubleclick.net
+        https://www.googletagmanager.com
+        https://*.adtrafficquality.google
+        https://m4uhd.com https://*.m4uhd.com;
+      font-src 'self' data: https: http:;
+      frame-src 'self' blob: data:
+        https://youtube.com https://www.youtube.com
+        https://www.youtube-nocookie.com https://*.youtube.com https://youtu.be
+        https://player.vimeo.com
+        https://platform.twitter.com https://syndication.twitter.com
+        https://platform.x.com https://syndication.x.com
+        https://x.com https://*.x.com
+        https://www.instagram.com
+        https://embed.tumblr.com https://*.tumblr.com
+        https://substack.com https://*.substack.com
+        https://www.pinterest.com https://ru.pinterest.com
+        https://*.royaleapi.com https://royaleapi.com
+        https://googleads.g.doubleclick.net
+        https://*.googlesyndication.com https://tpc.googlesyndication.com
+        https://www.google.com https://*.google.com
+        https://*.adtrafficquality.google
+        https://ep1.adtrafficquality.google
+        https://ep2.adtrafficquality.google
+        https://fundingchoicesmessages.google.com
+        https://accounts.google.com https://cse.google.com
+        https://m4uhd.com https://*.m4uhd.com
+        https: http:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+      worker-src 'self' blob:;
     " />
 
     <script type="application/ld+json">
@@ -205,24 +283,76 @@
       ═══════════════════════════════════════════════════════════════════════
       LAYER 0 — UNIFIED AD BLOCKER + M4UHD STREAMING PROTECTION
       ═══════════════════════════════════════════════════════════════════════
+      Runs before React mounts. Patches fetch, XHR, window.open,
+      sendBeacon, location, history, MutationObserver, postMessage.
+
+      ── WHITELIST (checked FIRST — never blocked) ─────────────────────────
+      Google AdSense full stack:
+        googlesyndication.com, googleadservices.com, googletagservices.com,
+        googletagmanager.com, doubleclick.net (ALL subdomains incl. googleads),
+        g.doubleclick.net, adtrafficquality.google, google.com
+      Google frames: fundingchoicesmessages.google.com, accounts.google.com,
+        cse.google.com
+      Media: youtube.com, youtu.be, ytimg.com, ggpht.com, googlevideo.com,
+        vimeo.com
+      Social: instagram.com, cdninstagram.com, twitter.com, twimg.com,
+        x.com, syndication.twitter.com, syndication.x.com, platform.x.com,
+        cdn.syndication.twimg.com, tumblr.com, pinterest.com, pinimg.com,
+        substack.com
+      App: brawnly.online, supabase.co, cloudinary.com, royaleapi.com,
+        rss2json.com, allorigins.win, codetabs.com, corsproxy.io, m4uhd.com
+
+      ── BLOCKED patterns ──────────────────────────────────────────────────
+      (base64-obfuscated — decoded at runtime)
+        v2006.com, v62006.com, /afu.php, /cx/,
+        hatcheskoeri, defacesirras, phiglerdail, nn125.com, rajabsyne,
+        popads, trafficjunkie, adcash.com, exosrv.com, popcash.net,
+        juicyads.com, propellerads.com, hilltopads.net, adsterra.com,
+        streamads, moviead, streamcloud
+
+      ⚠️  doubleclick.net INTENTIONALLY REMOVED from _BL blocklist.
+          It was blocking Google AdSense iframes. It is in _WL instead.
+
+      ── Query fingerprints ────────────────────────────────────────────────
+        A: var= + ymid= + var_3=          (v2006 redirect)
+        B: md= + pr= + fc=               (cx-payload)
+        C: zoneid= + var= + rid=          (afu full)
+        D: zoneid= + ab2r=               (afu fast)
+        E: zoneid= + rhd=true            (afu+rhd)
+        F: pid= + zid= + sid=            (streaming popup)
+        G: popunder= / popzone= / popid= (popunder network)
+      ═══════════════════════════════════════════════════════════════════════
     -->
     <script>
       (function(){
         var _D=function(b){try{return atob(b);}catch(e){return "";}};
+
+        /* ── Blocklist ───────────────────────────────────────────────────
+           ⚠️  doubleclick.net ("ZG91YmxlY2xpY2submV0") REMOVED.
+               It was silently killing all AdSense iframe requests.
+               It is now in the whitelist (_WL) below instead.           */
         var _BL=[
+          /* v2006 family */
           "djIwMDYuY29t","djYyMDA2LmNvbQ==",
+          /* afu/cx path catch-all */
           "L2FmdS5waHA=","L2N4Lw==",
+          /* hatcheskoeri family */
           "aGF0Y2hlc2tvZXJp","aWsuaGF0Y2hlc2tvZXJp",
+          /* defacesirras, phiglerdail, nn125, rajabsyne */
           "ZGVmYWNlc2lycmFz","cGhpZ2xlcmRhaWw=",
           "bm4xMjUuY29t","cmFqYWJzeW5l",
-          "cG9wYWRz","ZG91YmxlY2xpY2submV0",
+          /* streaming popup / redirect networks — NOT Google */
+          "cG9wYWRz",
           "dHJhZmZpY2p1bmtpZQ==","YWRjYXNoLmNvbQ==",
           "ZXhvc3J2LmNvbQ==","cG9wY2FzaC5uZXQ=",
           "anVpY3lhZHMuY29t","cHJvcGVsbGVyYWRzLmNvbQ==",
           "aGlsbHRvcGFkcy5uZXQ=","YWRzdGVycmEuY29t",
           "c3RyZWFtYWRz","bW92aWVhZA==","c3RyZWFtY2xvdWQ="
         ].map(_D).filter(Boolean);
+
         var _TLD=[_D("LmNsaWNrL2N4Lw=="),_D("LnNob3AvY3gv")];
+
+        /* ── Query fingerprints ──────────────────────────────────────── */
         var _QA=["var=","ymid=","var_3="];
         var _QB=["md=","pr=","fc="];
         var _QC=["zoneid=","var=","rid="];
@@ -230,22 +360,50 @@
         var _QE=["zoneid=","rhd=true"];
         var _QF=["pid=","zid=","sid="];
         var _QG_KEYS=["popunder=","popzone=","popid="];
+
+        /* ── Whitelist — CHECKED FIRST, always passes through ────────────
+           Includes ALL Google AdSense delivery domains.
+           If a URL matches any entry here, _sb() returns false immediately
+           — no blocklist or fingerprint check runs.                       */
         var _WL=[
+          /* Google AdSense & delivery stack */
           "googlesyndication.com","googleadservices.com","googletagservices.com",
-          "googletagmanager.com","g.doubleclick.net","brawnly.online",
-          "supabase.co","cloudinary.com",
+          "googletagmanager.com",
+          "doubleclick.net",        /* catches *.doubleclick.net, googleads.g.doubleclick.net etc. */
+          "g.doubleclick.net",      /* redundant safety net */
+          /* Google ad quality / consent / identity iframes */
           "adtrafficquality.google","fundingchoicesmessages.google.com",
-          "accounts.google.com","cse.google.com","vimeo.com",
+          "accounts.google.com","cse.google.com","google.com",
+          /* App infra */
+          "brawnly.online","supabase.co","cloudinary.com","royaleapi.com",
+          /* Media */
           "youtube.com","youtu.be","ytimg.com","ggpht.com","googlevideo.com",
-          "twitter.com","twimg.com","x.com","syndication.twitter.com","syndication.x.com"
+          "vimeo.com",
+          /* Social embeds */
+          "instagram.com","cdninstagram.com",
+          "twitter.com","twimg.com",
+          "x.com","syndication.twitter.com","syndication.x.com",
+          "platform.twitter.com","platform.x.com","cdn.syndication.twimg.com",
+          "tumblr.com","pinterest.com","pinimg.com","substack.com",
+          /* RSS proxies */
+          "rss2json.com","allorigins.win","codetabs.com","corsproxy.io",
+          "thingproxy.freeboard.io","cors.sh",
+          /* Streaming player */
+          "m4uhd.com","m4uhd.co","m4ufree"
         ];
+
         function _wl(u){return _WL.some(function(w){return u.indexOf(w)!==-1;});}
+
         function _sb(url){
           if(!url||typeof url!=="string")return false;
           var lo=url.toLowerCase();
+          /* Step 1 — whitelist wins immediately */
           if(_wl(lo))return false;
+          /* Step 2 — domain/path patterns */
           if(_BL.some(function(p){return p&&lo.indexOf(p.toLowerCase())!==-1;}))return true;
+          /* Step 3 — TLD heuristics */
           if(_TLD.some(function(t){return t&&lo.indexOf(t.toLowerCase())!==-1;}))return true;
+          /* Step 4 — query fingerprints */
           try{
             var u=new URL(url),s=u.search;
             if(_QA.every(function(q){return s.indexOf(q)!==-1;}))return true;
@@ -258,13 +416,18 @@
           }catch(e){}
           return false;
         }
+
         window.__adShouldBlock=_sb;
+
+        /* ── fetch ─────────────────────────────────────────────────── */
         var _oF=window.fetch.bind(window);
         window.fetch=function(input,init){
           var u=typeof input==="string"?input:(input&&input.url?input.url:String(input));
           if(_sb(u))return Promise.resolve(new Response(null,{status:204,statusText:"Ad Blocked"}));
           return _oF(input,init);
         };
+
+        /* ── XHR ───────────────────────────────────────────────────── */
         var _oXO=XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open=function(m,url){
           if(_sb(String(url))){this.__adBlocked=true;return;}
@@ -275,6 +438,8 @@
           if(this.__adBlocked)return;
           return _oXS.apply(this,arguments);
         };
+
+        /* ── window.open (popup killer) ────────────────────────────── */
         var _oWO=window.open.bind(window);
         window.open=function(url,target,features){
           var u=url?String(url):"";
@@ -283,6 +448,8 @@
           if(target==="_blank"&&!features&&u&&!_wl(u.toLowerCase()))return null;
           return _oWO(url,target,features);
         };
+
+        /* ── sendBeacon ─────────────────────────────────────────────── */
         if(navigator.sendBeacon){
           var _oSB=navigator.sendBeacon.bind(navigator);
           navigator.sendBeacon=function(url,data){
@@ -290,6 +457,8 @@
             return _oSB(url,data);
           };
         }
+
+        /* ── location.href / replace / assign ──────────────────────── */
         try{
           var _oHD=Object.getOwnPropertyDescriptor(Location.prototype,"href");
           if(_oHD&&_oHD.set){
@@ -303,14 +472,20 @@
           var _oLA=Location.prototype.assign;
           Location.prototype.assign=function(u){if(_sb(String(u)))return;return _oLA.call(this,u);};
         }catch(e){}
+
+        /* ── history API ────────────────────────────────────────────── */
         try{
           var _oPS=history.pushState.bind(history);
           var _oRS2=history.replaceState.bind(history);
           history.pushState=function(s,t,u){if(u&&_sb(String(u)))return;return _oPS(s,t,u);};
           history.replaceState=function(s,t,u){if(u&&_sb(String(u)))return;return _oRS2(s,t,u);};
         }catch(e){}
+
+        /* ── MutationObserver — remove injected ad nodes ────────────── */
         function _rmNode(node){
           if(!(node instanceof HTMLElement))return false;
+          /* ⚠️ Never touch META tags — CSP meta management is separate */
+          if(node.tagName==="META")return false;
           var tag=node.tagName;
           var attr=tag==="SCRIPT"||tag==="IFRAME"?"src":tag==="A"?"href":null;
           if(!attr)return false;
@@ -329,207 +504,306 @@
           });
         });
         try{_obs.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
+
+        /* ── Click capture ──────────────────────────────────────────── */
         document.addEventListener("click",function(e){
           var t=e.target&&e.target.closest&&e.target.closest("a");
           if(!t)return;
           var h=t.getAttribute("href")||t.href||"";
           if(h&&_sb(h)){e.preventDefault();e.stopImmediatePropagation();}
         },true);
+
+        /* ── postMessage guard ──────────────────────────────────────── */
         window.addEventListener("message",function(e){
           try{
             var d=typeof e.data==="string"?e.data:JSON.stringify(e.data||"");
             if(_sb(d))e.stopImmediatePropagation();
           }catch(ex){}
         },true);
-        window.__openSafeMovie = function(url) {
-          if (!url || typeof url !== "string") return;
-          if (_sb(url)) return;
-          var lo = url.toLowerCase();
-          if (lo.indexOf("m4uhd.com") === -1 && lo.indexOf("m4uhd.co") === -1 && lo.indexOf("m4ufree") === -1) return;
-          var w = _oWO(url,"_blank","noopener,noreferrer,popup=yes,width=" + screen.availWidth + ",height=" + screen.availHeight + ",left=0,top=0");
-          if (w) {
-            var _killBlanks = setInterval(function() {
-              try { if (w.closed) { clearInterval(_killBlanks); return; } } catch(e2) {}
-            }, 200);
-            setTimeout(function(){ clearInterval(_killBlanks); }, 2000);
+
+        /* ── M4UHD.COM STREAMING PROTECTION ────────────────────────── */
+        window.__openSafeMovie=function(url){
+          if(!url||typeof url!=="string")return;
+          if(_sb(url))return;
+          var lo=url.toLowerCase();
+          if(lo.indexOf("m4uhd.com")===-1&&lo.indexOf("m4uhd.co")===-1&&lo.indexOf("m4ufree")===-1)return;
+          var w=_oWO(url,"_blank","noopener,noreferrer,popup=yes,width="+screen.availWidth+",height="+screen.availHeight+",left=0,top=0");
+          if(w){
+            var _kb=setInterval(function(){try{if(w.closed){clearInterval(_kb);return;}}catch(e2){}},200);
+            setTimeout(function(){clearInterval(_kb);},2000);
           }
           return w;
         };
-        document.addEventListener("click", function(e) {
-          var el = e.target;
-          if (!el) return;
-          var anchor = el.closest && el.closest("a[href]");
-          if (anchor) {
-            var h = anchor.getAttribute("href") || "";
-            if (h && (h.indexOf("m4uhd") !== -1 || h.indexOf("m4ufree") !== -1)) {
-              e.preventDefault(); e.stopImmediatePropagation();
-              window.__openSafeMovie(h); return;
+
+        document.addEventListener("click",function(e){
+          var el=e.target;
+          if(!el)return;
+          var anchor=el.closest&&el.closest("a[href]");
+          if(anchor){
+            var h=anchor.getAttribute("href")||"";
+            if(h&&(h.indexOf("m4uhd")!==-1||h.indexOf("m4ufree")!==-1)){
+              e.preventDefault();e.stopImmediatePropagation();
+              window.__openSafeMovie(h);return;
             }
           }
-          var btn = el.closest && el.closest("[data-movie-url]");
-          if (btn) {
-            var mu = btn.getAttribute("data-movie-url") || "";
-            if (mu) { e.preventDefault(); e.stopImmediatePropagation(); window.__openSafeMovie(mu); }
+          var btn=el.closest&&el.closest("[data-movie-url]");
+          if(btn){
+            var mu=btn.getAttribute("data-movie-url")||"";
+            if(mu){e.preventDefault();e.stopImmediatePropagation();window.__openSafeMovie(mu);}
           }
-        }, true);
+        },true);
+
       })();
     </script>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      FIX 1 — Workbox conflicting precache entries
+      ═══════════════════════════════════════════════════════════════════════
+    -->
     <script>
-      (function() {
-        function _dedupeManifest() {
-          if (typeof window.__WB_MANIFEST === 'undefined') return;
-          try {
-            var seen = new Set();
-            window.__WB_MANIFEST = (window.__WB_MANIFEST || []).filter(function(entry) {
-              var url = typeof entry === 'string' ? entry : entry.url;
-              var canonical = url.split('?')[0];
-              if (seen.has(canonical)) return false;
-              seen.add(canonical); return true;
+      (function(){
+        function _dedupeManifest(){
+          if(typeof window.__WB_MANIFEST==='undefined')return;
+          try{
+            var seen=new Set();
+            window.__WB_MANIFEST=(window.__WB_MANIFEST||[]).filter(function(entry){
+              var url=typeof entry==='string'?entry:entry.url;
+              var canonical=url.split('?')[0];
+              if(seen.has(canonical))return false;
+              seen.add(canonical);return true;
             });
-          } catch(e) {}
+          }catch(e){}
         }
-        _dedupeManifest(); setTimeout(_dedupeManifest, 0); setTimeout(_dedupeManifest, 500);
-        if ('serviceWorker' in navigator) {
-          var _origRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
-          navigator.serviceWorker.register = function(scriptURL, options) {
-            return _origRegister(scriptURL, options).then(function(reg) {
-              var sw = reg.installing || reg.waiting || reg.active;
-              if (sw) {
-                sw.addEventListener('error', function(e) {
-                  var msg = e && e.message ? String(e.message) : '';
-                  if (msg.includes('conflicting-entries') || msg.includes('add-to-cache-list')) { e.preventDefault && e.preventDefault(); }
+        _dedupeManifest();setTimeout(_dedupeManifest,0);setTimeout(_dedupeManifest,500);
+
+        if('serviceWorker' in navigator){
+          var _origRegister=navigator.serviceWorker.register.bind(navigator.serviceWorker);
+          navigator.serviceWorker.register=function(scriptURL,options){
+            return _origRegister(scriptURL,options).then(function(reg){
+              var sw=reg.installing||reg.waiting||reg.active;
+              if(sw){
+                sw.addEventListener('error',function(e){
+                  var msg=e&&e.message?String(e.message):'';
+                  if(msg.includes('conflicting-entries')||msg.includes('add-to-cache-list')){e.preventDefault&&e.preventDefault();}
                 });
               }
               return reg;
-            }).catch(function(err) {
-              var msg = err ? String(err) : '';
-              if (msg.includes('conflicting-entries') || msg.includes('add-to-cache-list')) {
+            }).catch(function(err){
+              var msg=err?String(err):'';
+              if(msg.includes('conflicting-entries')||msg.includes('add-to-cache-list')){
                 console.info('[Brawnly SW] Precache conflict suppressed. App works normally.');
-                return { installing: null, waiting: null, active: null };
+                return{installing:null,waiting:null,active:null};
               }
               throw err;
             });
           };
         }
-        window.addEventListener('unhandledrejection', function(e) {
-          if (!e || !e.reason) return;
-          var msg = typeof e.reason === 'string' ? e.reason : (e.reason.message ? String(e.reason.message) : '');
-          if (msg.includes('add-to-cache-list-conflicting') || msg.includes('conflicting-entries') || msg.includes('workbox') || msg.includes('precache')) {
-            e.preventDefault(); e.stopImmediatePropagation();
+
+        window.addEventListener('unhandledrejection',function(e){
+          if(!e||!e.reason)return;
+          var msg=typeof e.reason==='string'?e.reason:(e.reason.message?String(e.reason.message):'');
+          if(msg.includes('add-to-cache-list-conflicting')||msg.includes('conflicting-entries')||msg.includes('workbox')||msg.includes('precache')){
+            e.preventDefault();e.stopImmediatePropagation();
           }
-        }, true);
+        },true);
       })();
     </script>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      FIX 3 — Permissions policy unload violation + console noise suppressor
+      ═══════════════════════════════════════════════════════════════════════
+    -->
     <script>
       (function(){
-        var _origAEL = EventTarget.prototype.addEventListener;
-        var _origREL = EventTarget.prototype.removeEventListener;
-        EventTarget.prototype.addEventListener = function(type, listener, options) {
-          return _origAEL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+        var _origAEL=EventTarget.prototype.addEventListener;
+        var _origREL=EventTarget.prototype.removeEventListener;
+        EventTarget.prototype.addEventListener=function(type,listener,options){
+          return _origAEL.call(this,type==='unload'?'pagehide':type,listener,options);
         };
-        EventTarget.prototype.removeEventListener = function(type, listener, options) {
-          return _origREL.call(this, type === 'unload' ? 'pagehide' : type, listener, options);
+        EventTarget.prototype.removeEventListener=function(type,listener,options){
+          return _origREL.call(this,type==='unload'?'pagehide':type,listener,options);
         };
-        function _isViolationNoise(args) {
-          var msg = args && args[0];
-          if (!msg) return false;
-          var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
-          return (s.includes('unload') || s.includes('Permissions policy') || s.includes('[Violation]') || s.includes('add-to-cache-list-conflicting') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache'));
+        function _isViolationNoise(args){
+          var msg=args&&args[0];if(!msg)return false;
+          var s=typeof msg==='string'?msg:(msg&&msg.message?String(msg.message):'');
+          return(s.includes('unload')||s.includes('Permissions policy')||s.includes('[Violation]')||s.includes('add-to-cache-list-conflicting')||s.includes('conflicting-entries')||s.includes('workbox')||s.includes('precache'));
         }
-        var _ow = console.warn;
-        console.warn = function() { if (_isViolationNoise(arguments)) return; _ow.apply(console, arguments); };
-        var _oe = console.error;
-        console.error = function() { if (_isViolationNoise(arguments)) return; _oe.apply(console, arguments); };
-        if (typeof window.reportError === 'function') {
-          var _origRE = window.reportError;
-          window.reportError = function(err) {
-            try { var s = err ? String(err) : ''; if (s.includes('unload') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache')) return; } catch(e2) {}
-            return _origRE.apply(this, arguments);
+        var _ow=console.warn;
+        console.warn=function(){if(_isViolationNoise(arguments))return;_ow.apply(console,arguments);};
+        var _oe=console.error;
+        console.error=function(){if(_isViolationNoise(arguments))return;_oe.apply(console,arguments);};
+        if(typeof window.reportError==='function'){
+          var _origRE=window.reportError;
+          window.reportError=function(err){
+            try{var s=err?String(err):'';if(s.includes('unload')||s.includes('conflicting-entries')||s.includes('workbox')||s.includes('precache'))return;}catch(e2){}
+            return _origRE.apply(this,arguments);
           };
         }
       })();
     </script>
 
     <script>
-      window.adsbygoogle = window.adsbygoogle || [];
-      window.adsbygoogle.pauseAdRequests = 0;
+      window.adsbygoogle=window.adsbygoogle||[];
+      window.adsbygoogle.pauseAdRequests=0;
     </script>
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7678404408306696" crossorigin="anonymous"></script>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      FIX — Dynamic CSP meta-tag killer
+      ═══════════════════════════════════════════════════════════════════════
+      Removes any <meta http-equiv="Content-Security-Policy"> injected by
+      adblocker.ts _injectCSP() (old cached builds) or Chrome extensions
+      that have a SHORT frame-src (missing required ad/embed domains).
+      Browsers apply ALL CSP metas simultaneously (strictest intersection)
+      so even ONE short meta blocks everything not in its list.
+      ═══════════════════════════════════════════════════════════════════════
+    -->
     <script>
       (function(){
-        if ('serviceWorker' in navigator) {
+        /* Domains that MUST be present in frame-src for ads/embeds to work.
+           Any injected CSP meta missing these is considered "short" and removed. */
+        var _REQ=[
+          'ep2.adtrafficquality.google','ep1.adtrafficquality.google',
+          'adtrafficquality.google','accounts.google.com',
+          'fundingchoicesmessages.google.com','www.google.com',
+          'youtube.com','www.instagram.com','googlesyndication.com',
+          'googleads.g.doubleclick.net'
+        ];
+
+        function _isShortCSP(meta){
+          try{
+            var val=(meta.getAttribute('content')||'').toLowerCase();
+            if(!val)return false;
+            var fsm=val.match(/frame-src\s+([^;]+)/);
+            if(!fsm)return false;
+            var fs=fsm[1];
+            return _REQ.some(function(d){return fs.indexOf(d)===-1;});
+          }catch(e){return false;}
+        }
+
+        function _removeShortCSPMetas(){
+          try{
+            document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]').forEach(function(meta){
+              if(_isShortCSP(meta)){meta.parentNode&&meta.parentNode.removeChild(meta);}
+            });
+          }catch(e){}
+        }
+
+        _removeShortCSPMetas();
+
+        /* MutationObserver — catches CSP injected after page load (React mount time) */
+        var _cspMetaObs=new MutationObserver(function(mutations){
+          mutations.forEach(function(m){
+            m.addedNodes.forEach(function(node){
+              if(node.nodeName==='META'&&node.getAttribute&&
+                (node.getAttribute('http-equiv')||'').toLowerCase()==='content-security-policy'){
+                if(_isShortCSP(node)){node.parentNode&&node.parentNode.removeChild(node);}
+              }
+            });
+          });
+        });
+        try{_cspMetaObs.observe(document.head||document.documentElement,{childList:true,subtree:true});}catch(e){}
+
+        document.addEventListener('DOMContentLoaded',_removeShortCSPMetas);
+        setTimeout(_removeShortCSPMetas,100);
+        setTimeout(_removeShortCSPMetas,500);
+        setTimeout(_removeShortCSPMetas,1500);
+      })();
+    </script>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      FIX — frame-src CSP violation interceptor + stale SW killer
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <script>
+      (function(){
+        /* ── LAYER 1: Stale Service Worker killer ──────────────────── */
+        if('serviceWorker' in navigator){
           navigator.serviceWorker.ready.then(function(reg){
-            if (reg && reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
+            if(reg&&reg.waiting){reg.waiting.postMessage({type:'SKIP_WAITING'});}
           }).catch(function(){});
-          var _SW_VER_KEY = '__brawnly_sw_ver__';
-          var _CURRENT_VER = '20260314-5';
+
+          var _SW_VER_KEY='__brawnly_sw_ver__';
+          var _CURRENT_VER='20260314-6'; /* bump on every deploy */
           var _storedVer;
-          try { _storedVer = sessionStorage.getItem(_SW_VER_KEY); } catch(e2){}
-          if (_storedVer !== _CURRENT_VER) {
+          try{_storedVer=sessionStorage.getItem(_SW_VER_KEY);}catch(e2){}
+
+          if(_storedVer!==_CURRENT_VER){
             navigator.serviceWorker.getRegistrations().then(function(regs){
               regs.forEach(function(reg){
                 reg.unregister().then(function(ok){
-                  if (ok && 'caches' in window) { caches.keys().then(function(keys){ keys.forEach(function(k){ caches.delete(k); }); }); }
+                  if(ok&&'caches' in window){
+                    caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k);});});
+                  }
                 }).catch(function(){});
               });
             }).catch(function(){});
-            try { sessionStorage.setItem(_SW_VER_KEY, _CURRENT_VER); } catch(e2){}
+            try{sessionStorage.setItem(_SW_VER_KEY,_CURRENT_VER);}catch(e2){}
           }
         }
-        var _healedSrcs = new Set();
-        var _origCE = console.error;
-        console.error = function() {
-          var msg = arguments[0];
-          if (msg && typeof msg === 'string') {
-            var lo = msg.toLowerCase();
-            if (lo.indexOf('frame-src') !== -1 || lo.indexOf('content security policy') !== -1 || lo.indexOf('violates the following') !== -1) return;
+
+        /* ── LAYER 2: securitypolicyviolation handler ──────────────── */
+        var _healedSrcs=new Set();
+
+        var _origCE=console.error;
+        console.error=function(){
+          var msg=arguments[0];
+          if(msg&&typeof msg==='string'){
+            var lo=msg.toLowerCase();
+            if(lo.indexOf('frame-src')!==-1||lo.indexOf('content security policy')!==-1||lo.indexOf('violates the following')!==-1)return;
           }
-          return _origCE.apply(console, arguments);
+          return _origCE.apply(console,arguments);
         };
-        function _healIframe(blockedUrl) {
-          if (!blockedUrl || _healedSrcs.has(blockedUrl)) return;
+
+        function _healIframe(blockedUrl){
+          if(!blockedUrl||_healedSrcs.has(blockedUrl))return;
           _healedSrcs.add(blockedUrl);
-          try {
-            var frames = document.querySelectorAll('iframe');
-            for (var i = 0; i < frames.length; i++) {
-              var fr = frames[i];
-              var src = fr.src || fr.getAttribute('src') || fr.getAttribute('data-src') || '';
-              if (src.indexOf(blockedUrl) !== -1 || blockedUrl.indexOf(src.split('?')[0]) !== -1) {
-                var savedSrc = fr.src;
-                var savedDataSrc = fr.getAttribute('data-src');
+          try{
+            var frames=document.querySelectorAll('iframe');
+            for(var i=0;i<frames.length;i++){
+              var fr=frames[i];
+              var src=fr.src||fr.getAttribute('src')||fr.getAttribute('data-src')||'';
+              if(src.indexOf(blockedUrl)!==-1||blockedUrl.indexOf(src.split('?')[0])!==-1){
+                var savedSrc=fr.src;
+                var savedDataSrc=fr.getAttribute('data-src');
                 fr.removeAttribute('src');
                 requestAnimationFrame(function(){
-                  if (savedSrc) fr.src = savedSrc;
-                  else if (savedDataSrc) fr.setAttribute('data-src', savedDataSrc);
+                  if(savedSrc)fr.src=savedSrc;
+                  else if(savedDataSrc)fr.setAttribute('data-src',savedDataSrc);
                 });
                 break;
               }
             }
-          } catch(e2){}
+          }catch(e2){}
         }
-        document.addEventListener('securitypolicyviolation', function(e) {
-          if (!e) return;
-          if (e.violatedDirective && e.violatedDirective.indexOf('frame-src') === -1) return;
-          var blocked = e.blockedURI || '';
-          if (e.preventDefault) { try { e.preventDefault(); } catch(ex){} }
-          if (blocked) _healIframe(blocked);
-        }, true);
-        var _recentIframes = [];
-        var _iframeObs = new MutationObserver(function(mutations) {
-          mutations.forEach(function(m) {
-            m.addedNodes.forEach(function(node) {
-              if (node.tagName === 'IFRAME') { _recentIframes.push({ node: node, ts: Date.now() }); }
-              else if (node.querySelectorAll) { node.querySelectorAll('iframe').forEach(function(fr) { _recentIframes.push({ node: fr, ts: Date.now() }); }); }
+
+        document.addEventListener('securitypolicyviolation',function(e){
+          if(!e)return;
+          if(e.violatedDirective&&e.violatedDirective.indexOf('frame-src')===-1)return;
+          var blocked=e.blockedURI||'';
+          if(e.preventDefault){try{e.preventDefault();}catch(ex){}}
+          if(blocked)_healIframe(blocked);
+        },true);
+
+        /* ── LAYER 3: MutationObserver iframe healer ───────────────── */
+        var _recentIframes=[];
+        var _iframeObs=new MutationObserver(function(mutations){
+          mutations.forEach(function(m){
+            m.addedNodes.forEach(function(node){
+              if(node.tagName==='IFRAME'){_recentIframes.push({node:node,ts:Date.now()});}
+              else if(node.querySelectorAll){node.querySelectorAll('iframe').forEach(function(fr){_recentIframes.push({node:fr,ts:Date.now()});});}
             });
           });
-          var now = Date.now();
-          _recentIframes = _recentIframes.filter(function(e2){ return now - e2.ts < 500; });
+          var now=Date.now();
+          _recentIframes=_recentIframes.filter(function(e2){return now-e2.ts<500;});
         });
-        try { _iframeObs.observe(document.documentElement, { childList: true, subtree: true }); } catch(e){}
+        try{_iframeObs.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
+
       })();
     </script>
 
@@ -547,114 +821,144 @@
       <img src="/assets/myPride.gif" alt="Brawnly Fitness Transformation" width="1" height="1" loading="lazy" />
     </div>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      FIX 2 — YouTube RSS CORS + rss2json 500/422
+      FIX 4 — Tumblr RSS CORS blocked
+      ═══════════════════════════════════════════════════════════════════════
+    -->
     <script>
-      (function() {
-        var failedUrls = new Set();
-        var corsproxyShouldSkip = new Set(['youtube.com/feeds','tumblr.com/rss']);
-        var rss2jsonSkipPatterns = ['youtube.com/feeds','tumblr.com/rss'];
-        var originalFetch = window.fetch;
-        var STUB_XML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
-        function _isRSSTarget(url) {
-          if (!url) return false;
-          return (url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss') || url.includes('api.rss2json.com') || url.includes('substack.com/feed') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('allorigins.win') || url.includes('api.codetabs.com') || url.includes('corsproxy.io'));
+      (function(){
+        var failedUrls=new Set();
+        var corsproxyShouldSkip=new Set(['youtube.com/feeds','tumblr.com/rss']);
+        var rss2jsonSkipPatterns=['youtube.com/feeds','tumblr.com/rss'];
+        var originalFetch=window.fetch;
+        var STUB_XML='<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
+
+        function _isRSSTarget(url){
+          if(!url)return false;
+          return(url.includes('youtube.com/feeds')||url.includes('tumblr.com/rss')||url.includes('api.rss2json.com')||url.includes('substack.com/feed')||url.includes('cors.sh')||url.includes('thingproxy')||url.includes('allorigins.win')||url.includes('api.codetabs.com')||url.includes('corsproxy.io'));
         }
-        function _skipRss2json(url) { if (!url) return false; return rss2jsonSkipPatterns.some(function(p) { return url.includes(p); }); }
-        function _isAdURL(url) {
-          if (!url) return false;
-          return (url.includes('googlesyndication.com') || url.includes('doubleclick.net') || url.includes('googleadservices.com') || url.includes('googletagservices.com') || url.includes('adtrafficquality.google') || url.includes('fundingchoicesmessages.google.com'));
+        function _skipRss2json(url){if(!url)return false;return rss2jsonSkipPatterns.some(function(p){return url.includes(p);});}
+        function _isAdURL(url){
+          /* Returns true for URLs that must NEVER go through the RSS proxy:
+             - Google AdSense delivery stack
+             - Twitter / X embed API endpoints (tweet-result, video, syndication)
+               These are fetched by TwitterEmbed.tsx — if they fall into the
+               RSS proxy chain, rss2json/allorigins return 422/CORS errors.   */
+          if(!url)return false;
+          return(
+            url.includes('googlesyndication.com')||
+            url.includes('doubleclick.net')||
+            url.includes('googleadservices.com')||
+            url.includes('googletagservices.com')||
+            url.includes('adtrafficquality.google')||
+            url.includes('fundingchoicesmessages.google.com')||
+            /* Twitter / X — tweet API + video CDN */
+            url.includes('cdn.syndication.twimg.com')||
+            url.includes('syndication.twimg.com')||
+            url.includes('video.twimg.com')||
+            url.includes('pbs.twimg.com')||
+            url.includes('abs.twimg.com')||
+            url.includes('api.twitter.com')||
+            url.includes('api.x.com')
+          );
         }
-        function _getCanonicalUrl(url) {
-          if (!url) return url;
-          try {
-            if (url.includes('allorigins.win')) { var m = url.match(/[?&]url=([^&]+)/); if (m) return decodeURIComponent(m[1]); }
-            if (url.includes('api.codetabs.com')) { var m2 = url.match(/[?&]quest=([^&]+)/); if (m2) return decodeURIComponent(m2[1]); }
-            if (url.includes('corsproxy.io')) { var q = url.indexOf('?'); if (q !== -1) return decodeURIComponent(url.slice(q + 1)); }
-            if (url.includes('api.rss2json.com')) { var m3 = url.match(/[?&]rss_url=([^&]+)/); if (m3) return decodeURIComponent(m3[1]); }
-          } catch(e) {}
+        function _getCanonicalUrl(url){
+          if(!url)return url;
+          try{
+            if(url.includes('allorigins.win')){var m=url.match(/[?&]url=([^&]+)/);if(m)return decodeURIComponent(m[1]);}
+            if(url.includes('api.codetabs.com')){var m2=url.match(/[?&]quest=([^&]+)/);if(m2)return decodeURIComponent(m2[1]);}
+            if(url.includes('corsproxy.io')){var q=url.indexOf('?');if(q!==-1)return decodeURIComponent(url.slice(q+1));}
+            if(url.includes('api.rss2json.com')){var m3=url.match(/[?&]rss_url=([^&]+)/);if(m3)return decodeURIComponent(m3[1]);}
+          }catch(e){}
           return url;
         }
-        function _rss2jsonToXml(json) {
-          try {
-            if (!json || json.status !== 'ok') return null;
-            var ch = json.feed || {};
-            var items = (json.items || []).map(function(it) {
-              return '<item><title><![CDATA[' + (it.title || '') + ']]></title><link>' + (it.link || it.guid || '') + '</link><pubDate>' + (it.pubDate || '') + '</pubDate><description><![CDATA[' + (it.description || it.content || '') + ']]></description>' + (it.enclosure && it.enclosure.link ? '<enclosure url="' + it.enclosure.link + '" type="' + (it.enclosure.type || 'audio/mpeg') + '" length="0"/>' : '') + '</item>';
+        function _rss2jsonToXml(json){
+          try{
+            if(!json||json.status!=='ok')return null;
+            var ch=json.feed||{};
+            var items=(json.items||[]).map(function(it){
+              return '<item><title><![CDATA['+(it.title||'')+']]></title><link>'+(it.link||it.guid||'')+'</link><pubDate>'+(it.pubDate||'')+'</pubDate><description><![CDATA['+(it.description||it.content||'')+']]></description>'+(it.enclosure&&it.enclosure.link?'<enclosure url="'+it.enclosure.link+'" type="'+(it.enclosure.type||'audio/mpeg')+'" length="0"/>':"")+'</item>';
             }).join('');
-            return '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title><![CDATA[' + (ch.title || '') + ']]></title><link>' + (ch.url || ch.link || '') + '</link><description><![CDATA[' + (ch.description || '') + ']]></description>' + items + '</channel></rss>';
-          } catch(e) { return null; }
+            return '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title><![CDATA['+(ch.title||'')+']]></title><link>'+(ch.url||ch.link||'')+'</link><description><![CDATA['+(ch.description||'')+']]></description>'+items+'</channel></rss>';
+          }catch(e){return null;}
         }
-        var PROXY_RSS2JSON = { make: function(u) { return 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u); }, type: 'rss2json' };
-        var PROXY_CODETABS = { make: function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }, type: 'xml' };
-        var PROXY_ALLORIGINS = { make: function(u) { if (u.includes('api.rss2json.com')) return null; return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); }, type: 'allorigins' };
-        var PROXY_CORSPROXY = { make: function(u) { var vals = Array.from(corsproxyShouldSkip); if (vals.some(function(s){ return u.includes(s); })) return null; return 'https://corsproxy.io/?' + encodeURIComponent(u); }, type: 'xml' };
-        function _getProxies(canonicalUrl) {
-          if (_skipRss2json(canonicalUrl)) return [PROXY_CODETABS, PROXY_ALLORIGINS, PROXY_RSS2JSON, PROXY_CORSPROXY];
-          return [PROXY_RSS2JSON, PROXY_CODETABS, PROXY_ALLORIGINS, PROXY_CORSPROXY];
+        var PROXY_RSS2JSON={make:function(u){return'https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u);},type:'rss2json'};
+        var PROXY_CODETABS={make:function(u){return'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u);},type:'xml'};
+        var PROXY_ALLORIGINS={make:function(u){if(u.includes('api.rss2json.com'))return null;return'https://api.allorigins.win/get?url='+encodeURIComponent(u);},type:'allorigins'};
+        var PROXY_CORSPROXY={make:function(u){var vals=Array.from(corsproxyShouldSkip);if(vals.some(function(s){return u.includes(s);}))return null;return'https://corsproxy.io/?'+encodeURIComponent(u);},type:'xml'};
+
+        function _getProxies(canonicalUrl){
+          if(_skipRss2json(canonicalUrl))return[PROXY_CODETABS,PROXY_ALLORIGINS,PROXY_RSS2JSON,PROXY_CORSPROXY];
+          return[PROXY_RSS2JSON,PROXY_CODETABS,PROXY_ALLORIGINS,PROXY_CORSPROXY];
         }
-        window.fetch = async function(resource, options) {
-          var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
-          if (!url || _isAdURL(url) || !_isRSSTarget(url)) return originalFetch.apply(this, arguments);
-          var canonicalUrl = _getCanonicalUrl(url);
-          if (failedUrls.has(canonicalUrl)) return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-          var proxies = _getProxies(canonicalUrl);
-          for (var i = 0; i < proxies.length; i++) {
-            var proxy = proxies[i]; var proxyUrl = proxy.make(canonicalUrl);
-            if (!proxyUrl) continue; if (proxyUrl === url && i > 0) continue;
-            try {
-              var ctrl = new AbortController(); var timeoutMs = (i === 0) ? 5000 : 8000;
-              var tid = setTimeout((function(c){ return function(){ c.abort(); }; })(ctrl), timeoutMs);
-              var res = await originalFetch(proxyUrl, { signal: ctrl.signal, headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' } });
+
+        window.fetch=async function(resource,options){
+          var url=typeof resource==='string'?resource:(resource&&resource.url?resource.url:null);
+          if(!url||_isAdURL(url)||!_isRSSTarget(url))return originalFetch.apply(this,arguments);
+          var canonicalUrl=_getCanonicalUrl(url);
+          if(failedUrls.has(canonicalUrl))return new Response(STUB_XML,{status:200,headers:{'Content-Type':'application/xml'}});
+          var proxies=_getProxies(canonicalUrl);
+          for(var i=0;i<proxies.length;i++){
+            var proxy=proxies[i];var proxyUrl=proxy.make(canonicalUrl);
+            if(!proxyUrl)continue;if(proxyUrl===url&&i>0)continue;
+            try{
+              var ctrl=new AbortController();var timeoutMs=(i===0)?5000:8000;
+              var tid=setTimeout((function(c){return function(){c.abort();};})(ctrl),timeoutMs);
+              var res=await originalFetch(proxyUrl,{signal:ctrl.signal,headers:{Accept:'application/rss+xml, application/json, text/xml, */*'}});
               clearTimeout(tid);
-              if (!res.ok) continue;
-              if (proxy.type === 'rss2json') {
-                try { var txt = await res.text(); var json = JSON.parse(txt); if (json && json.status === 'ok') { var xml = _rss2jsonToXml(json); if (xml) return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml' } }); } continue; } catch(e) { continue; }
+              if(!res.ok)continue;
+              if(proxy.type==='rss2json'){
+                try{var txt=await res.text();var json=JSON.parse(txt);if(json&&json.status==='ok'){var xml=_rss2jsonToXml(json);if(xml)return new Response(xml,{status:200,headers:{'Content-Type':'application/xml'}});}continue;}catch(e){continue;}
               }
-              if (proxy.type === 'allorigins') {
-                try { var txt2 = await res.text(); var data = JSON.parse(txt2); return new Response((data && data.contents) ? data.contents : txt2, { status: 200, headers: { 'Content-Type': 'application/xml' } }); } catch(e) { return res; }
+              if(proxy.type==='allorigins'){
+                try{var txt2=await res.text();var data=JSON.parse(txt2);return new Response((data&&data.contents)?data.contents:txt2,{status:200,headers:{'Content-Type':'application/xml'}});}catch(e){return res;}
               }
               return res;
-            } catch(e) { continue; }
+            }catch(e){continue;}
           }
           failedUrls.add(canonicalUrl);
-          return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
+          return new Response(STUB_XML,{status:200,headers:{'Content-Type':'application/xml'}});
         };
       })();
     </script>
 
     <script>
-      try {
-        if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
-          for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-            if (x !== 'renderers') { __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null; }
+      try{
+        if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__==='object'){
+          for(var x in __REACT_DEVTOOLS_GLOBAL_HOOK__){
+            if(x!=='renderers'){__REACT_DEVTOOLS_GLOBAL_HOOK__[x]=typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x]==='function'?function(){}:null;}
           }
         }
-      } catch(e){}
-      function _isSuppressed(args) {
-        var msg = args && args[0]; if (!msg) return false;
-        var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
-        return (s.includes('fetchPriority') || s.includes('Hydration') || s.includes('unload') || s.includes('Permissions policy') || s.includes('[Violation]') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache'));
+      }catch(e){}
+      function _isSuppressed(args){
+        var msg=args&&args[0];if(!msg)return false;
+        var s=typeof msg==='string'?msg:(msg&&msg.message?String(msg.message):'');
+        return(s.includes('fetchPriority')||s.includes('Hydration')||s.includes('unload')||s.includes('Permissions policy')||s.includes('[Violation]')||s.includes('conflicting-entries')||s.includes('workbox')||s.includes('precache'));
       }
-      var originalConsoleError = console.error;
-      console.error = function() { if (_isSuppressed(arguments)) return; originalConsoleError.apply(console, arguments); };
-      var originalConsoleWarn = console.warn;
-      console.warn = function() { if (_isSuppressed(arguments)) return; originalConsoleWarn.apply(console, arguments); };
-      window.__deferScript = function(src) {
-        if (src && (src.endsWith('.js') || src.includes('.js?'))) {
-          var script = document.createElement('script'); script.src = src; script.defer = true; script.type = 'module'; document.body.appendChild(script);
+      var originalConsoleError=console.error;
+      console.error=function(){if(_isSuppressed(arguments))return;originalConsoleError.apply(console,arguments);};
+      var originalConsoleWarn=console.warn;
+      console.warn=function(){if(_isSuppressed(arguments))return;originalConsoleWarn.apply(console,arguments);};
+      window.__deferScript=function(src){
+        if(src&&(src.endsWith('.js')||src.includes('.js?'))){
+          var script=document.createElement('script');script.src=src;script.defer=true;script.type='module';document.body.appendChild(script);
         }
       };
     </script>
 
+    <!-- Obfuscated preconnect for primary data endpoint -->
     <script>
       (function(){
-        var pre = function() {
-          try {
+        var pre=function(){
+          try{
             var _0x1a=["aHR0cHM6Ly8=","emx3aHZrZXhnamlzeWhha3h5b2U=","LnN1cGFiYXNlLmNv"];
             var _0x4d=atob(_0x1a[0])+atob(_0x1a[1])+atob(_0x1a[2]);
-            var l=document.createElement('link'); l.rel='preconnect'; l.href=_0x4d; l.crossOrigin='anonymous'; document.head.appendChild(l);
-          } catch(e){}
+            var l=document.createElement('link');l.rel='preconnect';l.href=_0x4d;l.crossOrigin='anonymous';document.head.appendChild(l);
+          }catch(e){}
         };
-        if('requestIdleCallback' in window) requestIdleCallback(pre); else setTimeout(pre, 1500);
+        if('requestIdleCallback' in window)requestIdleCallback(pre);else setTimeout(pre,1500);
       })();
     </script>
 
