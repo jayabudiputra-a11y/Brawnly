@@ -22,6 +22,11 @@ function extractTweetAuthor(url: string): string | null {
 const WIDGET_TIMEOUT_MS = 8000;
 const SITE_URL = "https://www.brawnly.online";
 
+const WIDGET_SCRIPTS = [
+  "https://platform.twitter.com/widgets.js",
+  "https://platform.x.com/widgets.js",
+];
+
 export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +49,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
 
     let active = true;
 
-    // Timeout fallback — if Twitter widget doesn't render within threshold
     timerRef.current = setTimeout(() => {
       if (active && status === "loading") {
         setStatus("failed");
@@ -80,14 +84,12 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
     };
 
     const loadWidgetScript = () => {
-      // Script already loaded
       if ((window as any).twttr?.widgets) {
         renderTweet();
         return;
       }
 
-      // Script tag already in DOM, wait for it
-      if (document.getElementById("twitter-widget-script")) {
+      if (document.getElementById("twitter-widget-script") || document.getElementById("x-widget-script")) {
         const poll = setInterval(() => {
           if ((window as any).twttr?.widgets) {
             clearInterval(poll);
@@ -97,17 +99,46 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
         return;
       }
 
-      // Inject script fresh
-      const script = document.createElement("script");
-      script.id = "twitter-widget-script";
-      script.src = "https://platform.twitter.com/widgets.js";
-      script.async = true;
-      script.charset = "utf-8";
-      script.onload = renderTweet;
-      script.onerror = () => {
-        if (active) setStatus("failed");
+      let scriptIdx = 0;
+
+      const tryNextScript = () => {
+        if (scriptIdx >= WIDGET_SCRIPTS.length) {
+          if (active) setStatus("failed");
+          return;
+        }
+
+        const src = WIDGET_SCRIPTS[scriptIdx];
+        scriptIdx++;
+
+        const script = document.createElement("script");
+        script.id = scriptIdx === 1 ? "twitter-widget-script" : "x-widget-script";
+        script.src = src;
+        script.async = true;
+        script.charset = "utf-8";
+
+        script.onload = () => {
+          if ((window as any).twttr?.widgets) {
+            renderTweet();
+          } else {
+            const poll = setInterval(() => {
+              if ((window as any).twttr?.widgets) {
+                clearInterval(poll);
+                renderTweet();
+              }
+            }, 200);
+            setTimeout(() => clearInterval(poll), 5000);
+          }
+        };
+
+        script.onerror = () => {
+          script.remove();
+          tryNextScript();
+        };
+
+        document.body.appendChild(script);
       };
-      document.body.appendChild(script);
+
+      tryNextScript();
     };
 
     loadWidgetScript();
@@ -126,9 +157,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
       ? "ml-auto"
       : "mr-auto";
 
-  /* ============================================================
-     JSON-LD: SocialMediaPosting — tweet embed structured data
-     ============================================================ */
   const _jLdPost = tweetId
     ? JSON.stringify({
         "@context": "https://schema.org",
@@ -172,9 +200,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
       })
     : null;
 
-  /* ============================================================
-     JSON-LD: CreativeWork — fallback / general embed reference
-     ============================================================ */
   const _jLdCreative = tweetId
     ? JSON.stringify({
         "@context": "https://schema.org",
@@ -197,9 +222,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
       })
     : null;
 
-  /* ============================================================
-     SEO HIDDEN NODE — reusable for all render states
-     ============================================================ */
   const SeoHiddenNode = () =>
     tweetId ? (
       <div
@@ -213,17 +235,14 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
           whiteSpace: "nowrap",
         }}
       >
-        {/* JSON-LD: SocialMediaPosting */}
         {_jLdPost && (
           <script type="application/ld+json">{_jLdPost}</script>
         )}
 
-        {/* JSON-LD: CreativeWork */}
         {_jLdCreative && (
           <script type="application/ld+json">{_jLdCreative}</script>
         )}
 
-        {/* Microdata: SocialMediaPosting */}
         <span
           itemScope
           itemType="https://schema.org/SocialMediaPosting"
@@ -295,7 +314,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
             </a>
             <span itemProp="name">Brawnly</span>
           </span>
-          {/* Shared content reference */}
           <span
             itemScope
             itemType="https://schema.org/WebPage"
@@ -305,40 +323,27 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
           </span>
         </span>
 
-        {/* Direct canonical link for crawlers */}
         <link rel="noopener noreferrer" href={canonicalTweetUrl} />
       </div>
     ) : null;
 
-  // ── FALLBACK CARD (widget failed / timed out) ──
-  if (status === "failed" || !tweetId) {
+  if (!tweetId) {
     return (
       <div
         className={`w-full max-w-[550px] ${alignClass}`}
         itemScope
         itemType="https://schema.org/SocialMediaPosting"
       >
-        {/* Inline microdata for fallback state */}
-        {tweetId && <meta itemProp="identifier" content={tweetId} />}
-        {tweetId && <meta itemProp="url" content={canonicalTweetUrl} />}
-        {tweetId && <meta itemProp="discussionUrl" content={canonicalTweetUrl} />}
-
-        {/* SEO hidden node */}
         <SeoHiddenNode />
 
         <a
           href={tweetUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={
-            tweetAuthor
-              ? `View tweet by @${tweetAuthor} (ID: ${tweetId}) on X / Twitter`
-              : `View tweet ID ${tweetId} on X / Twitter`
-          }
+          aria-label="View tweet on X / Twitter"
           itemProp="url"
           className="group flex flex-col gap-3 rounded-2xl border-2 border-black dark:border-white bg-white dark:bg-[#111] p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
         >
-          {/* Header */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-black dark:bg-white flex items-center justify-center flex-shrink-0">
               <svg
@@ -354,17 +359,9 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
               <p className="text-[11px] font-black uppercase tracking-widest text-black dark:text-white">
                 Post on X / Twitter
               </p>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                ID: {tweetId}
-                {tweetAuthor && ` — @${tweetAuthor}`}
-              </p>
             </div>
           </div>
-
-          {/* Divider */}
           <div className="h-px bg-neutral-200 dark:bg-neutral-800" aria-hidden="true" />
-
-          {/* CTA */}
           <div className="flex items-center justify-between">
             <p className="text-[12px] font-serif italic text-neutral-500 dark:text-neutral-400">
               Klik untuk lihat post ini di X ↗
@@ -378,7 +375,80 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
     );
   }
 
-  // ── LOADING + LOADED STATES ──
+  if (status === "failed") {
+    const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+    const embedIframeSrc = `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=${isDark ? "dark" : "light"}&dnt=true&lang=id&align=${align}`;
+
+    return (
+      <div
+        className={`w-full max-w-[550px] ${alignClass}`}
+        itemScope
+        itemType="https://schema.org/SocialMediaPosting"
+      >
+        {tweetId && <meta itemProp="identifier" content={tweetId} />}
+        {tweetId && <meta itemProp="url" content={canonicalTweetUrl} />}
+        {tweetId && <meta itemProp="discussionUrl" content={canonicalTweetUrl} />}
+
+        <SeoHiddenNode />
+
+        <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111] overflow-hidden shadow-lg">
+          <iframe
+            src={embedIframeSrc}
+            className="w-full border-0"
+            style={{ minHeight: 280, maxHeight: 600 }}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            title={
+              tweetAuthor
+                ? `Tweet by @${tweetAuthor} — ID ${tweetId}`
+                : `Tweet ID ${tweetId}`
+            }
+            onLoad={(e) => {
+              const iframe = e.target as HTMLIFrameElement;
+              const resizeObserver = new ResizeObserver(() => {
+                try {
+                  const body = iframe.contentDocument?.body;
+                  if (body) {
+                    iframe.style.height = `${body.scrollHeight + 20}px`;
+                  }
+                } catch {
+                  /* cross-origin — can't read height, use default */
+                }
+              });
+              try {
+                if (iframe.contentDocument?.body) {
+                  resizeObserver.observe(iframe.contentDocument.body);
+                }
+              } catch {
+                /* cross-origin fallback: listen for postMessage height */
+              }
+            }}
+          />
+
+          <div className="px-4 py-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+            <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest">
+              {tweetAuthor ? `@${tweetAuthor}` : `ID: ${tweetId}`}
+            </p>
+            <a
+              href={canonicalTweetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={
+                tweetAuthor
+                  ? `Open tweet by @${tweetAuthor} on X`
+                  : `Open tweet ${tweetId} on X`
+              }
+              className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition-opacity flex-shrink-0"
+            >
+              Open on X ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`w-full max-w-[550px] ${alignClass} relative`}
@@ -390,16 +460,13 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
           : `Embedded tweet ID ${tweetId} — loading`
       }
     >
-      {/* Inline microdata for loading/loaded state */}
       {tweetId && <meta itemProp="identifier" content={tweetId} />}
       {tweetId && <meta itemProp="url" content={canonicalTweetUrl} />}
       {tweetId && <meta itemProp="discussionUrl" content={canonicalTweetUrl} />}
       {tweetAuthor && <meta itemProp="author" content={`@${tweetAuthor}`} />}
 
-      {/* SEO hidden node */}
       <SeoHiddenNode />
 
-      {/* Skeleton shown while Twitter widget loads */}
       {status === "loading" && (
         <div
           className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111] p-5 space-y-3 animate-pulse"
@@ -433,7 +500,6 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
         </div>
       )}
 
-      {/* Twitter widget mounts here */}
       <div
         ref={containerRef}
         className={status === "loading" ? "opacity-0 h-0 overflow-hidden" : ""}

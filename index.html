@@ -60,19 +60,19 @@
         https://cse.google.com                   ← Custom Search frames
         https://*.google.com                     ← wildcard all *.google.com
         blob: data:                              ← AdSense uses blob/data iframes
+
+      Twitter/X embed fix (2026-03-14):
+        https://platform.x.com                   ← X rebrand widget.js host
+        https://x.com https://*.x.com            ← X domain (frames, scripts, images)
+        https://syndication.x.com                ← X syndication API
+        https://cdn.syndication.twimg.com        ← tweet card renderer
+        https://abs.twimg.com https://pbs.twimg.com ← tweet media assets
       ═══════════════════════════════════════════════════════════════════════
     -->
     <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://youtube.com https://www.youtube.com https://*.youtube.com https://s.ytimg.com https://*.ytimg.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://*.twimg.com https://www.instagram.com https://*.instagram.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https://*.twimg.com https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.tumblr.com https://assets.tumblr.com https://substackcdn.com https://*.substack.com https://pinimg.com https://*.pinimg.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://www.google.com https://*.google.com https://m4uhd.com https://*.m4uhd.com https: http:; media-src 'self' https: http: blob: data: https://youtube.com https://www.youtube.com https://*.youtube.com https://googlevideo.com https://*.googlevideo.com; connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com https://www.instagram.com https://graph.instagram.com https://substack.com https://*.substack.com https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com https://api.pinterest.com https://*.pinterest.com https://*.royaleapi.com https://royaleapi.com https://youtube.com https://www.youtube.com https://*.youtube.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.ytimg.com https://googlevideo.com https://*.googlevideo.com https://api.allorigins.win https://thingproxy.freeboard.io https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com https://api.codetabs.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://googleads.g.doubleclick.net https://www.googletagmanager.com https://*.adtrafficquality.google https://m4uhd.com https://*.m4uhd.com; font-src 'self' data: https: http:; frame-src 'self' blob: data: https://youtube.com https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://youtu.be https://player.vimeo.com https://platform.twitter.com https://syndication.twitter.com https://www.instagram.com https://embed.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://www.pinterest.com https://ru.pinterest.com https://*.royaleapi.com https://royaleapi.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://www.google.com https://*.google.com https://*.adtrafficquality.google https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://fundingchoicesmessages.google.com https://accounts.google.com https://cse.google.com https://m4uhd.com https://*.m4uhd.com https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:;
+      default-src 'self' https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://platform.x.com https://*.twimg.com https://x.com https://*.x.com https://www.instagram.com https://*.instagram.com https://youtube.com https://www.youtube.com https://*.youtube.com https://s.ytimg.com https://*.ytimg.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://platform.twitter.com https://platform.x.com https://*.twimg.com https://x.com https://*.x.com https://www.instagram.com https://*.instagram.com https://assets.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://assets.pinterest.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://*.googlesyndication.com https://*.googletagservices.com https://*.g.doubleclick.net https://www.googletagmanager.com https://m4uhd.com https://*.m4uhd.com https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https://*.twimg.com https://abs.twimg.com https://pbs.twimg.com https://cdn.syndication.twimg.com https://x.com https://*.x.com https://www.instagram.com https://cdninstagram.com https://*.cdninstagram.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.tumblr.com https://assets.tumblr.com https://substackcdn.com https://*.substack.com https://pinimg.com https://*.pinimg.com https://*.royaleapi.com https://royaleapi.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://www.google.com https://*.google.com https://m4uhd.com https://*.m4uhd.com https: http:; media-src 'self' https: http: blob: data: https://youtube.com https://www.youtube.com https://*.youtube.com https://googlevideo.com https://*.googlevideo.com; connect-src 'self' blob: data: https: http: wss: ws: https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://syndication.twitter.com https://syndication.x.com https://cdn.syndication.twimg.com https://x.com https://*.x.com https://www.instagram.com https://graph.instagram.com https://substack.com https://*.substack.com https://assets.tumblr.com https://*.tumblr.com https://deulo.tumblr.com https://api.pinterest.com https://*.pinterest.com https://*.royaleapi.com https://royaleapi.com https://youtube.com https://www.youtube.com https://*.youtube.com https://www.youtube.com https://*.youtube.com https://i.ytimg.com https://s.ytimg.com https://*.ytimg.com https://yt3.ggpht.com https://*.ggpht.com https://*.ytimg.com https://googlevideo.com https://*.googlevideo.com https://api.allorigins.win https://thingproxy.freeboard.io https://corsproxy.io https://proxy.cors.sh https://api.rss2json.com https://api.codetabs.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://googleads.g.doubleclick.net https://www.googletagmanager.com https://*.adtrafficquality.google https://m4uhd.com https://*.m4uhd.com; font-src 'self' data: https: http:; frame-src 'self' blob: data: https://youtube.com https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://youtu.be https://player.vimeo.com https://platform.twitter.com https://syndication.twitter.com https://platform.x.com https://syndication.x.com https://x.com https://*.x.com https://www.instagram.com https://embed.tumblr.com https://*.tumblr.com https://substack.com https://*.substack.com https://www.pinterest.com https://ru.pinterest.com https://*.royaleapi.com https://royaleapi.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://www.google.com https://*.google.com https://*.adtrafficquality.google https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://fundingchoicesmessages.google.com https://accounts.google.com https://cse.google.com https://m4uhd.com https://*.m4uhd.com https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:;
     " />
 
-    <!--
-      JSON-LD WebApplication.
-      All image URLs are absolute (https://www.brawnly.online/...).
-      All ImageObject nodes include license + creator + copyrightNotice + acquireLicensePage.
-      Fixes Google Search Console: "Invalid URL in field url/contentUrl",
-      "Missing field creator", "Missing field license".
-    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -134,6 +134,20 @@
     <link rel="prefetch" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="preconnect" href="https://platform.twitter.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://platform.twitter.com" />
+    <link rel="preconnect" href="https://platform.x.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://platform.x.com" />
+    <link rel="preconnect" href="https://cdn.syndication.twimg.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://cdn.syndication.twimg.com" />
+    <link rel="preconnect" href="https://syndication.twitter.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://syndication.twitter.com" />
+    <link rel="preconnect" href="https://syndication.x.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://syndication.x.com" />
+    <link rel="preconnect" href="https://pbs.twimg.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://pbs.twimg.com" />
+    <link rel="preconnect" href="https://abs.twimg.com" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://abs.twimg.com" />
     <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
     <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin="anonymous" />
@@ -156,7 +170,6 @@
     <link rel="dns-prefetch" href="https://s.ytimg.com" />
     <link rel="preconnect" href="https://yt3.ggpht.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://yt3.ggpht.com" />
-    <link rel="dns-prefetch" href="https://i.ytimg.com" />
 
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
@@ -192,66 +205,16 @@
       ═══════════════════════════════════════════════════════════════════════
       LAYER 0 — UNIFIED AD BLOCKER + M4UHD STREAMING PROTECTION
       ═══════════════════════════════════════════════════════════════════════
-      Runs before React mounts. Patches fetch, XHR, window.open,
-      sendBeacon, location, history, MutationObserver, postMessage.
-
-      ── Blocked patterns ─────────────────────────────────────────────────
-      General ad networks (base64-obfuscated to avoid false-positive
-      filtering by proxy servers):
-        djIwMDYuY29t         = v2006.com
-        L2FmdS5waHA=         = /afu.php
-        L2N4Lw==             = /cx/
-        aGF0Y2hlc2tvZXJp     = hatcheskoeri (all subdomains)
-        ZGVmYWNlc2lycmFz     = defacesirras
-        cGhpZ2xlcmRhaWw=     = phiglerdail
-        bm4xMjUuY29t         = nn125.com
-        cmFqYWJzeW5l         = rajabsyne
-
-      Streaming-site specific (m4uhd.com and similar):
-        cG9wYWRz             = popads       (popads.net — #1 popup on streams)
-        dHJhZmZpY2p1bmtpZQ== = trafficjunkie
-        YWRjYXNoLmNvbQ==     = adcash.com
-        ZXhvc3J2LmNvbQ==     = exosrv.com
-        cG9wY2FzaC5uZXQ=     = popcash.net
-        anVpY3lhZHMuY29t     = juicyads.com
-        cHJvcGVsbGVyYWRzLmNvbQ== = propellerads.com
-        aGlsbHRvcGFkcy5uZXQ= = hilltopads.net
-        YWRzdGVycmEuY29t     = adsterra.com
-        c3RyZWFtYWRz         = streamads (generic)
-        bW92aWVhZA==         = moviead (generic)
-        c3RyZWFtY2xvdWQ=     = streamcloud (redirect host)
-
-      Query fingerprints (AND logic — low false-positive risk):
-        A: var=  + ymid= + var_3=          (v2006/link2 redirect)
-        B: md=   + pr=   + fc=             (cx-payload)
-        C: zoneid= + var= + rid=           (afu network full)
-        D: zoneid= + ab2r=                 (afu network fast)
-        E: zoneid= + rhd=true              (afu network + rhd flag)
-        F: pid=   + zid=  + sid=           (streaming popup fingerprint)
-        G: popunder= / popzone= / popid=   (popunder network fingerprint)
-
-      Whitelisted (never blocked):
-        googlesyndication, doubleclick, googleadservices,
-        googletagservices, googletagmanager, g.doubleclick.net,
-        brawnly.online, supabase.co, cloudinary.com,
-        adtrafficquality.google, fundingchoicesmessages.google.com,
-        accounts.google.com, cse.google.com, vimeo.com,
-        youtube.com, youtu.be, ytimg.com, ggpht.com, googlevideo.com
-      ═══════════════════════════════════════════════════════════════════════
     -->
     <script>
       (function(){
         var _D=function(b){try{return atob(b);}catch(e){return "";}};
-
-        /* ── Blocklist ─────────────────────────────────────────────── */
         var _BL=[
-          /* general ad networks */
           "djIwMDYuY29t","djYyMDA2LmNvbQ==",
           "L2FmdS5waHA=","L2N4Lw==",
           "aGF0Y2hlc2tvZXJp","aWsuaGF0Y2hlc2tvZXJp",
           "ZGVmYWNlc2lycmFz","cGhpZ2xlcmRhaWw=",
           "bm4xMjUuY29t","cmFqYWJzeW5l",
-          /* streaming popup/redirect networks */
           "cG9wYWRz","ZG91YmxlY2xpY2submV0",
           "dHJhZmZpY2p1bmtpZQ==","YWRjYXNoLmNvbQ==",
           "ZXhvc3J2LmNvbQ==","cG9wY2FzaC5uZXQ=",
@@ -259,30 +222,24 @@
           "aGlsbHRvcGFkcy5uZXQ=","YWRzdGVycmEuY29t",
           "c3RyZWFtYWRz","bW92aWVhZA==","c3RyZWFtY2xvdWQ="
         ].map(_D).filter(Boolean);
-
         var _TLD=[_D("LmNsaWNrL2N4Lw=="),_D("LnNob3AvY3gv")];
-
-        /* ── Query fingerprints ─────────────────────────────────────── */
         var _QA=["var=","ymid=","var_3="];
         var _QB=["md=","pr=","fc="];
         var _QC=["zoneid=","var=","rid="];
         var _QD=["zoneid=","ab2r="];
         var _QE=["zoneid=","rhd=true"];
-        var _QF=["pid=","zid=","sid="];          /* streaming popup */
-        var _QG_KEYS=["popunder=","popzone=","popid="];  /* popunder nets */
-
-        /* ── Whitelist ──────────────────────────────────────────────── */
+        var _QF=["pid=","zid=","sid="];
+        var _QG_KEYS=["popunder=","popzone=","popid="];
         var _WL=[
           "googlesyndication.com","googleadservices.com","googletagservices.com",
           "googletagmanager.com","g.doubleclick.net","brawnly.online",
           "supabase.co","cloudinary.com",
           "adtrafficquality.google","fundingchoicesmessages.google.com",
           "accounts.google.com","cse.google.com","vimeo.com",
-          "youtube.com","youtu.be","ytimg.com","ggpht.com","googlevideo.com"
+          "youtube.com","youtu.be","ytimg.com","ggpht.com","googlevideo.com",
+          "twitter.com","twimg.com","x.com","syndication.twitter.com","syndication.x.com"
         ];
-
         function _wl(u){return _WL.some(function(w){return u.indexOf(w)!==-1;});}
-
         function _sb(url){
           if(!url||typeof url!=="string")return false;
           var lo=url.toLowerCase();
@@ -301,18 +258,13 @@
           }catch(e){}
           return false;
         }
-
         window.__adShouldBlock=_sb;
-
-        /* ── fetch ──────────────────────────────────────────────────── */
         var _oF=window.fetch.bind(window);
         window.fetch=function(input,init){
           var u=typeof input==="string"?input:(input&&input.url?input.url:String(input));
           if(_sb(u))return Promise.resolve(new Response(null,{status:204,statusText:"Ad Blocked"}));
           return _oF(input,init);
         };
-
-        /* ── XHR ────────────────────────────────────────────────────── */
         var _oXO=XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open=function(m,url){
           if(_sb(String(url))){this.__adBlocked=true;return;}
@@ -323,20 +275,14 @@
           if(this.__adBlocked)return;
           return _oXS.apply(this,arguments);
         };
-
-        /* ── window.open (popup killer) ─────────────────────────────── */
         var _oWO=window.open.bind(window);
         window.open=function(url,target,features){
           var u=url?String(url):"";
-          /* block blank/empty popups (popunder pattern) */
           if(!u||u==="about:blank")return null;
           if(u&&_sb(u))return null;
-          /* block _blank with no explicit caller for ad-typical patterns */
           if(target==="_blank"&&!features&&u&&!_wl(u.toLowerCase()))return null;
           return _oWO(url,target,features);
         };
-
-        /* ── sendBeacon ─────────────────────────────────────────────── */
         if(navigator.sendBeacon){
           var _oSB=navigator.sendBeacon.bind(navigator);
           navigator.sendBeacon=function(url,data){
@@ -344,8 +290,6 @@
             return _oSB(url,data);
           };
         }
-
-        /* ── location.href / replace / assign ──────────────────────── */
         try{
           var _oHD=Object.getOwnPropertyDescriptor(Location.prototype,"href");
           if(_oHD&&_oHD.set){
@@ -359,16 +303,12 @@
           var _oLA=Location.prototype.assign;
           Location.prototype.assign=function(u){if(_sb(String(u)))return;return _oLA.call(this,u);};
         }catch(e){}
-
-        /* ── history API (ad scripts abuse pushState) ───────────────── */
         try{
           var _oPS=history.pushState.bind(history);
           var _oRS2=history.replaceState.bind(history);
           history.pushState=function(s,t,u){if(u&&_sb(String(u)))return;return _oPS(s,t,u);};
           history.replaceState=function(s,t,u){if(u&&_sb(String(u)))return;return _oRS2(s,t,u);};
         }catch(e){}
-
-        /* ── MutationObserver — remove injected ad nodes ────────────── */
         function _rmNode(node){
           if(!(node instanceof HTMLElement))return false;
           var tag=node.tagName;
@@ -389,166 +329,82 @@
           });
         });
         try{_obs.observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
-
-        /* ── Click capture ──────────────────────────────────────────── */
         document.addEventListener("click",function(e){
           var t=e.target&&e.target.closest&&e.target.closest("a");
           if(!t)return;
           var h=t.getAttribute("href")||t.href||"";
           if(h&&_sb(h)){e.preventDefault();e.stopImmediatePropagation();}
         },true);
-
-        /* ── postMessage guard ──────────────────────────────────────── */
         window.addEventListener("message",function(e){
           try{
             var d=typeof e.data==="string"?e.data:JSON.stringify(e.data||"");
             if(_sb(d))e.stopImmediatePropagation();
           }catch(ex){}
         },true);
-
-        /* ════════════════════════════════════════════════════════════
-           M4UHD.COM STREAMING PROTECTION MODULE
-           ════════════════════════════════════════════════════════════
-           Opens m4uhd.com movies in a sandboxed popup with:
-             • popup=yes,noopener,noreferrer
-             • no allow-popups in sandbox → inner popups/ads are killed
-             • timer closes any lingering blank tabs spawned during
-               the click-to-play phase (common popunder technique)
-
-           Usage in your React/TS code:
-             window.__openSafeMovie('https://m4uhd.com/watch/...')
-           ════════════════════════════════════════════════════════════ */
         window.__openSafeMovie = function(url) {
           if (!url || typeof url !== "string") return;
-          /* prevent ad URL from being opened as a movie */
           if (_sb(url)) return;
-          /* only allow m4uhd domains */
           var lo = url.toLowerCase();
-          if (
-            lo.indexOf("m4uhd.com") === -1 &&
-            lo.indexOf("m4uhd.co") === -1 &&
-            lo.indexOf("m4ufree") === -1
-          ) return;
-
-          /* open with aggressive feature set that suppresses popups */
-          var w = _oWO(
-            url,
-            "_blank",
-            "noopener,noreferrer,popup=yes,width=" + screen.availWidth +
-            ",height=" + screen.availHeight + ",left=0,top=0"
-          );
-
-          /* close any blank tabs that the player spawns within 2 s */
+          if (lo.indexOf("m4uhd.com") === -1 && lo.indexOf("m4uhd.co") === -1 && lo.indexOf("m4ufree") === -1) return;
+          var w = _oWO(url,"_blank","noopener,noreferrer,popup=yes,width=" + screen.availWidth + ",height=" + screen.availHeight + ",left=0,top=0");
           if (w) {
             var _killBlanks = setInterval(function() {
-              try {
-                if (w.closed) { clearInterval(_killBlanks); return; }
-                /* attempt to enumerate child windows — works only in
-                   same-origin context; cross-origin silently fails */
-              } catch(e2) {}
+              try { if (w.closed) { clearInterval(_killBlanks); return; } } catch(e2) {}
             }, 200);
             setTimeout(function(){ clearInterval(_killBlanks); }, 2000);
           }
           return w;
         };
-
-        /* ── Streaming-site click interceptor ───────────────────────
-           When the page contains an iframe pointing to m4uhd.com,
-           intercept clicks on the iframe overlay so the tap-to-play
-           goes through __openSafeMovie instead of the raw href/popup.
-           Works for both direct <a> links and data-src lazy iframes. */
         document.addEventListener("click", function(e) {
           var el = e.target;
           if (!el) return;
-          /* check anchor links pointing to m4uhd */
           var anchor = el.closest && el.closest("a[href]");
           if (anchor) {
             var h = anchor.getAttribute("href") || "";
             if (h && (h.indexOf("m4uhd") !== -1 || h.indexOf("m4ufree") !== -1)) {
-              e.preventDefault();
-              e.stopImmediatePropagation();
-              window.__openSafeMovie(h);
-              return;
+              e.preventDefault(); e.stopImmediatePropagation();
+              window.__openSafeMovie(h); return;
             }
           }
-          /* check buttons/divs with data-movie-url attribute */
           var btn = el.closest && el.closest("[data-movie-url]");
           if (btn) {
             var mu = btn.getAttribute("data-movie-url") || "";
-            if (mu) {
-              e.preventDefault();
-              e.stopImmediatePropagation();
-              window.__openSafeMovie(mu);
-            }
+            if (mu) { e.preventDefault(); e.stopImmediatePropagation(); window.__openSafeMovie(mu); }
           }
         }, true);
-
       })();
     </script>
 
-    <!--
-      ═══════════════════════════════════════════════════════════════════════
-      FIX 1 — Workbox conflicting precache entries
-      ═══════════════════════════════════════════════════════════════════════
-      ROOT CAUSE: Vite's workbox-webpack-plugin emits BOTH:
-        /assets/Brawnly-17VaIyauwVGvanab8Vf.gif
-        /assets/Brawnly-17VaIyauwVGvanab8Vf.gif?__WB_REVISION__=<hash>
-      into the precache manifest, causing addToCacheList to throw
-      "conflicting-entries".
-
-      STRATEGY (two layers):
-        1. __WB_MANIFEST patch — deduplicates before Workbox reads it.
-           Runs at page load, also delayed via setTimeout to catch
-           late-injected manifests.
-        2. SW registration interceptor — wraps navigator.serviceWorker
-           .register() so the SW's fetch handler is overridden to
-           silently eat the conflicting-entries error instead of
-           letting it bubble up as an unhandled promise rejection.
-        3. Global unhandledrejection handler — last resort: catches
-           and suppresses the error if both layers above miss it.
-      ═══════════════════════════════════════════════════════════════════════
-    -->
     <script>
       (function() {
-        /* ── Layer 1: __WB_MANIFEST dedup ───────────────────────────── */
         function _dedupeManifest() {
           if (typeof window.__WB_MANIFEST === 'undefined') return;
           try {
             var seen = new Set();
             window.__WB_MANIFEST = (window.__WB_MANIFEST || []).filter(function(entry) {
               var url = typeof entry === 'string' ? entry : entry.url;
-              var canonical = url.split('?')[0]; /* strip ALL query strings */
+              var canonical = url.split('?')[0];
               if (seen.has(canonical)) return false;
-              seen.add(canonical);
-              return true;
+              seen.add(canonical); return true;
             });
           } catch(e) {}
         }
-        _dedupeManifest();
-        /* Run again after dynamic import resolves the manifest */
-        setTimeout(_dedupeManifest, 0);
-        setTimeout(_dedupeManifest, 500);
-
-        /* ── Layer 2: SW registration interceptor ───────────────────── */
+        _dedupeManifest(); setTimeout(_dedupeManifest, 0); setTimeout(_dedupeManifest, 500);
         if ('serviceWorker' in navigator) {
           var _origRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
           navigator.serviceWorker.register = function(scriptURL, options) {
             return _origRegister(scriptURL, options).then(function(reg) {
-              /* patch any existing SW that is already installing/waiting */
               var sw = reg.installing || reg.waiting || reg.active;
               if (sw) {
                 sw.addEventListener('error', function(e) {
                   var msg = e && e.message ? String(e.message) : '';
-                  if (msg.includes('conflicting-entries') || msg.includes('add-to-cache-list')) {
-                    e.preventDefault && e.preventDefault();
-                  }
+                  if (msg.includes('conflicting-entries') || msg.includes('add-to-cache-list')) { e.preventDefault && e.preventDefault(); }
                 });
               }
               return reg;
             }).catch(function(err) {
               var msg = err ? String(err) : '';
               if (msg.includes('conflicting-entries') || msg.includes('add-to-cache-list')) {
-                /* silently suppress — app still works, just no precache */
                 console.info('[Brawnly SW] Precache conflict suppressed. App works normally.');
                 return { installing: null, waiting: null, active: null };
               }
@@ -556,32 +412,16 @@
             });
           };
         }
-
-        /* ── Layer 3: unhandledrejection catch-all ───────────────────── */
         window.addEventListener('unhandledrejection', function(e) {
           if (!e || !e.reason) return;
-          var msg = typeof e.reason === 'string'
-            ? e.reason
-            : (e.reason.message ? String(e.reason.message) : '');
-          if (
-            msg.includes('add-to-cache-list-conflicting') ||
-            msg.includes('conflicting-entries') ||
-            msg.includes('workbox') ||
-            msg.includes('precache')
-          ) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
+          var msg = typeof e.reason === 'string' ? e.reason : (e.reason.message ? String(e.reason.message) : '');
+          if (msg.includes('add-to-cache-list-conflicting') || msg.includes('conflicting-entries') || msg.includes('workbox') || msg.includes('precache')) {
+            e.preventDefault(); e.stopImmediatePropagation();
           }
         }, true);
-
       })();
     </script>
 
-    <!--
-      ═══════════════════════════════════════════════════════════════════════
-      FIX 3 — Permissions policy unload violation + console noise suppressor
-      ═══════════════════════════════════════════════════════════════════════
-    -->
     <script>
       (function(){
         var _origAEL = EventTarget.prototype.addEventListener;
@@ -596,12 +436,7 @@
           var msg = args && args[0];
           if (!msg) return false;
           var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
-          return (
-            s.includes('unload') || s.includes('Permissions policy') ||
-            s.includes('[Violation]') || s.includes('add-to-cache-list-conflicting') ||
-            s.includes('conflicting-entries') || s.includes('workbox') ||
-            s.includes('precache')
-          );
+          return (s.includes('unload') || s.includes('Permissions policy') || s.includes('[Violation]') || s.includes('add-to-cache-list-conflicting') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache'));
         }
         var _ow = console.warn;
         console.warn = function() { if (_isViolationNoise(arguments)) return; _ow.apply(console, arguments); };
@@ -610,13 +445,7 @@
         if (typeof window.reportError === 'function') {
           var _origRE = window.reportError;
           window.reportError = function(err) {
-            try {
-              var s = err ? String(err) : '';
-              if (
-                s.includes('unload') || s.includes('conflicting-entries') ||
-                s.includes('workbox') || s.includes('precache')
-              ) return;
-            } catch(e2) {}
+            try { var s = err ? String(err) : ''; if (s.includes('unload') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache')) return; } catch(e2) {}
             return _origRE.apply(this, arguments);
           };
         }
@@ -629,122 +458,50 @@
     </script>
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7678404408306696" crossorigin="anonymous"></script>
-  
-    <!--
-      ═══════════════════════════════════════════════════════════════════════
-      FIX — frame-src CSP violation interceptor + stale SW killer
-      ═══════════════════════════════════════════════════════════════════════
-      ROOT CAUSE (why server-side fixes don't help):
-        The browser error "frame-src 'self' blob: data: <URL> <URL>" with
-        only 2 URLs in the policy string does NOT come from the current
-        vercel.json or _headers deployment.  It comes from a STALE SERVICE
-        WORKER that is still alive in the browser, serving a cached HTTP
-        response that includes the OLD (short) Content-Security-Policy
-        header.  The SW intercepts the navigation request and returns its
-        cached copy before the network has a chance to respond with the
-        updated header.
 
-      THREE-LAYER FIX (all in JS, no server change required):
-        1. Stale SW killer — on page load, enumerate all registered service
-           workers and unregister any whose scriptURL does NOT match the
-           current origin + /sw.js path, OR any whose state is 'redundant'.
-           Also posts a SKIP_WAITING message so active SWs update immediately.
-        2. securitypolicyviolation event handler — when a frame-src block
-           fires, find the offending iframe by src, clone it with the src
-           set to the same value (forces a re-fetch bypassing SW cache), and
-           replace the original node.  Also suppresses the console error so
-           it doesn't fill DevTools.
-        3. MutationObserver iframe healer — for iframes added dynamically
-           after page load (React lazy-loads them), schedules a micro-heal
-           if a fresh frame-src block fires within 100 ms of insertion.
-      ═══════════════════════════════════════════════════════════════════════
-    -->
     <script>
       (function(){
-        /* ════════════════════════════════════════════════════════════════
-           LAYER 1 — Stale Service Worker killer
-           Runs immediately so the SW is gone before any sub-resources load.
-           ════════════════════════════════════════════════════════════════ */
         if ('serviceWorker' in navigator) {
-          /* Post SKIP_WAITING to force any waiting SW to activate */
           navigator.serviceWorker.ready.then(function(reg){
-            if (reg && reg.waiting) {
-              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            }
+            if (reg && reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
           }).catch(function(){});
-
-          /* Unregister ALL service workers on first visit after a deploy.
-             We use a version stamp stored in sessionStorage so we only
-             do the full unregister once per browser session (avoids
-             thrashing on every page load once the new SW is installed). */
           var _SW_VER_KEY = '__brawnly_sw_ver__';
-          var _CURRENT_VER = '20260310-3';   /* bump this on each deploy */
+          var _CURRENT_VER = '20260314-4';
           var _storedVer;
           try { _storedVer = sessionStorage.getItem(_SW_VER_KEY); } catch(e2){}
-
           if (_storedVer !== _CURRENT_VER) {
             navigator.serviceWorker.getRegistrations().then(function(regs){
               regs.forEach(function(reg){
-                /* Unregister stale SW */
                 reg.unregister().then(function(ok){
-                  if (ok) {
-                    /* Clear ALL caches so old CSP-stamped responses are gone */
-                    if ('caches' in window) {
-                      caches.keys().then(function(keys){
-                        keys.forEach(function(k){ caches.delete(k); });
-                      });
-                    }
-                  }
+                  if (ok && 'caches' in window) { caches.keys().then(function(keys){ keys.forEach(function(k){ caches.delete(k); }); }); }
                 }).catch(function(){});
               });
             }).catch(function(){});
             try { sessionStorage.setItem(_SW_VER_KEY, _CURRENT_VER); } catch(e2){}
           }
         }
-
-        /* ════════════════════════════════════════════════════════════════
-           LAYER 2 — securitypolicyviolation handler
-           Intercepts frame-src blocks, finds the blocked iframe, and
-           re-assigns its src so the browser re-fetches without SW cache.
-           ════════════════════════════════════════════════════════════════ */
         var _healedSrcs = new Set();
-        var _cspErrSuppressPatterns = [
-          'frame-src',
-          'Content Security Policy',
-          'violates the following',
-          'The request has been blocked'
-        ];
-
-        /* Suppress console.error for CSP frame-src messages */
         var _origCE = console.error;
         console.error = function() {
           var msg = arguments[0];
           if (msg && typeof msg === 'string') {
             var lo = msg.toLowerCase();
-            if (
-              lo.indexOf('frame-src') !== -1 ||
-              lo.indexOf('content security policy') !== -1 ||
-              lo.indexOf('violates the following') !== -1
-            ) return;
+            if (lo.indexOf('frame-src') !== -1 || lo.indexOf('content security policy') !== -1 || lo.indexOf('violates the following') !== -1) return;
           }
           return _origCE.apply(console, arguments);
         };
-
         function _healIframe(blockedUrl) {
           if (!blockedUrl || _healedSrcs.has(blockedUrl)) return;
           _healedSrcs.add(blockedUrl);
           try {
-            /* Find the iframe with the matching src */
             var frames = document.querySelectorAll('iframe');
             for (var i = 0; i < frames.length; i++) {
               var fr = frames[i];
               var src = fr.src || fr.getAttribute('src') || fr.getAttribute('data-src') || '';
               if (src.indexOf(blockedUrl) !== -1 || blockedUrl.indexOf(src.split('?')[0]) !== -1) {
-                /* Force re-fetch: blank then restore */
                 var savedSrc = fr.src;
                 var savedDataSrc = fr.getAttribute('data-src');
                 fr.removeAttribute('src');
-                /* Use requestAnimationFrame so the DOM processes the removal */
                 requestAnimationFrame(function(){
                   if (savedSrc) fr.src = savedSrc;
                   else if (savedDataSrc) fr.setAttribute('data-src', savedDataSrc);
@@ -754,46 +511,25 @@
             }
           } catch(e2){}
         }
-
         document.addEventListener('securitypolicyviolation', function(e) {
           if (!e) return;
-          /* Only care about frame-src violations */
           if (e.violatedDirective && e.violatedDirective.indexOf('frame-src') === -1) return;
           var blocked = e.blockedURI || '';
-          /* Suppress the default browser console output */
-          if (e.preventDefault) {
-            try { e.preventDefault(); } catch(ex){}
-          }
-          /* Heal the blocked iframe */
+          if (e.preventDefault) { try { e.preventDefault(); } catch(ex){} }
           if (blocked) _healIframe(blocked);
         }, true);
-
-        /* ════════════════════════════════════════════════════════════════
-           LAYER 3 — MutationObserver iframe healer
-           Watches for dynamically added iframes (React lazy rendering)
-           and schedules a re-src if a SPV fires within 200 ms of mount.
-           ════════════════════════════════════════════════════════════════ */
         var _recentIframes = [];
         var _iframeObs = new MutationObserver(function(mutations) {
           mutations.forEach(function(m) {
             m.addedNodes.forEach(function(node) {
-              if (node.tagName === 'IFRAME') {
-                _recentIframes.push({ node: node, ts: Date.now() });
-              } else if (node.querySelectorAll) {
-                node.querySelectorAll('iframe').forEach(function(fr) {
-                  _recentIframes.push({ node: fr, ts: Date.now() });
-                });
-              }
+              if (node.tagName === 'IFRAME') { _recentIframes.push({ node: node, ts: Date.now() }); }
+              else if (node.querySelectorAll) { node.querySelectorAll('iframe').forEach(function(fr) { _recentIframes.push({ node: fr, ts: Date.now() }); }); }
             });
           });
-          /* Prune stale entries (> 500 ms old) */
           var now = Date.now();
           _recentIframes = _recentIframes.filter(function(e2){ return now - e2.ts < 500; });
         });
-        try {
-          _iframeObs.observe(document.documentElement, { childList: true, subtree: true });
-        } catch(e){}
-
+        try { _iframeObs.observe(document.documentElement, { childList: true, subtree: true }); } catch(e){}
       })();
     </script>
 
@@ -813,67 +549,19 @@
 
     <script>
       (function() {
-        // ────────────────────────────────────────────────────────────────────
-        // FIX 2 — YouTube RSS CORS + rss2json 500/422
-        // FIX 4 — Tumblr RSS CORS blocked
-        //
-        // ROOT CAUSE:
-        //   • rss2json returns HTTP 500 for YouTube channel feeds
-        //     (their backend times out or is blocked by YouTube)
-        //   • rss2json returns HTTP 422 for Tumblr (malformed/unsupported)
-        //   • corsproxy.io returns 403 for both
-        //
-        // FIX STRATEGY:
-        //   YouTube feeds  → skip rss2json entirely, use codetabs FIRST
-        //                    then allorigins, then rss2json as last resort
-        //   Tumblr RSS     → same skip logic; rss2json is last resort only
-        //   Other RSS      → rss2json first (it handles generic feeds well)
-        //   corsproxy.io   → last resort, skipped for YouTube & Tumblr
-        //
-        // Proxy chain order per feed type:
-        //   YouTube  : codetabs → allorigins → rss2json → corsproxy
-        //   Tumblr   : codetabs → allorigins → rss2json → corsproxy
-        //   Generic  : rss2json → codetabs → allorigins → corsproxy
-        // ────────────────────────────────────────────────────────────────────
         var failedUrls = new Set();
-        var corsproxyShouldSkip = new Set([
-          'youtube.com/feeds',
-          'tumblr.com/rss'
-        ]);
-        /* Feeds that caused known errors on rss2json → skip it */
-        var rss2jsonSkipPatterns = [
-          'youtube.com/feeds',   /* 500 — YouTube blocks rss2json */
-          'tumblr.com/rss'       /* 422 — rss2json can't parse Tumblr */
-        ];
+        var corsproxyShouldSkip = new Set(['youtube.com/feeds','tumblr.com/rss']);
+        var rss2jsonSkipPatterns = ['youtube.com/feeds','tumblr.com/rss'];
         var originalFetch = window.fetch;
         var STUB_XML = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Konten tidak tersedia</title><item><title>Silakan refresh atau coba lagi nanti.</title><link>#</link></item></channel></rss>';
-
         function _isRSSTarget(url) {
           if (!url) return false;
-          return (
-            url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss') ||
-            url.includes('api.rss2json.com') || url.includes('substack.com/feed') ||
-            url.includes('cors.sh') || url.includes('thingproxy') ||
-            url.includes('allorigins.win') || url.includes('api.codetabs.com') ||
-            url.includes('corsproxy.io')
-          );
+          return (url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss') || url.includes('api.rss2json.com') || url.includes('substack.com/feed') || url.includes('cors.sh') || url.includes('thingproxy') || url.includes('allorigins.win') || url.includes('api.codetabs.com') || url.includes('corsproxy.io'));
         }
-        function _isCORSBlocked(url) {
-          if (!url) return false;
-          return url.includes('youtube.com/feeds') || url.includes('tumblr.com/rss');
-        }
-        function _skipRss2json(url) {
-          if (!url) return false;
-          return rss2jsonSkipPatterns.some(function(p) { return url.includes(p); });
-        }
+        function _skipRss2json(url) { if (!url) return false; return rss2jsonSkipPatterns.some(function(p) { return url.includes(p); }); }
         function _isAdURL(url) {
           if (!url) return false;
-          return (
-            url.includes('googlesyndication.com') || url.includes('doubleclick.net') ||
-            url.includes('googleadservices.com') || url.includes('googletagservices.com') ||
-            url.includes('adtrafficquality.google') ||
-            url.includes('fundingchoicesmessages.google.com')
-          );
+          return (url.includes('googlesyndication.com') || url.includes('doubleclick.net') || url.includes('googleadservices.com') || url.includes('googletagservices.com') || url.includes('adtrafficquality.google') || url.includes('fundingchoicesmessages.google.com'));
         }
         function _getCanonicalUrl(url) {
           if (!url) return url;
@@ -885,138 +573,48 @@
           } catch(e) {}
           return url;
         }
-
-        /* Convert rss2json JSON response back to minimal RSS 2.0 XML */
         function _rss2jsonToXml(json) {
           try {
             if (!json || json.status !== 'ok') return null;
             var ch = json.feed || {};
             var items = (json.items || []).map(function(it) {
-              return '<item>'
-                + '<title><![CDATA[' + (it.title || '') + ']]></title>'
-                + '<link>' + (it.link || it.guid || '') + '</link>'
-                + '<pubDate>' + (it.pubDate || '') + '</pubDate>'
-                + '<description><![CDATA[' + (it.description || it.content || '') + ']]></description>'
-                + (it.enclosure && it.enclosure.link ? '<enclosure url="' + it.enclosure.link + '" type="' + (it.enclosure.type || 'audio/mpeg') + '" length="0"/>' : '')
-                + '</item>';
+              return '<item><title><![CDATA[' + (it.title || '') + ']]></title><link>' + (it.link || it.guid || '') + '</link><pubDate>' + (it.pubDate || '') + '</pubDate><description><![CDATA[' + (it.description || it.content || '') + ']]></description>' + (it.enclosure && it.enclosure.link ? '<enclosure url="' + it.enclosure.link + '" type="' + (it.enclosure.type || 'audio/mpeg') + '" length="0"/>' : '') + '</item>';
             }).join('');
-            return '<?xml version="1.0" encoding="UTF-8"?>'
-              + '<rss version="2.0"><channel>'
-              + '<title><![CDATA[' + (ch.title || '') + ']]></title>'
-              + '<link>' + (ch.url || ch.link || '') + '</link>'
-              + '<description><![CDATA[' + (ch.description || '') + ']]></description>'
-              + items
-              + '</channel></rss>';
+            return '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title><![CDATA[' + (ch.title || '') + ']]></title><link>' + (ch.url || ch.link || '') + '</link><description><![CDATA[' + (ch.description || '') + ']]></description>' + items + '</channel></rss>';
           } catch(e) { return null; }
         }
-
-        // ── Proxy definitions ─────────────────────────────────────────────
-        var PROXY_RSS2JSON = {
-          make: function(u) {
-            return 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u);
-          },
-          type: 'rss2json'
-        };
-        var PROXY_CODETABS = {
-          make: function(u) {
-            return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u);
-          },
-          type: 'xml'
-        };
-        var PROXY_ALLORIGINS = {
-          make: function(u) {
-            if (u.includes('api.rss2json.com')) return null;
-            return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u);
-          },
-          type: 'allorigins'
-        };
-        var PROXY_CORSPROXY = {
-          make: function(u) {
-            for (var i = 0; i < corsproxyShouldSkip.size; i++) {
-              var vals = Array.from(corsproxyShouldSkip);
-              if (vals.some(function(s){ return u.includes(s); })) return null;
-            }
-            return 'https://corsproxy.io/?' + encodeURIComponent(u);
-          },
-          type: 'xml'
-        };
-
-        /* ── Build proxy chain based on feed type ─────────────────── */
+        var PROXY_RSS2JSON = { make: function(u) { return 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u); }, type: 'rss2json' };
+        var PROXY_CODETABS = { make: function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }, type: 'xml' };
+        var PROXY_ALLORIGINS = { make: function(u) { if (u.includes('api.rss2json.com')) return null; return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); }, type: 'allorigins' };
+        var PROXY_CORSPROXY = { make: function(u) { var vals = Array.from(corsproxyShouldSkip); if (vals.some(function(s){ return u.includes(s); })) return null; return 'https://corsproxy.io/?' + encodeURIComponent(u); }, type: 'xml' };
         function _getProxies(canonicalUrl) {
-          if (_skipRss2json(canonicalUrl)) {
-            /* YouTube / Tumblr: codetabs first, rss2json as last resort */
-            return [PROXY_CODETABS, PROXY_ALLORIGINS, PROXY_RSS2JSON, PROXY_CORSPROXY];
-          }
-          /* Generic RSS: rss2json first (best for most feeds) */
+          if (_skipRss2json(canonicalUrl)) return [PROXY_CODETABS, PROXY_ALLORIGINS, PROXY_RSS2JSON, PROXY_CORSPROXY];
           return [PROXY_RSS2JSON, PROXY_CODETABS, PROXY_ALLORIGINS, PROXY_CORSPROXY];
         }
-
         window.fetch = async function(resource, options) {
           var url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : null);
           if (!url || _isAdURL(url) || !_isRSSTarget(url)) return originalFetch.apply(this, arguments);
-
           var canonicalUrl = _getCanonicalUrl(url);
-
-          if (failedUrls.has(canonicalUrl)) {
-            return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-          }
-
+          if (failedUrls.has(canonicalUrl)) return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
           var proxies = _getProxies(canonicalUrl);
-
           for (var i = 0; i < proxies.length; i++) {
-            var proxy = proxies[i];
-            var proxyUrl = proxy.make(canonicalUrl);
-            if (!proxyUrl) continue;
-            /* don't re-try the same URL if we're already proxied */
-            if (proxyUrl === url && i > 0) continue;
-
+            var proxy = proxies[i]; var proxyUrl = proxy.make(canonicalUrl);
+            if (!proxyUrl) continue; if (proxyUrl === url && i > 0) continue;
             try {
-              var ctrl = new AbortController();
-              /* shorter timeout for first proxy, longer for fallbacks */
-              var timeoutMs = (i === 0) ? 5000 : 8000;
+              var ctrl = new AbortController(); var timeoutMs = (i === 0) ? 5000 : 8000;
               var tid = setTimeout((function(c){ return function(){ c.abort(); }; })(ctrl), timeoutMs);
-              var res = await originalFetch(proxyUrl, {
-                signal: ctrl.signal,
-                headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' }
-              });
+              var res = await originalFetch(proxyUrl, { signal: ctrl.signal, headers: { Accept: 'application/rss+xml, application/json, text/xml, */*' } });
               clearTimeout(tid);
-
-              /* 500 / 422 / 4xx → try next proxy */
               if (!res.ok) continue;
-
               if (proxy.type === 'rss2json') {
-                try {
-                  var txt = await res.text();
-                  var json = JSON.parse(txt);
-                  if (json && json.status === 'ok') {
-                    var xml = _rss2jsonToXml(json);
-                    if (xml) return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml' } });
-                  }
-                  /* status not 'ok' (e.g. rss2json error object) → try next */
-                  continue;
-                } catch(e) { continue; }
+                try { var txt = await res.text(); var json = JSON.parse(txt); if (json && json.status === 'ok') { var xml = _rss2jsonToXml(json); if (xml) return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml' } }); } continue; } catch(e) { continue; }
               }
-
               if (proxy.type === 'allorigins') {
-                try {
-                  var txt2 = await res.text();
-                  var data = JSON.parse(txt2);
-                  return new Response(
-                    (data && data.contents) ? data.contents : txt2,
-                    { status: 200, headers: { 'Content-Type': 'application/xml' } }
-                  );
-                } catch(e) { return res; }
+                try { var txt2 = await res.text(); var data = JSON.parse(txt2); return new Response((data && data.contents) ? data.contents : txt2, { status: 200, headers: { 'Content-Type': 'application/xml' } }); } catch(e) { return res; }
               }
-
               return res;
-
-            } catch(e) {
-              /* AbortError (timeout) or network error → try next proxy */
-              continue;
-            }
+            } catch(e) { continue; }
           }
-
-          /* all proxies exhausted */
           failedUrls.add(canonicalUrl);
           return new Response(STUB_XML, { status: 200, headers: { 'Content-Type': 'application/xml' } });
         };
@@ -1027,39 +625,26 @@
       try {
         if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
           for (var x in __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-            if (x !== 'renderers') {
-              __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null;
-            }
+            if (x !== 'renderers') { __REACT_DEVTOOLS_GLOBAL_HOOK__[x] = typeof __REACT_DEVTOOLS_GLOBAL_HOOK__[x] === 'function' ? function(){} : null; }
           }
         }
       } catch(e){}
-
       function _isSuppressed(args) {
-        var msg = args && args[0];
-        if (!msg) return false;
+        var msg = args && args[0]; if (!msg) return false;
         var s = typeof msg === 'string' ? msg : (msg && msg.message ? String(msg.message) : '');
-        return (
-          s.includes('fetchPriority') || s.includes('Hydration') || s.includes('unload') ||
-          s.includes('Permissions policy') || s.includes('[Violation]') ||
-          s.includes('conflicting-entries') || s.includes('workbox') ||
-          s.includes('precache')
-        );
+        return (s.includes('fetchPriority') || s.includes('Hydration') || s.includes('unload') || s.includes('Permissions policy') || s.includes('[Violation]') || s.includes('conflicting-entries') || s.includes('workbox') || s.includes('precache'));
       }
       var originalConsoleError = console.error;
       console.error = function() { if (_isSuppressed(arguments)) return; originalConsoleError.apply(console, arguments); };
       var originalConsoleWarn = console.warn;
       console.warn = function() { if (_isSuppressed(arguments)) return; originalConsoleWarn.apply(console, arguments); };
-
       window.__deferScript = function(src) {
         if (src && (src.endsWith('.js') || src.includes('.js?'))) {
-          var script = document.createElement('script');
-          script.src = src; script.defer = true; script.type = 'module';
-          document.body.appendChild(script);
+          var script = document.createElement('script'); script.src = src; script.defer = true; script.type = 'module'; document.body.appendChild(script);
         }
       };
     </script>
 
-    <!-- Obfuscated preconnect for primary data endpoint -->
     <script>
       (function(){
         var pre = function() {
