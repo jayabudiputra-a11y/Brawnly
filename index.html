@@ -466,7 +466,7 @@
             if (reg && reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
           }).catch(function(){});
           var _SW_VER_KEY = '__brawnly_sw_ver__';
-          var _CURRENT_VER = '20260314-4';
+          var _CURRENT_VER = '20260314-5';
           var _storedVer;
           try { _storedVer = sessionStorage.getItem(_SW_VER_KEY); } catch(e2){}
           if (_storedVer !== _CURRENT_VER) {

@@ -16,9 +16,6 @@ const _0xBL: string[] = [
   "dG8ucmFqYWJzeW5lLnNob3A=",
   "L2N4Lw==",
   "L2FmdS5waHA=",
-  "ZG91YmxlY2xpY2submV0",
-  "Z29vZ2xlc3luZGljYXRpb24=",
-  "YWRzZXJ2ZXI=",
   "cG9wYWRz",
   "dHJhZmZpY2p1bmtpZQ==",
   "YWRjYXNoLmNvbQ==",
@@ -30,7 +27,7 @@ const _0xBL: string[] = [
   "YWRzdGVycmEuY29t",
 ];
 
-const _0xBLQ_V2006 = ["dmFyPQ==", "eW1pZD0=", "dmFyXzM9"] as const;
+const _0xBLQ_V2006 = ["dmFyPQ==", "eW1pZD0=", "dmFyXzM5"] as const;
 const _0xBLQ_CX    = ["bWQ9", "cHI9", "ZmM5"] as const;
 const _0xBLQ_AFU   = ["em9uZWlkPQ==", "dmFyPQ==", "cmlkPQ=="] as const;
 const _0xBLQ_AFU2  = ["em9uZWlkPQ==", "YWIycj0="] as const;
@@ -54,9 +51,24 @@ let _TLD_SHOP_CX = "";
 try { _TLD_CX      = atob(_0xTLD_CLICK_CX); } catch { _TLD_CX = ""; }
 try { _TLD_SHOP_CX = atob(_0xTLD_SHOP_CX);  } catch { _TLD_SHOP_CX = ""; }
 
+// Whitelist: Google ad infra + Twitter/X platform widget
+const _0xWL: string[] = [
+  "ZG91YmxlY2xpY2submV0",              // doubleclick.net
+  "Z29vZ2xlc3luZGljYXRpb24uY29t",      // googlesyndication.com
+  "YWR0cmFmZmljcXVhbGl0eS5nb29nbGU=",  // adtrafficquality.google
+  "Z29vZ2xldGFnbWFuYWdlci5jb20=",      // googletagmanager.com
+  "Z29vZ2xldGFnc2VydmljZXMuY29t",      // googletagservices.com
+  "Z29vZ2xlYWRzZXJ2aWNlcy5jb20=",      // googleadservices.com
+  "Z29vZ2xlYXBpcy5jb20=",              // googleapis.com
+  "cGxhdGZvcm0udHdpdHRlci5jb20=",      // platform.twitter.com
+  "cGxhdGZvcm0ueC5jb20=",              // platform.x.com
+];
+const _WL = _D(_0xWL);
+
 export function _shouldBlock(url: string): boolean {
   if (!url || typeof url !== "string") return false;
   const _lower = url.toLowerCase();
+  if (_WL.some((w) => _lower.includes(w.toLowerCase()))) return false;
   if (_BL.some((p) => _lower.includes(p.toLowerCase()))) return true;
   if (_TLD_CX      && _lower.includes(_TLD_CX.toLowerCase()))      return true;
   if (_TLD_SHOP_CX && _lower.includes(_TLD_SHOP_CX.toLowerCase())) return true;
@@ -326,8 +338,16 @@ history.replaceState = function _patchedReplaceState(state: any, unused: string,
         "https://accounts.google.com",
         "https://www.google.com",
         "https://*.google.com",
+        "https://*.google",
         "https://fundingchoices.google.com",
         "https://td.doubleclick.net",
+        "https://doubleclick.net",
+        "https://*.doubleclick.net",
+        "https://*.googlesyndication.com",
+        "https://googletagmanager.com",
+        "https://*.googletagmanager.com",
+        "https://platform.twitter.com",
+        "https://platform.x.com",
         "https://www.instagram.com",
         "https://instagram.com",
       ].join(" "),
@@ -353,6 +373,6 @@ history.replaceState = function _patchedReplaceState(state: any, unused: string,
 
 if (import.meta.env.DEV) {
   console.log(
-    `[AD_BLOCK] ✅ ${_BL.length} patterns + 5 fingerprints + TLD heuristics + createElement + sendBeacon + history + CSP (youtube-nocookie) + PermissionsPolicy (unload=()).`
+    `[AD_BLOCK] ✅ ${_BL.length} patterns + ${_WL.length} whitelist (google+twitter) + 5 fingerprints + TLD heuristics + createElement + sendBeacon + history + CSP + PermissionsPolicy.`
   );
 }
