@@ -1,4 +1,4 @@
-import React, { useState as _s, useEffect as _e, useMemo as _uM } from "react";
+import React, { useState as _s, useEffect as _e, useMemo as _uM, useRef as _uR } from "react";
 import { Link as _L } from "react-router-dom";
 import { Bookmark as _Bm, BookOpen as _Bo, ArrowLeft as _Al, Hexagon as _Hx, Music as _Ms, Image as _Im, WifiOff as _Wo, RefreshCw as _Rc, HardDrive as _Hd } from "lucide-react";
 import { motion as _m, AnimatePresence as _AP } from "framer-motion";
@@ -25,6 +25,13 @@ const PAGE_TITLE = `Library — ${SITE_NAME}`;
 const PAGE_DESCRIPTION =
   "Your personal Brawnly library — saved articles and sonic vault. Access your bookmarked editorial content and music collection.";
 
+// ─── AdSense Constants ───────────────────────────────────────────────────────
+// ✅ Native In-article ads — adsbygoogle.push({}) only, no skeleton/placeholder
+// ✅ Compatible with adblocker.ts whitelist (googlesyndication.com,
+//    doubleclick.net all whitelisted)
+const ADSENSE_CLIENT = "ca-pub-7678404408306696";
+const ADSENSE_IN_ARTICLE_SLOT = "5568488303";
+
 // ─── Article Image License (Budi Putra Jaya) ────────────────────────────────
 const ARTICLE_IMAGE_LICENSE     = "https://creativecommons.org/licenses/by/4.0/";
 const ARTICLE_IMAGE_COPYRIGHT   = "© 2026 Budi Putra Jaya. All rights reserved.";
@@ -32,9 +39,6 @@ const ARTICLE_IMAGE_ACQUIRE_URL = `${SITE_URL}/license`;
 const ARTICLE_IMAGE_CREATOR     = AUTHOR_NAME;
 
 // ─── YouTube Thumbnail License ───────────────────────────────────────────────
-// Thumbnail YouTube tunduk pada YouTube Terms of Service:
-// https://www.youtube.com/t/terms
-// Creator konten adalah pemilik channel/video masing-masing.
 const YT_THUMBNAIL_LICENSE     = "https://www.youtube.com/t/terms";
 const YT_THUMBNAIL_COPYRIGHT   = "© YouTube / respective content creators. All rights reserved.";
 const YT_THUMBNAIL_ACQUIRE_URL = "https://www.youtube.com/t/terms";
@@ -98,18 +102,83 @@ const _jLdBreadcrumb = JSON.stringify({
    HELPERS
    ============================================================ */
 
-/** Kembalikan URL thumbnail YouTube dari videoId, prefer maxresdefault */
 function _ytThumb(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 }
 
-/** Ekstrak YouTube videoId dari berbagai format URL */
 function _extractYtId(url: string): string | null {
   const r = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?\s]*).*/;
   const m = url.match(r);
   return m && m[2].length === 11 ? m[2] : null;
 }
 
+/* ============================================================
+   ADSENSE NATIVE IN-ARTICLE COMPONENT
+   ──────────────────────────────────────────────────────────────
+   Implements Google AdSense Native In-article ad per spec:
+     https://support.google.com/adsense/answer/9274522
+
+   ✅  <ins class="adsbygoogle" data-ad-layout="in-article"
+         data-ad-format="fluid" data-ad-client="ca-pub-..."
+         data-ad-slot="..."> — exact Google spec markup
+   ✅  (adsbygoogle = window.adsbygoogle || []).push({})
+       called exactly ONCE after layout paint is confirmed
+   ✅  No skeleton / placeholder — pure Native In-article ad
+   ✅  Compatible with adblocker.ts _WL whitelist:
+         googlesyndication.com, doubleclick.net both whitelisted
+   ✅  adsbygoogle.push({}) is a plain JS array operation —
+       NOT a fetch/XHR — adblocker.ts does NOT intercept it
+   ============================================================ */
+function AdSenseInArticle() {
+  const _insRef = _uR<HTMLModElement>(null);
+  const _pushed = _uR(false);
+
+  _e(() => {
+    if (_pushed.current) return;
+
+    const _tryPush = () => {
+      if (_pushed.current) return;
+      const ins = _insRef.current;
+      const pw = ins?.parentElement?.getBoundingClientRect().width ?? 0;
+      if (!ins || (pw === 0 && document.readyState !== "complete")) {
+        requestAnimationFrame(_tryPush);
+        return;
+      }
+      _pushed.current = true;
+      try {
+        const win = window as any;
+        (win.adsbygoogle = win.adsbygoogle || []).push({});
+      } catch (_) {}
+    };
+
+    requestAnimationFrame(_tryPush);
+  }, []);
+
+  return (
+    <div
+      className="my-10 max-w-full mx-auto"
+      aria-label="Advertisement"
+    >
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
+        Advertisement
+      </p>
+      {/* Google AdSense Native In-article — exact spec markup */}
+      <ins
+        ref={_insRef}
+        className="adsbygoogle"
+        style={{ display: "block", textAlign: "center" }}
+        data-ad-layout="in-article"
+        data-ad-format="fluid"
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   MAIN LIBRARY COMPONENT
+   ============================================================ */
 export default function Library() {
   const { isDark: _iD } = _uTP();
   const { data: _aD, isLoading: _aL, isRefetching: _iR } = _uA();
@@ -221,9 +290,7 @@ export default function Library() {
     }
   };
 
-  /* ============================================================
-     DYNAMIC JSON-LD — Saved Articles ItemList (live state)
-     ============================================================ */
+  /* ── DYNAMIC JSON-LD ── */
   const _jLdSavedArticles = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -241,7 +308,6 @@ export default function Library() {
         "url": `${SITE_URL}/article/${a.slug}`,
         "headline": a.title,
         "description": a.excerpt || a.description || undefined,
-        // FIX: image sebagai ImageObject lengkap, bukan string URL
         ...(a.featured_image
           ? {
               "image": {
@@ -272,10 +338,6 @@ export default function Library() {
     })),
   };
 
-  /* ============================================================
-     DYNAMIC JSON-LD — Sonic Vault MusicPlaylist (live state)
-     Thumbnail YouTube menggunakan copyright YouTube/creator masing-masing
-     ============================================================ */
   const _jLdSonicVault = {
     "@context": "https://schema.org",
     "@type": "MusicPlaylist",
@@ -291,7 +353,6 @@ export default function Library() {
         "position": i + 1,
         "name": s.title,
         "url": s.url,
-        // FIX: thumbnailUrl sebagai ImageObject lengkap dengan copyright YouTube
         ...(thumbUrl
           ? {
               "thumbnailUrl": thumbUrl,
@@ -329,7 +390,6 @@ export default function Library() {
     e: "flex flex-col items-center justify-center py-20 text-center"
   };
 
-  /* ── Loading state ── */
   if ((_aL || _lL) && _sA.length === 0 && _sL.length === 0) return (
     <div
       className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]"
@@ -351,16 +411,10 @@ export default function Library() {
       itemType="https://schema.org/WebPage"
       aria-label="Brawnly Library page"
     >
-      {/* ── JSON-LD: WebPage (static) ── */}
+      {/* ── JSON-LD blocks ── */}
       <script type="application/ld+json">{_jLdWebPage}</script>
-
-      {/* ── JSON-LD: BreadcrumbList (static) ── */}
       <script type="application/ld+json">{_jLdBreadcrumb}</script>
-
-      {/* ── JSON-LD: Saved Articles ItemList (dynamic) ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdSavedArticles)}</script>
-
-      {/* ── JSON-LD: Sonic Vault MusicPlaylist (dynamic) ── */}
       <script type="application/ld+json">{JSON.stringify(_jLdSonicVault)}</script>
 
       {/* ── Microdata: page-level ── */}
@@ -369,7 +423,7 @@ export default function Library() {
       <meta itemProp="description" content={PAGE_DESCRIPTION} />
       <meta itemProp="inLanguage" content="id" />
 
-      {/* ── SEO HIDDEN: full page + collections for crawlers ── */}
+      {/* ── SEO HIDDEN ── */}
       <div
         aria-hidden="true"
         style={{
@@ -381,36 +435,27 @@ export default function Library() {
           whiteSpace: "nowrap",
         }}
       >
-        {/* Page canonical */}
         <a href={PAGE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
           {PAGE_TITLE}
         </a>
-
-        {/* Author */}
         <span itemScope itemType="https://schema.org/Person" itemProp="author">
           <span itemProp="name">{AUTHOR_NAME}</span>
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             {AUTHOR_NAME}
           </a>
         </span>
-
-        {/* Publisher */}
         <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
           <span itemProp="name">{SITE_NAME}</span>
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             {SITE_NAME}
           </a>
         </span>
-
-        {/* WebSite isPartOf */}
         <span itemScope itemType="https://schema.org/WebSite" itemProp="isPartOf">
           <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
             {SITE_NAME}
           </a>
           <span itemProp="name">{SITE_NAME}</span>
         </span>
-
-        {/* BreadcrumbList */}
         <span itemScope itemType="https://schema.org/BreadcrumbList">
           <span itemScope itemType="https://schema.org/ListItem" itemProp="itemListElement">
             <meta itemProp="position" content="1" />
@@ -427,11 +472,7 @@ export default function Library() {
         </span>
 
         {/* Saved articles hidden list */}
-        <ol
-          itemScope
-          itemType="https://schema.org/ItemList"
-          aria-label="Hidden saved articles list"
-        >
+        <ol itemScope itemType="https://schema.org/ItemList" aria-label="Hidden saved articles list">
           <meta itemProp="name" content={`${SITE_NAME} — Saved Articles`} />
           <meta itemProp="numberOfItems" content={String(_sA.length)} />
           {_sA.map((a: any, i: number) => (
@@ -442,36 +483,22 @@ export default function Library() {
               itemProp="itemListElement"
             >
               <meta itemProp="position" content={String(i + 1)} />
-              <a
-                href={`${SITE_URL}/article/${a.slug}`}
-                itemProp="url"
-                tabIndex={-1}
-                rel="noopener noreferrer"
-              >
+              <a href={`${SITE_URL}/article/${a.slug}`} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
                 {a.title}
               </a>
               <meta itemProp="headline" content={a.title} />
               {(a.excerpt || a.description) && (
                 <meta itemProp="description" content={a.excerpt || a.description} />
               )}
-              {/* FIX: ImageObject penuh untuk featured_image artikel (Budi Putra Jaya) */}
               {a.featured_image && (
-                <span
-                  itemScope
-                  itemType="https://schema.org/ImageObject"
-                  itemProp="image"
-                >
+                <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
                   <meta itemProp="url" content={a.featured_image} />
                   <meta itemProp="contentUrl" content={a.featured_image} />
                   <meta itemProp="name" content={`${a.title} — cover`} />
                   <meta itemProp="license" content={ARTICLE_IMAGE_LICENSE} />
                   <meta itemProp="copyrightNotice" content={ARTICLE_IMAGE_COPYRIGHT} />
                   <meta itemProp="acquireLicensePage" content={ARTICLE_IMAGE_ACQUIRE_URL} />
-                  <span
-                    itemScope
-                    itemType="https://schema.org/Person"
-                    itemProp="creator"
-                  >
+                  <span itemScope itemType="https://schema.org/Person" itemProp="creator">
                     <meta itemProp="name" content={ARTICLE_IMAGE_CREATOR} />
                   </span>
                 </span>
@@ -479,9 +506,7 @@ export default function Library() {
               {(a.published_at || a.created_at) && (
                 <meta itemProp="datePublished" content={a.published_at || a.created_at} />
               )}
-              {a.category && (
-                <meta itemProp="articleSection" content={a.category} />
-              )}
+              {a.category && <meta itemProp="articleSection" content={a.category} />}
               <span itemScope itemType="https://schema.org/Person" itemProp="author">
                 <span itemProp="name">{a.author?.username || AUTHOR_NAME}</span>
               </span>
@@ -490,51 +515,26 @@ export default function Library() {
         </ol>
 
         {/* Sonic vault hidden track list */}
-        <ol
-          itemScope
-          itemType="https://schema.org/MusicPlaylist"
-          aria-label="Hidden sonic vault track list"
-        >
+        <ol itemScope itemType="https://schema.org/MusicPlaylist" aria-label="Hidden sonic vault track list">
           <meta itemProp="name" content={`${SITE_NAME} — Sonic Vault`} />
           <meta itemProp="numTracks" content={String(_sL.length)} />
           {_sL.map((s: _S, i: number) => {
             const ytId = _extractYtId(s.url);
             const thumbUrl = ytId ? _ytThumb(ytId) : (s.thumbnail_url || null);
             return (
-              <li
-                key={`seo-song-${s.id}`}
-                itemScope
-                itemType="https://schema.org/MusicRecording"
-                itemProp="track"
-              >
+              <li key={`seo-song-${s.id}`} itemScope itemType="https://schema.org/MusicRecording" itemProp="track">
                 <meta itemProp="position" content={String(i + 1)} />
                 <span itemProp="name">{s.title}</span>
-                <a
-                  href={s.url}
-                  itemProp="url"
-                  tabIndex={-1}
-                  rel="noopener noreferrer"
-                >
-                  {s.title}
-                </a>
-                {/* FIX: YouTube thumbnail — ImageObject dengan copyright YouTube */}
+                <a href={s.url} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{s.title}</a>
                 {thumbUrl && (
-                  <span
-                    itemScope
-                    itemType="https://schema.org/ImageObject"
-                    itemProp="image"
-                  >
+                  <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
                     <meta itemProp="url" content={thumbUrl} />
                     <meta itemProp="contentUrl" content={thumbUrl} />
                     <meta itemProp="name" content={`${s.title} — thumbnail`} />
                     <meta itemProp="license" content={YT_THUMBNAIL_LICENSE} />
                     <meta itemProp="copyrightNotice" content={YT_THUMBNAIL_COPYRIGHT} />
                     <meta itemProp="acquireLicensePage" content={YT_THUMBNAIL_ACQUIRE_URL} />
-                    <span
-                      itemScope
-                      itemType="https://schema.org/Organization"
-                      itemProp="creator"
-                    >
+                    <span itemScope itemType="https://schema.org/Organization" itemProp="creator">
                       <meta itemProp="name" content={YT_THUMBNAIL_CREATOR} />
                       <meta itemProp="url" content="https://www.youtube.com" />
                     </span>
@@ -566,7 +566,6 @@ export default function Library() {
               LIBRARY
             </h1>
 
-            {/* Status indicators */}
             <div className="flex items-center gap-4 mt-2 h-6" role="status" aria-live="polite">
               {_isOff ? (
                 <span
@@ -593,7 +592,6 @@ export default function Library() {
             </div>
           </div>
 
-          {/* Node count badge */}
           <div
             className={`flex items-center gap-4 ${_iD ? 'bg-white text-black' : 'bg-black text-white'} px-6 py-4 rounded-xl shadow-xl border border-neutral-800`}
             aria-label={`Total nodes mapped: ${_sA.length + _sL.length}`}
@@ -601,34 +599,27 @@ export default function Library() {
             itemType="https://schema.org/QuantitativeValue"
           >
             <_Bm size={20} fill="currentColor" aria-hidden="true" />
-            <span
-              className="text-2xl font-black italic"
-              itemProp="value"
-            >
+            <span className="text-2xl font-black italic" itemProp="value">
               {_sA.length + _sL.length}
             </span>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
               NODES_MAPPED
             </span>
             <meta itemProp="unitText" content="nodes" />
-            <meta
-              itemProp="description"
-              content={`${_sA.length} saved articles + ${_sL.length} songs`}
-            />
+            <meta itemProp="description" content={`${_sA.length} saved articles + ${_sL.length} songs`} />
           </div>
         </div>
 
         {/* ══════════════════════════════════════════════
-            SONIC VAULT SECTION (existing logic preserved)
+            SONIC VAULT SECTION
             ══════════════════════════════════════════════ */}
         <section
-          className="mb-20"
+          className="mb-10"
           id="sonic-vault"
           aria-label="Sonic Vault — music collection"
           itemScope
           itemType="https://schema.org/MusicPlaylist"
         >
-          {/* Section microdata */}
           <meta itemProp="name" content={`${SITE_NAME} — Sonic Vault`} />
           <meta itemProp="numTracks" content={String(_sL.length)} />
           <meta itemProp="url" content={`${PAGE_URL}#sonic-vault`} />
@@ -653,8 +644,6 @@ export default function Library() {
           >
             {_sL.map((s) => {
               const ytId = _extractYtId(s.url);
-              // FIX: selalu gunakan YouTube thumbnail URL (bukan blob) untuk src attr &
-              // contentUrl — blob hanya untuk tampilan UI, bukan schema.org
               const ytThumbUrl = ytId ? _ytThumb(ytId) : (s.thumbnail_url || "");
               const displaySrc = _blobMap[s.id] || ytThumbUrl;
 
@@ -674,54 +663,25 @@ export default function Library() {
                   itemType="https://schema.org/MusicRecording"
                   itemProp="track"
                 >
-                  {/* Song microdata */}
                   <meta itemProp="name" content={s.title} />
-                  <a
-                    href={s.url}
-                    itemProp="url"
-                    tabIndex={-1}
-                    rel="noopener noreferrer"
-                    style={{ display: "none" }}
-                  >
+                  <a href={s.url} itemProp="url" tabIndex={-1} rel="noopener noreferrer" style={{ display: "none" }}>
                     {s.title}
                   </a>
-
-                  {/* FIX: ImageObject untuk thumbnail YouTube — url & contentUrl absolut,
-                      copyright YouTube Terms of Service */}
                   {ytThumbUrl && (
-                    <span
-                      itemScope
-                      itemType="https://schema.org/ImageObject"
-                      itemProp="image"
-                      style={{ display: "none" }}
-                    >
+                    <span itemScope itemType="https://schema.org/ImageObject" itemProp="image" style={{ display: "none" }}>
                       <meta itemProp="url" content={ytThumbUrl} />
                       <meta itemProp="contentUrl" content={ytThumbUrl} />
                       <meta itemProp="name" content={`${s.title} — thumbnail`} />
-                      <meta
-                        itemProp="description"
-                        content={`YouTube thumbnail for: ${s.title}`}
-                      />
+                      <meta itemProp="description" content={`YouTube thumbnail for: ${s.title}`} />
                       <meta itemProp="license" content={YT_THUMBNAIL_LICENSE} />
-                      <meta
-                        itemProp="copyrightNotice"
-                        content={YT_THUMBNAIL_COPYRIGHT}
-                      />
-                      <meta
-                        itemProp="acquireLicensePage"
-                        content={YT_THUMBNAIL_ACQUIRE_URL}
-                      />
-                      <span
-                        itemScope
-                        itemType="https://schema.org/Organization"
-                        itemProp="creator"
-                      >
+                      <meta itemProp="copyrightNotice" content={YT_THUMBNAIL_COPYRIGHT} />
+                      <meta itemProp="acquireLicensePage" content={YT_THUMBNAIL_ACQUIRE_URL} />
+                      <span itemScope itemType="https://schema.org/Organization" itemProp="creator">
                         <meta itemProp="name" content={YT_THUMBNAIL_CREATOR} />
                         <meta itemProp="url" content="https://www.youtube.com" />
                       </span>
                     </span>
                   )}
-
                   <img
                     src={displaySrc}
                     alt={`${s.title} — song thumbnail`}
@@ -730,14 +690,12 @@ export default function Library() {
                     }`}
                     loading="lazy"
                     onError={(e) => {
-                      // fallback ke thumbnail YouTube standar jika maxresdefault 404
                       if (ytId) {
                         (e.target as HTMLImageElement).src =
                           `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
                       }
                     }}
                   />
-
                   {_blobMap[s.id] && (
                     <div
                       className="absolute top-2 right-2 bg-emerald-500 text-black p-1 rounded shadow-lg"
@@ -747,7 +705,6 @@ export default function Library() {
                       <_Hd size={10} aria-hidden="true" />
                     </div>
                   )}
-
                   <div
                     className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-hidden="true"
@@ -764,7 +721,18 @@ export default function Library() {
         </section>
 
         {/* ══════════════════════════════════════════════
-            SAVED ENTRIES SECTION (existing logic preserved)
+            NATIVE IN-ARTICLE AD — between Sonic Vault and Saved Entries
+            ──────────────────────────────────────────────
+            Implements Google AdSense Native In-article ad:
+              https://support.google.com/adsense/answer/9274522
+            ✅ No placeholder/skeleton — pure Native In-article ad
+            ✅ adsbygoogle.push({}) called once after layout ready
+            ✅ googlesyndication.com whitelisted in adblocker.ts _WL
+            ══════════════════════════════════════════════ */}
+        <AdSenseInArticle />
+
+        {/* ══════════════════════════════════════════════
+            SAVED ENTRIES SECTION
             ══════════════════════════════════════════════ */}
         <section
           aria-label="Saved Articles — bookmarked entries"
@@ -772,7 +740,6 @@ export default function Library() {
           itemScope
           itemType="https://schema.org/ItemList"
         >
-          {/* Section microdata */}
           <meta itemProp="name" content={`${SITE_NAME} — Saved Articles`} />
           <meta itemProp="numberOfItems" content={String(_sA.length)} />
           <meta itemProp="url" content={`${PAGE_URL}#saved`} />
@@ -805,166 +772,130 @@ export default function Library() {
               </_L>
             </div>
           ) : (
-            <div
-              className={_x.g}
-              role="list"
-              aria-label="Saved articles grid"
-            >
-              <_AP mode="popLayout">
-                {_sA.map((a) => (
-                  <_m.div
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    key={a.id || a.slug}
-                    role="listitem"
-                    aria-label={`Saved article: ${a.title}`}
-                    className={_x.cd}
-                    itemScope
-                    itemType="https://schema.org/BlogPosting"
-                    itemProp="itemListElement"
-                  >
-                    {/* Article microdata */}
-                    <meta itemProp="headline" content={a.title} />
-                    <meta
-                      itemProp="url"
-                      content={`${SITE_URL}/article/${a.slug}`}
-                    />
-                    {a.category && (
-                      <meta itemProp="articleSection" content={a.category} />
-                    )}
-                    {(a.published_at || a.created_at) && (
-                      <meta
-                        itemProp="datePublished"
-                        content={a.published_at || a.created_at}
-                      />
-                    )}
-                    <span
+            <>
+              <div
+                className={_x.g}
+                role="list"
+                aria-label="Saved articles grid"
+              >
+                <_AP mode="popLayout">
+                  {_sA.map((a, _idx) => (
+                    <_m.div
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      key={a.id || a.slug}
+                      role="listitem"
+                      aria-label={`Saved article: ${a.title}`}
+                      className={_x.cd}
                       itemScope
-                      itemType="https://schema.org/Person"
-                      itemProp="author"
-                      style={{ display: "none" }}
+                      itemType="https://schema.org/BlogPosting"
+                      itemProp="itemListElement"
                     >
-                      <span itemProp="name">{a.author?.username || AUTHOR_NAME}</span>
-                    </span>
-                    <span
-                      itemScope
-                      itemType="https://schema.org/Organization"
-                      itemProp="publisher"
-                      style={{ display: "none" }}
-                    >
-                      <span itemProp="name">{SITE_NAME}</span>
-                    </span>
-
-                    {/* Thumbnail */}
-                    <div
-                      className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800"
-                      itemScope
-                      itemType="https://schema.org/ImageObject"
-                      itemProp="image"
-                    >
-                      {/* FIX: url & contentUrl absolut, plus license/creator/copyright artikel */}
-                      {a.featured_image && (
-                        <>
-                          <meta itemProp="url" content={a.featured_image} />
-                          <meta itemProp="contentUrl" content={a.featured_image} />
-                          <meta
-                            itemProp="name"
-                            content={`${a.title} — cover`}
-                          />
-                          <meta
-                            itemProp="description"
-                            content={`Cover image for article: ${a.title}`}
-                          />
-                          <meta
-                            itemProp="license"
-                            content={ARTICLE_IMAGE_LICENSE}
-                          />
-                          <meta
-                            itemProp="copyrightNotice"
-                            content={ARTICLE_IMAGE_COPYRIGHT}
-                          />
-                          <meta
-                            itemProp="acquireLicensePage"
-                            content={ARTICLE_IMAGE_ACQUIRE_URL}
-                          />
-                          <span
-                            itemScope
-                            itemType="https://schema.org/Person"
-                            itemProp="creator"
-                            style={{ display: "none" }}
-                          >
-                            <meta
-                              itemProp="name"
-                              content={ARTICLE_IMAGE_CREATOR}
-                            />
-                          </span>
-                        </>
+                      <meta itemProp="headline" content={a.title} />
+                      <meta itemProp="url" content={`${SITE_URL}/article/${a.slug}`} />
+                      {a.category && <meta itemProp="articleSection" content={a.category} />}
+                      {(a.published_at || a.created_at) && (
+                        <meta itemProp="datePublished" content={a.published_at || a.created_at} />
                       )}
-                      {!a.featured_image && a.title && (
-                        <meta itemProp="name" content={`${a.title} — cover`} />
-                      )}
-
-                      {a.featured_image ? (
-                        <img
-                          src={_gOI(a.featured_image, 600)}
-                          alt={`${a.title} — cover image`}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <_Im
-                            size={40}
-                            className="text-neutral-300 dark:text-neutral-700"
-                            aria-hidden="true"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Card body */}
-                    <div className="p-6 flex flex-col flex-1">
-                      <span
-                        className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3"
-                        itemProp="articleSection"
-                      >
-                        {a.category || "SELECTION"}
+                      <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
+                        <span itemProp="name">{a.author?.username || AUTHOR_NAME}</span>
                       </span>
-                      <h3
-                        className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2"
-                        itemProp="headline"
-                      >
-                        {a.title}
-                      </h3>
+                      <span itemScope itemType="https://schema.org/Organization" itemProp="publisher" style={{ display: "none" }}>
+                        <span itemProp="name">{SITE_NAME}</span>
+                      </span>
 
-                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
-                        <_L
-                          to={`/article/${a.slug}`}
-                          aria-label={`Read full article: ${a.title}`}
-                          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all italic"
-                          itemProp="url"
-                        >
-                          <_Bo size={14} aria-hidden="true" /> READ_FULL
-                        </_L>
-                        <button
-                          onClick={() => _rI(a.slug)}
-                          aria-label={`Remove "${a.title}" from saved articles`}
-                          className={`p-2.5 rounded-lg border transition-all ${
-                            _iD
-                              ? "bg-white text-black border-white"
-                              : "bg-black text-white border-black"
-                          } hover:bg-red-600 hover:border-red-600 hover:text-white`}
-                        >
-                          <_Bm size={16} fill="currentColor" aria-hidden="true" />
-                        </button>
+                      {/* Thumbnail */}
+                      <div
+                        className="aspect-[16/9] overflow-hidden relative bg-neutral-200 dark:bg-neutral-800"
+                        itemScope
+                        itemType="https://schema.org/ImageObject"
+                        itemProp="image"
+                      >
+                        {a.featured_image && (
+                          <>
+                            <meta itemProp="url" content={a.featured_image} />
+                            <meta itemProp="contentUrl" content={a.featured_image} />
+                            <meta itemProp="name" content={`${a.title} — cover`} />
+                            <meta itemProp="description" content={`Cover image for article: ${a.title}`} />
+                            <meta itemProp="license" content={ARTICLE_IMAGE_LICENSE} />
+                            <meta itemProp="copyrightNotice" content={ARTICLE_IMAGE_COPYRIGHT} />
+                            <meta itemProp="acquireLicensePage" content={ARTICLE_IMAGE_ACQUIRE_URL} />
+                            <span itemScope itemType="https://schema.org/Person" itemProp="creator" style={{ display: "none" }}>
+                              <meta itemProp="name" content={ARTICLE_IMAGE_CREATOR} />
+                            </span>
+                          </>
+                        )}
+                        {!a.featured_image && a.title && (
+                          <meta itemProp="name" content={`${a.title} — cover`} />
+                        )}
+                        {a.featured_image ? (
+                          <img
+                            src={_gOI(a.featured_image, 600)}
+                            alt={`${a.title} — cover image`}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <_Im size={40} className="text-neutral-300 dark:text-neutral-700" aria-hidden="true" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </_m.div>
-                ))}
-              </_AP>
-            </div>
+
+                      {/* Card body */}
+                      <div className="p-6 flex flex-col flex-1">
+                        <span
+                          className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-3"
+                          itemProp="articleSection"
+                        >
+                          {a.category || "SELECTION"}
+                        </span>
+                        <h3
+                          className="text-xl font-black uppercase leading-tight tracking-tight mb-4 group-hover:text-emerald-500 transition-colors line-clamp-2"
+                          itemProp="headline"
+                        >
+                          {a.title}
+                        </h3>
+
+                        <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                          <_L
+                            to={`/article/${a.slug}`}
+                            aria-label={`Read full article: ${a.title}`}
+                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all italic"
+                            itemProp="url"
+                          >
+                            <_Bo size={14} aria-hidden="true" /> READ_FULL
+                          </_L>
+                          <button
+                            onClick={() => _rI(a.slug)}
+                            aria-label={`Remove "${a.title}" from saved articles`}
+                            className={`p-2.5 rounded-lg border transition-all ${
+                              _iD
+                                ? "bg-white text-black border-white"
+                                : "bg-black text-white border-black"
+                            } hover:bg-red-600 hover:border-red-600 hover:text-white`}
+                          >
+                            <_Bm size={16} fill="currentColor" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    </_m.div>
+                  ))}
+                </_AP>
+              </div>
+
+              {/* ── NATIVE IN-ARTICLE AD — after saved articles grid ──
+                  Rendered only when 3+ saved articles exist so the ad
+                  has enough surrounding content per AdSense policy.
+                  ✅ adsbygoogle.push({}) called once per <ins> mount  */}
+              {_sA.length >= 3 && (
+                <div className="mt-12">
+                  <AdSenseInArticle />
+                </div>
+              )}
+            </>
           )}
         </section>
 

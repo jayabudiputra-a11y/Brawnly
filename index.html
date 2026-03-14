@@ -32,6 +32,9 @@
         fundingchoicesmessages.google.com (GDPR consent iframe)
         accounts.google.com / cse.google.com / *.google.com
 
+      AMP Auto Ads domains allowed:
+        cdn.ampproject.org (AMP runtime + amp-auto-ads component)
+
       Twitter/X embed (2026-03-14 rebrand fix):
         platform.x.com / syndication.x.com / x.com / *.x.com
         cdn.syndication.twimg.com / pbs.twimg.com / abs.twimg.com
@@ -61,6 +64,8 @@
         https://*.googletagservices.com
         https://*.g.doubleclick.net
         https://www.googletagmanager.com
+        https://cdn.ampproject.org
+        https://*.ampproject.org
         https://m4uhd.com https://*.m4uhd.com
         https: http:;
       script-src-elem 'self' 'unsafe-inline' 'unsafe-eval'
@@ -77,6 +82,8 @@
         https://*.googletagservices.com
         https://*.g.doubleclick.net
         https://www.googletagmanager.com
+        https://cdn.ampproject.org
+        https://*.ampproject.org
         https://m4uhd.com https://*.m4uhd.com
         https: http:;
       style-src 'self' 'unsafe-inline' https: http:;
@@ -95,6 +102,7 @@
         https://*.googlesyndication.com
         https://*.g.doubleclick.net
         https://www.google.com https://*.google.com
+        https://cdn.ampproject.org https://*.ampproject.org
         https://m4uhd.com https://*.m4uhd.com
         https: http:;
       media-src 'self' https: http: blob: data:
@@ -121,6 +129,7 @@
         https://*.g.doubleclick.net https://googleads.g.doubleclick.net
         https://www.googletagmanager.com
         https://*.adtrafficquality.google
+        https://cdn.ampproject.org https://*.ampproject.org
         https://m4uhd.com https://*.m4uhd.com;
       font-src 'self' data: https: http:;
       frame-src 'self' blob: data:
@@ -143,6 +152,7 @@
         https://ep2.adtrafficquality.google
         https://fundingchoicesmessages.google.com
         https://accounts.google.com https://cse.google.com
+        https://cdn.ampproject.org https://*.ampproject.org
         https://m4uhd.com https://*.m4uhd.com
         https: http:;
       object-src 'none';
@@ -209,6 +219,22 @@
       }
     </script>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      AMP AUTO ADS — component script
+      ═══════════════════════════════════════════════════════════════════════
+      Loads the amp-auto-ads custom element from the AMP CDN.
+      The <amp-auto-ads> tag in <body> uses this to automatically
+      place AdSense ads throughout the page content.
+      cdn.ampproject.org is whitelisted in _WL and in CSP above.
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <script
+      async
+      custom-element="amp-auto-ads"
+      src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js"
+    ></script>
+
     <link rel="prefetch" href="/assets/masculineLogo.svg" as="image" type="image/svg+xml" />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
@@ -234,6 +260,8 @@
     <link rel="dns-prefetch" href="https://partner.googleadservices.com" />
     <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />
+    <link rel="preconnect" href="https://cdn.ampproject.org" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="https://cdn.ampproject.org" />
     <link rel="preconnect" href="https://api.codetabs.com" crossorigin="anonymous" />
     <link rel="dns-prefetch" href="https://api.codetabs.com" />
     <link rel="preconnect" href="https://api.allorigins.win" crossorigin="anonymous" />
@@ -277,6 +305,8 @@
       img[loading="lazy"] { aspect-ratio: attr(width) / attr(height); background: rgba(128,128,128,0.05); }
       .adsbygoogle { display: block; }
       ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
+      /* amp-auto-ads — hidden until AMP runtime activates */
+      amp-auto-ads { display: block; }
     </style>
 
     <!--
@@ -293,6 +323,7 @@
         g.doubleclick.net, adtrafficquality.google, google.com
       Google frames: fundingchoicesmessages.google.com, accounts.google.com,
         cse.google.com
+      AMP: cdn.ampproject.org, *.ampproject.org
       Media: youtube.com, youtu.be, ytimg.com, ggpht.com, googlevideo.com,
         vimeo.com
       Social: instagram.com, cdninstagram.com, twitter.com, twimg.com,
@@ -362,7 +393,7 @@
         var _QG_KEYS=["popunder=","popzone=","popid="];
 
         /* ── Whitelist — CHECKED FIRST, always passes through ────────────
-           Includes ALL Google AdSense delivery domains.
+           Includes ALL Google AdSense delivery domains + AMP CDN.
            If a URL matches any entry here, _sb() returns false immediately
            — no blocklist or fingerprint check runs.                       */
         var _WL=[
@@ -374,6 +405,8 @@
           /* Google ad quality / consent / identity iframes */
           "adtrafficquality.google","fundingchoicesmessages.google.com",
           "accounts.google.com","cse.google.com","google.com",
+          /* AMP runtime — cdn.ampproject.org serves amp-auto-ads + runtime */
+          "cdn.ampproject.org","ampproject.org",
           /* App infra */
           "brawnly.online","supabase.co","cloudinary.com","royaleapi.com",
           /* Media */
@@ -486,6 +519,8 @@
           if(!(node instanceof HTMLElement))return false;
           /* ⚠️ Never touch META tags — CSP meta management is separate */
           if(node.tagName==="META")return false;
+          /* ⚠️ Never touch AMP custom element tags */
+          if(node.tagName&&node.tagName.toLowerCase().startsWith("amp-"))return false;
           var tag=node.tagName;
           var attr=tag==="SCRIPT"||tag==="IFRAME"?"src":tag==="A"?"href":null;
           if(!attr)return false;
@@ -649,6 +684,14 @@
       window.adsbygoogle.pauseAdRequests=0;
     </script>
 
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      GOOGLE ADSENSE — main script
+      Native In-article ads + AMP Auto Ads both depend on this.
+      ✅ googlesyndication.com whitelisted in _WL above
+      ✅ adsbygoogle array initialised above before this loads
+      ═══════════════════════════════════════════════════════════════════════
+    -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7678404408306696" crossorigin="anonymous"></script>
 
     <!--
@@ -671,7 +714,7 @@
           'adtrafficquality.google','accounts.google.com',
           'fundingchoicesmessages.google.com','www.google.com',
           'youtube.com','www.instagram.com','googlesyndication.com',
-          'googleads.g.doubleclick.net'
+          'googleads.g.doubleclick.net','cdn.ampproject.org'
         ];
 
         function _isShortCSP(meta){
@@ -813,6 +856,24 @@
     <noscript>
       <div class="noscript-msg">Please enable JavaScript to view Brawnly.</div>
     </noscript>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      AMP AUTO ADS — placement tag
+      ═══════════════════════════════════════════════════════════════════════
+      Must be placed directly inside <body> (not inside <div #root>) so the
+      AMP runtime can scan the full document and automatically insert ads.
+      type="adsense" connects to the AdSense account via data-ad-client.
+      The amp-auto-ads-0.1.js script loaded in <head> activates this tag.
+      ✅ cdn.ampproject.org is whitelisted in _WL — fetch/XHR will pass
+      ✅ CSP frame-src includes cdn.ampproject.org and *.ampproject.org
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <amp-auto-ads
+      type="adsense"
+      data-ad-client="ca-pub-7678404408306696"
+    ></amp-auto-ads>
+
     <div id="root"></div>
     <div class="seo-hidden">
       <h1>Brawnly - Smart Fitness &amp; Wellness Tracker</h1>
@@ -843,6 +904,7 @@
         function _isAdURL(url){
           /* Returns true for URLs that must NEVER go through the RSS proxy:
              - Google AdSense delivery stack
+             - AMP CDN (amp-auto-ads runtime)
              - Twitter / X embed API endpoints (tweet-result, video, syndication)
                These are fetched by TwitterEmbed.tsx — if they fall into the
                RSS proxy chain, rss2json/allorigins return 422/CORS errors.   */
@@ -854,6 +916,9 @@
             url.includes('googletagservices.com')||
             url.includes('adtrafficquality.google')||
             url.includes('fundingchoicesmessages.google.com')||
+            /* AMP CDN — must never be proxied */
+            url.includes('cdn.ampproject.org')||
+            url.includes('ampproject.org')||
             /* Twitter / X — tweet API + video CDN */
             url.includes('cdn.syndication.twimg.com')||
             url.includes('syndication.twimg.com')||

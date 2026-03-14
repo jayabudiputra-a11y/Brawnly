@@ -1,5 +1,30 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 
+/**
+ * TwitterEmbed.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Fixes applied vs previous version:
+ *
+ * 1. video.twimg.com 403 proxy spam FIXED
+ *    twimg.com blocks ALL CORS proxies (allorigins, codetabs, corsproxy → 403).
+ *    _fetchVideoBlobClean now returns null immediately for twimg.com URLs.
+ *    _VideoPlayer._onErr also skips blob fetch for twimg URLs and goes straight
+ *    to st=4 (Watch on X fallback link).
+ *
+ * 2. allorigins.win CORS for tweet API FIXED
+ *    allorigins.win/raw is now last resort; allorigins.win/get (JSON wrapper)
+ *    is tried first because its CORS headers are more reliable.
+ *    codetabs is promoted to first proxy (no CORS issues for tweet API).
+ *
+ * 3. Blob iframe binary handler wiring FIXED
+ *    _pending map and _binPending map are now cleanly separated — no
+ *    accidental cross-resolution between text and binary requests.
+ *
+ * All other logic (custom card, video player, SEO node, widget loader,
+ * escape-hatch iframe, token derivation) is unchanged.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 interface TwitterEmbedProps {
   url: string;
   align?: "left" | "center" | "right";
@@ -16,30 +41,33 @@ type _T = { text: string; created_at: string; user: { name: string; screen_name:
 const _h = new Map<string, _T>();
 const _i = [atob("aHR0cHM6Ly9jZG4uc3luZGljYXRpb24udHdpbWcuY29tL3R3ZWV0LXJlc3VsdA==")];
 
+// ── CORS proxy chain for TWEET DATA (not video blobs) ────────────────────────
+// Order matters: codetabs is most reliable, allorigins/get wraps JSON,
+// allorigins/raw has stricter CORS, corsproxy last.
 const _j: Array<(u: string) => string> = [
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
 ];
 
-// ─── Blob-iframe escape hatch ────────────────────────────────────────────────
-// Creates a sandboxed iframe from a blob URL.  That iframe has its own fresh
-// window / XMLHttpRequest that no page-level patch (requests.js, 200.js, etc.)
-// has ever touched.  We tunnel the request/response via postMessage.
-// ─────────────────────────────────────────────────────────────────────────────
+// ── twimg.com guard ───────────────────────────────────────────────────────────
+// video.twimg.com blocks ALL CORS proxies with 403.
+// Direct <video src> also fails (no Twitter auth cookies on brawnly.online).
+// Skip any proxy attempt for twimg URLs — go straight to Watch on X fallback.
+const _isTwimg = (url: string) => url.includes("twimg.com");
 
-// One persistent iframe instance shared across all calls to avoid re-creation.
+// ─── Blob-iframe escape hatch ────────────────────────────────────────────────
 let _ifrWin: Window | null = null;
 let _ifrReady = false;
 const _pending = new Map<string, { resolve: (v: string) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+const _binPending = new Map<string, { resolve: (b: Blob) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
 
 function _buildIframe() {
   if (_ifrWin) return;
   const html = `<!DOCTYPE html><html><body><script>
 (function(){
-  var send = XMLHttpRequest.prototype.send;
   window.addEventListener('message', function(e){
     var d = e.data;
     if (!d || !d.__tw || !d.id || !d.url) return;
@@ -74,12 +102,39 @@ function _buildIframe() {
   const ifr = document.createElement("iframe");
   ifr.src = blobUrl;
   ifr.setAttribute("aria-hidden", "true");
+  ifr.title = "Tweet Embed Proxy Frame";
   ifr.style.cssText = "position:fixed;width:0;height:0;border:0;top:-9999px;pointer-events:none";
 
   window.addEventListener("message", (e: MessageEvent) => {
     if (!e.data) return;
-    if (e.data.__twReady) { _ifrWin = ifr.contentWindow; _ifrReady = true; URL.revokeObjectURL(blobUrl); return; }
+
+    // iframe ready signal
+    if (e.data.__twReady) {
+      _ifrWin = ifr.contentWindow;
+      _ifrReady = true;
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+
     if (!e.data.__tw || !e.data.id) return;
+
+    // Binary (video blob) response
+    if (e.data.bin !== undefined && Array.isArray(e.data.bin)) {
+      const bp = _binPending.get(e.data.id);
+      if (bp) {
+        _binPending.delete(e.data.id);
+        clearTimeout(bp.timer);
+        if (e.data.ok) {
+          const arr = new Uint8Array(e.data.bin);
+          bp.resolve(new Blob([arr], { type: e.data.ct || "video/mp4" }));
+        } else {
+          bp.reject(new Error(`ifr bin ${e.data.status ?? "err"}`));
+        }
+      }
+      return;
+    }
+
+    // Text response
     const p = _pending.get(e.data.id);
     if (!p) return;
     _pending.delete(e.data.id);
@@ -91,20 +146,26 @@ function _buildIframe() {
   document.body.appendChild(ifr);
 }
 
-function _escapedXhr(url: string, timeout = 9000, bin = false): Promise<string> {
+function _escapedXhr(url: string, timeout = 9000): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!_ifrWin || !_ifrReady) { reject(new Error("ifr not ready")); return; }
     const id = Math.random().toString(36).slice(2) + Date.now();
-    const timer = setTimeout(() => {
-      _pending.delete(id);
-      reject(new Error("ifr timeout"));
-    }, timeout + 3000);
+    const timer = setTimeout(() => { _pending.delete(id); reject(new Error("ifr timeout")); }, timeout + 3000);
     _pending.set(id, { resolve, reject, timer });
-    _ifrWin.postMessage({ __tw: 1, id, url, timeout, bin }, "*");
+    _ifrWin.postMessage({ __tw: 1, id, url, timeout, bin: false }, "*");
   });
 }
 
-// Ensure iframe is built as early as possible (called lazily on first use)
+function _escapedXhrBin(url: string, timeout = 18000): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    if (!_ifrWin || !_ifrReady) { reject(new Error("ifr not ready")); return; }
+    const id = Math.random().toString(36).slice(2) + Date.now();
+    const timer = setTimeout(() => { _binPending.delete(id); reject(new Error("ifr bin timeout")); }, timeout + 3000);
+    _binPending.set(id, { resolve, reject, timer });
+    _ifrWin.postMessage({ __tw: 1, id, url, timeout, bin: true }, "*");
+  });
+}
+
 let _ifrBuilt = false;
 function _ensureIfr() {
   if (_ifrBuilt) return;
@@ -113,7 +174,6 @@ function _ensureIfr() {
   else window.addEventListener("DOMContentLoaded", _buildIframe, { once: true });
 }
 
-// Fallback: plain fetch (works in production where requests.js is absent)
 async function _plainFetch(url: string, timeout = 9000): Promise<string> {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), timeout);
@@ -127,16 +187,13 @@ async function _plainFetch(url: string, timeout = 9000): Promise<string> {
 
 async function _get(url: string, timeout = 9000): Promise<string> {
   _ensureIfr();
-  // Try escaped iframe first (bypasses requests.js), then plain fetch as fallback
   try {
     if (_ifrReady) return await _escapedXhr(url, timeout);
   } catch { /* fall through */ }
   return _plainFetch(url, timeout);
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
-const _h2 = new Map<string, _T>();
-
+// ── Tweet data fetcher ────────────────────────────────────────────────────────
 async function _k(id: string): Promise<_T | null> {
   if (_h.has(id)) return _h.get(id)!;
   const tk = _g(id);
@@ -166,121 +223,36 @@ async function _k(id: string): Promise<_T | null> {
 const _l = (s: string) => { try { return new Date(s).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }); } catch { return s; } };
 const _m = (n: number) => { if (!n || n <= 0) return ""; if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`; if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`; return String(n); };
 
+// ── Video blob fetcher ────────────────────────────────────────────────────────
+// ⚠️  twimg.com → return null immediately (all proxies return 403 for twimg).
+//     Show "Watch on X" link instead of wasting network requests.
 const _vBlobCache = new Map<string, string>();
 
-async function _fetchVideoBlob(src: string): Promise<string | null> {
-  if (_vBlobCache.has(src)) return _vBlobCache.get(src)!;
-  const proxies: Array<(u: string) => string> = [
-    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  ];
-  _ensureIfr();
-  for (const px of proxies) {
-    try {
-      // For video we need blob — try escaped iframe arraybuffer, then fallback fetch
-      let blob: Blob | null = null;
-      if (_ifrReady) {
-        try {
-          // Re-use escapedXhr but ask for binary; reassemble from Uint8Array
-          const raw = await (new Promise<string>((resolve, reject) => {
-            const id = Math.random().toString(36).slice(2) + Date.now();
-            const timer = setTimeout(() => { _pending.delete(id); reject(new Error("timeout")); }, 20000);
-            _pending.set(id, {
-              resolve: (v) => resolve(v),
-              reject,
-              timer,
-            });
-            // Override resolve to handle binary
-            const entry = _pending.get(id)!;
-            const origResolve = entry.resolve;
-            _pending.set(id, {
-              ...entry,
-              resolve: origResolve,
-            });
-            if (_ifrWin) _ifrWin.postMessage({ __tw: 1, id, url: px(src), timeout: 18000, bin: true }, "*");
-            else reject(new Error("no iframe"));
-          }));
-          // raw is actually intercepted differently for bin — see message handler below
-          void raw;
-        } catch { /* fall through */ }
-      }
-
-      if (!blob) {
-        // Fallback: fetch API
-        const c = new AbortController();
-        const t = setTimeout(() => c.abort(), 18000);
-        const r = await window.fetch(px(src), { signal: c.signal });
-        clearTimeout(t);
-        if (!r.ok) continue;
-        blob = await r.blob();
-        if (blob.size < 1000) continue;
-      }
-
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        _vBlobCache.set(src, url);
-        return url;
-      }
-    } catch { continue; }
-  }
-  return null;
-}
-
-// Override message handler to support binary (arraybuffer) responses from iframe
-// We patch the existing listener to handle bin:true responses by reconstructing a Blob
-;(function _patchBinHandler() {
-  if (typeof window === "undefined") return;
-  const origAdd = window.addEventListener.bind(window);
-  // We cannot re-patch addEventListener, but we handle bin in the existing listener above.
-  // The binary data arrives as { __tw:1, id, ok:true, bin: number[], ct } and the pending
-  // map resolve will be called with a special JSON string we unwrap below.
-})();
-
-// Actually simplest: let's redo the message handler to properly handle bin
-// by adding another listener that checks for bin payloads and resolves a separate map.
-const _binPending = new Map<string, { resolve: (b: Blob) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
-
-if (typeof window !== "undefined") {
-  window.addEventListener("message", (e: MessageEvent) => {
-    if (!e.data?.__tw || !e.data.id || !e.data.bin) return;
-    const p = _binPending.get(e.data.id);
-    if (!p) return;
-    _binPending.delete(e.data.id);
-    clearTimeout(p.timer);
-    if (e.data.ok && Array.isArray(e.data.bin)) {
-      const arr = new Uint8Array(e.data.bin);
-      p.resolve(new Blob([arr], { type: e.data.ct || "video/mp4" }));
-    } else {
-      p.reject(new Error("bin fetch failed"));
-    }
-  });
-}
+// CORS proxies suitable for video blobs (NOT tweet API)
+const _videoPx: Array<(u: string) => string> = [
+  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+];
 
 async function _fetchVideoBlobClean(src: string): Promise<string | null> {
+  // twimg.com blocks all CORS proxies — bail immediately
+  if (_isTwimg(src)) return null;
+
   if (_vBlobCache.has(src)) return _vBlobCache.get(src)!;
-  const proxies: Array<(u: string) => string> = [
-    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  ];
+
   _ensureIfr();
-  for (const px of proxies) {
-    // Try iframe binary fetch
+
+  for (const px of _videoPx) {
+    // Try iframe binary fetch first (bypasses fetch interceptor)
     if (_ifrReady && _ifrWin) {
       try {
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          const id = Math.random().toString(36).slice(2) + Date.now();
-          const timer = setTimeout(() => { _binPending.delete(id); reject(new Error("timeout")); }, 21000);
-          _binPending.set(id, { resolve, reject, timer });
-          _ifrWin!.postMessage({ __tw: 1, id, url: px(src), timeout: 18000, bin: true }, "*");
-        });
+        const blob = await _escapedXhrBin(px(src), 18000);
         if (blob.size >= 1000) {
           const url = URL.createObjectURL(blob);
           _vBlobCache.set(src, url);
           return url;
         }
-      } catch { /* try next */ }
+      } catch { /* try plain fetch */ }
     }
     // Fallback: plain fetch
     try {
@@ -299,6 +271,7 @@ async function _fetchVideoBlobClean(src: string): Promise<string | null> {
   return null;
 }
 
+// ─── Video Player ─────────────────────────────────────────────────────────────
 function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string; tweetUrl: string }) {
   const vRef = useRef<HTMLVideoElement>(null);
   const wRef = useRef<HTMLDivElement>(null);
@@ -307,11 +280,18 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   const [vSrc, setVSrc] = useState(src);
   const triedBlob = useRef(false);
 
+  // If src is twimg.com, immediately go to "Watch on X" without trying anything
+  const isTwimgSrc = _isTwimg(src);
+
   useEffect(() => {
+    if (isTwimgSrc) { setSt(4); return; }
+
     const w = wRef.current, v = vRef.current;
     if (!w || !v) return;
 
     const _onErr = async () => {
+      // twimg URLs never succeed via proxy — skip directly to fallback
+      if (_isTwimg(src) || _isTwimg(vSrc)) { setSt(4); return; }
       if (!triedBlob.current) {
         triedBlob.current = true;
         setSt(1);
@@ -347,7 +327,7 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
       v.removeEventListener("pause", _onPause);
       v.removeEventListener("loadeddata", _onLoaded);
     };
-  }, [src, vSrc]);
+  }, [src, vSrc, isTwimgSrc]);
 
   const _play = () => {
     if (!vRef.current) return;
@@ -356,6 +336,7 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
     vRef.current.play().then(() => setSt(2)).catch(() => {
       vRef.current!.muted = true; setMt(true);
       vRef.current!.play().then(() => setSt(2)).catch(async () => {
+        if (_isTwimg(src)) { setSt(4); return; }
         if (!triedBlob.current) {
           triedBlob.current = true;
           const blobUrl = await _fetchVideoBlobClean(src);
@@ -369,12 +350,15 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   const _toggle = () => { if (!vRef.current) return; if (st === 2) vRef.current.pause(); else _play(); };
   const _mute = (e: React.MouseEvent) => { e.stopPropagation(); if (!vRef.current) return; const n = !mt; vRef.current.muted = n; setMt(n); };
 
-  if (st === 4) {
+  // Watch on X fallback (always shown for twimg, or after all retries fail)
+  if (st === 4 || isTwimgSrc) {
     return (
       <a href={tweetUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 relative group">
         {poster ? <img src={poster} alt="" className="w-full object-cover" style={{ maxHeight: 400 }} /> : <div className="w-full bg-neutral-100 dark:bg-neutral-800" style={{ height: 300 }} />}
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 gap-3">
-          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40 group-hover:scale-110 transition-transform"><svg viewBox="0 0 24 24" className="w-8 h-8 fill-white ml-1"><path d="M8 5v14l11-7z" /></svg></div>
+          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40 group-hover:scale-110 transition-transform">
+            <svg viewBox="0 0 24 24" className="w-8 h-8 fill-white ml-1"><path d="M8 5v14l11-7z" /></svg>
+          </div>
           <span className="text-white text-[11px] font-bold uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">Watch on X ↗</span>
         </div>
       </a>
@@ -388,7 +372,9 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
         <div className="absolute inset-0 cursor-pointer" onClick={_play}>
           {poster && <img src={poster} alt="" className="w-full h-full object-cover absolute inset-0" />}
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40 hover:scale-110 transition-transform shadow-2xl"><svg viewBox="0 0 24 24" className="w-8 h-8 fill-white ml-1"><path d="M8 5v14l11-7z" /></svg></div>
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40 hover:scale-110 transition-transform shadow-2xl">
+              <svg viewBox="0 0 24 24" className="w-8 h-8 fill-white ml-1"><path d="M8 5v14l11-7z" /></svg>
+            </div>
           </div>
         </div>
       )}
@@ -403,7 +389,9 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
           <div className="absolute inset-0 cursor-pointer z-10" onClick={_toggle} />
           {st === 3 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center border border-white/30"><svg viewBox="0 0 24 24" className="w-7 h-7 fill-white ml-0.5"><path d="M8 5v14l11-7z" /></svg></div>
+              <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white ml-0.5"><path d="M8 5v14l11-7z" /></svg>
+              </div>
             </div>
           )}
           <button onClick={_mute} aria-label={mt ? "Unmute" : "Mute"} className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm transition-all border border-white/20">
@@ -419,6 +407,7 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   );
 }
 
+// ─── Media Grid ───────────────────────────────────────────────────────────────
 function _MediaGrid({ media, photos, video, tweetUrl }: { media?: _M[]; photos?: _T["photos"]; video?: _T["video"]; tweetUrl: string }) {
   const ap = useMemo(() => {
     if (photos && photos.length > 0) return photos.map((p) => ({ url: p.url, w: p.width, h: p.height }));
@@ -459,6 +448,7 @@ function _MediaGrid({ media, photos, video, tweetUrl }: { media?: _M[]; photos?:
   );
 }
 
+// ─── Tweet Card ───────────────────────────────────────────────────────────────
 function _Card({ tweet, tweetUrl }: { tweet: _T; tweetUrl: string }) {
   const dk = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
   const txt = useMemo(() => {
@@ -502,6 +492,7 @@ function _Card({ tweet, tweetUrl }: { tweet: _T; tweetUrl: string }) {
   );
 }
 
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProps) {
   const cRef = useRef<HTMLDivElement>(null);
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -519,10 +510,8 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
     if (!id) { _us(3); return; }
     let alive = true;
 
-    // Ensure escape iframe is ready before fetching
     _ensureIfr();
 
-    // Small delay so iframe can initialise before first request
     const fetchDelay = setTimeout(() => {
       if (!alive) return;
       _k(id)
@@ -561,7 +550,7 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
             _us(1);
           })
           .catch(() => {});
-      } catch { /* CSP / widget error — custom card renders instead */ }
+      } catch { /* CSP/widget error — custom card renders instead */ }
     };
 
     const _lw = () => {
@@ -616,11 +605,19 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
   const _Fb = () => (
     <a href={cu} target="_blank" rel="noopener noreferrer" className="group flex flex-col gap-3 rounded-2xl border-2 border-black dark:border-white bg-white dark:bg-[#111] p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-black dark:bg-white flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4 fill-white dark:fill-black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg></div>
-        <div><p className="text-[11px] font-black uppercase tracking-widest text-black dark:text-white">Post on X</p>{id && <p className="text-[10px] text-neutral-500 uppercase tracking-wider">{au ? `@${au}` : `ID: ${id}`}</p>}</div>
+        <div className="w-9 h-9 rounded-full bg-black dark:bg-white flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white dark:fill-black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+        </div>
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-widest text-black dark:text-white">Post on X</p>
+          {id && <p className="text-[10px] text-neutral-500 uppercase tracking-wider">{au ? `@${au}` : `ID: ${id}`}</p>}
+        </div>
       </div>
       <div className="h-px bg-neutral-200 dark:bg-neutral-800" />
-      <div className="flex items-center justify-between"><p className="text-[12px] font-serif italic text-neutral-500">Klik untuk lihat di X ↗</p><span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black">View Post</span></div>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-serif italic text-neutral-500">Klik untuk lihat di X ↗</p>
+        <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black">View Post</span>
+      </div>
     </a>
   );
 

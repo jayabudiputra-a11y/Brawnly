@@ -2,48 +2,9 @@
  * ArticleDetail.tsx
  * ─────────────────────────────────────────────────────────────────────────────
  * Full article detail page. Contains:
- *   • Google AdSense (AdSenseInArticle, AdSenseInArticleMobile, AdSenseSidebar)
  *   • Twitter/X embeds (TwitterEmbed component)
  *   • Instagram, YouTube, Tumblr, Substack, Pinterest, ClashRoyale widgets
  *   • RSS feed fetching via proxy chain
- *
- * ── COMPATIBILITY WITH adblocker.ts & index.html (March 2026 fix) ─────────────
- *
- * ✅  Google AdSense — ALLOWED
- *     AdSense uses (win.adsbygoogle = win.adsbygoogle || []).push({})
- *     This is a direct JS array operation — NOT a fetch() or XHR call.
- *     adblocker.ts does not intercept adsbygoogle.push(). ✓
- *     The <ins data-ad-client="ca-pub-..."> iframes are loaded by googlesyndication.com
- *     and doubleclick.net, both of which are in the adblocker.ts _0xWL whitelist. ✓
- *
- * ✅  Twitter / X Embeds — ALLOWED
- *     TwitterEmbed uses platform.twitter.com and platform.x.com.
- *     Both are in adblocker.ts _0xWL whitelist. ✓
- *     index.html CSP frame-src includes platform.twitter.com, platform.x.com,
- *     syndication.twitter.com, syndication.x.com, x.com, *.x.com. ✓
- *
- * ✅  Instagram embed.js — ALLOWED
- *     Script src: https://www.instagram.com/embed.js
- *     instagram.com is in _0xWL whitelist. ✓
- *
- * ✅  YouTube RSS fetch — ALLOWED
- *     fetchRSSViaProxy → youtube.com, rss2json.com, codetabs.com,
- *     allorigins.win, corsproxy.io — all whitelisted. ✓
- *
- * ✅  Clash Royale link.clashroyale.com — ALLOWED
- *     Used as plain <a href> anchor, not window.open.
- *     URL has no matching blocklist patterns or query fingerprints. ✓
- *
- * ✅  window.open in YouTubeWidget — ALLOWED
- *     window.open(YOUTUBE_CHANNEL_URL, "_blank", "noopener,noreferrer")
- *     Has features string → passes the adblocker.ts blank-popup check. ✓
- *     youtube.com is whitelisted. ✓
- *
- * ROOT CAUSE of previous ad failures (now fixed in adblocker.ts):
- *   _injectCSP() in adblocker.ts was injecting a short frame-src CSP as
- *   <head> firstChild that blocked doubleclick.net, adtrafficquality.google,
- *   www.google.com etc. That function has been removed. index.html now
- *   provides the sole, comprehensive CSP covering all required domains.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -120,13 +81,6 @@ const IMAGE_COPYRIGHT_NOTICE = "© 2026 Budi Putra Jaya. All rights reserved.";
 const IMAGE_ACQUIRE_LICENSE_URL = "https://www.brawnly.online/license";
 const IMAGE_CREATOR_NAME = "Budi Putra Jaya";
 
-// ─── AdSense Constants ───────────────────────────────────────────────────────
-// ✅ adsbygoogle.push({}) is NOT intercepted by adblocker.ts
-// ✅ doubleclick.net and googlesyndication.com are in the _0xWL whitelist
-const ADSENSE_CLIENT = "ca-pub-7678404408306696";
-const ADSENSE_IN_ARTICLE_SLOT = "5568488303";
-const ADSENSE_SIDEBAR_SLOT = "5568488303";
-
 // ─── Social Media Constants ─────────────────────────────────────────────────
 const INSTAGRAM_USERNAME = "deul.umm";
 const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
@@ -187,19 +141,12 @@ type ProxyEntry = {
   extract?: (text: string) => string;
 };
 
-// ─── CORS proxy chain ─────────────────────────────────────────────────────────
-// All proxy URLs are in adblocker.ts _0xWL whitelist — fetch() will not block them.
-// corsproxy.io returns 403 for YouTube feeds → moved to last resort
-// allorigins.win wraps in JSON → must use extract fn
 const CORS_PROXIES: ProxyEntry[] = [
-  // 1. Direct (may work for non-CORS sources)
   { make: (u) => u },
-  // 2. codetabs — reliable, no JSON wrapping needed
   {
     make: (u) =>
       `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
   },
-  // 3. allorigins — wraps in JSON, must extract .contents
   {
     make: (u) => {
       if (u.includes("api.rss2json.com")) return null;
@@ -214,7 +161,6 @@ const CORS_PROXIES: ProxyEntry[] = [
       }
     },
   },
-  // 4. corsproxy.io — last resort (has rate limits & 403 for some YouTube reqs)
   {
     make: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   },
@@ -270,7 +216,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
     feedUrl.includes("youtube.com/feeds") ||
     feedUrl.includes("tumblr.com/rss");
 
-  // Strategy A: rss2json (skip for YouTube & Tumblr)
   if (!_skipRss2json) {
     try {
       const res = await fetch(
@@ -305,7 +250,6 @@ async function fetchRSSViaProxy(feedUrl: string): Promise<RSSItem[]> {
     }
   }
 
-  // Strategy B: proxy chain (skip index 0 / direct for YouTube — CORS blocked)
   const proxyStartIndex = feedUrl.includes("youtube.com/feeds") ? 1 : 0;
 
   for (let pi = proxyStartIndex; pi < CORS_PROXIES.length; pi++) {
@@ -450,14 +394,10 @@ function useYouTubeFeed(handle: string, count = 4) {
 
 type ParsedBlock =
   | { type: "text"; html: string }
-  | { type: "tweet"; url: string }
-  | { type: "ad" };
+  | { type: "tweet"; url: string };
 
-function parseParagraphs(paragraphs: string[]): ({ type: "text"; html: string } | { type: "tweet"; url: string })[] {
-  const result: (
-    | { type: "text"; html: string }
-    | { type: "tweet"; url: string }
-  )[] = [];
+function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
+  const result: ParsedBlock[] = [];
 
   const standaloneTweetRe =
     /^(?:<[^>]+>)*\s*(https?:\/\/(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/statuse?s?\/\d+[^\s<"]*)\s*(?:<\/[^>]+>)*$/i;
@@ -506,37 +446,6 @@ function fmtHtml(text: string): string {
     .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
 }
 
-function _isAdCountable(html: string): boolean {
-  const t = html.trim();
-  if (!t) return false;
-  if (/^<style[\s>]/i.test(t)) return false;
-  if (/^<p[^>]*>\s*<style[\s>]/i.test(t)) return false;
-  if (/^<span[^>]+>[^<]*<\/span>\s*$/.test(t)) return false;
-  return true;
-}
-
-function injectAdAfterParagraph(
-  blocks: ({ type: "text"; html: string } | { type: "tweet"; url: string })[],
-  afterNth = 3
-): ParsedBlock[] {
-  let textCount = 0;
-  let adInserted = false;
-  const result: ParsedBlock[] = [];
-
-  for (const block of blocks) {
-    result.push(block);
-    if (!adInserted && block.type === "text" && _isAdCountable(block.html)) {
-      textCount++;
-      if (textCount === afterNth) {
-        result.push({ type: "ad" });
-        adInserted = true;
-      }
-    }
-  }
-
-  return result;
-}
-
 function safeBlobRevoke(url: string | null) {
   if (!url || !url.startsWith("blob:")) return;
   try {
@@ -555,389 +464,6 @@ function formatRSSDate(dateStr: string): string {
   } catch {
     return dateStr.slice(0, 16);
   }
-}
-
-// ─── AdSense Components ───────────────────────────────────────────────────────
-// ✅ These components use adsbygoogle.push({}) — NOT fetch/XHR.
-//    adblocker.ts does not intercept adsbygoogle.push().
-//    The ad iframes are served from googlesyndication.com / doubleclick.net
-//    which are in the adblocker.ts _0xWL whitelist.
-
-function _AdSkeletonInArticle({ height = 280 }: { height?: number }) {
-  return (
-    <div
-      aria-hidden="true"
-      style={{ height }}
-      className="w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 relative"
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.36) 50%, rgba(255,255,255,0.18) 60%, transparent 100%)",
-          backgroundSize: "200% 100%",
-          animation: "adSkeletonShimmer 1.6s infinite linear",
-        }}
-      />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-60" />
-        <div className="w-3/5 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
-        <div className="w-2/5 h-2.5 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-40" />
-        <div className="mt-2 w-24 h-7 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
-      </div>
-    </div>
-  );
-}
-
-if (typeof document !== "undefined") {
-  const _sid = "__adSkeletonStyles__";
-  if (!document.getElementById(_sid)) {
-    const s = document.createElement("style");
-    s.id = _sid;
-    s.textContent = `
-      @keyframes adSkeletonShimmer {
-        0%   { background-position: -200% 0; }
-        100% { background-position:  200% 0; }
-      }
-      @keyframes mcSignBounce {
-        0%, 100% { transform: translateY(0px) rotate(-2deg); }
-        30%       { transform: translateY(-4px) rotate(1deg); }
-        60%       { transform: translateY(-2px) rotate(-1deg); }
-      }
-      @keyframes mcArrowDrop {
-        0%, 100% { transform: translateY(0px); opacity: 1; }
-        50%       { transform: translateY(3px); opacity: 0.6; }
-      }
-    `;
-    document.head.appendChild(s);
-  }
-}
-
-function _MotionCaptureSign() {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "inline-flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 0,
-        marginLeft: 2,
-        verticalAlign: "middle",
-        flexShrink: 0,
-      }}
-    >
-      <svg
-        width="34"
-        height="46"
-        viewBox="0 0 34 46"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ animation: "mcSignBounce 2.4s ease-in-out infinite", display: "block" }}
-      >
-        <rect x="15.5" y="22" width="3" height="22" rx="1.5" className="fill-black dark:fill-white" fill="currentColor" />
-        <rect x="1" y="1" width="32" height="21" rx="4" className="fill-black dark:fill-white" fill="currentColor" />
-        <rect x="2" y="2" width="30" height="19" rx="3" fill="white" className="dark:fill-[#111]" />
-        <g style={{ animation: "mcArrowDrop 1.1s ease-in-out infinite" }}>
-          <line x1="17" y1="6" x2="17" y2="15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="stroke-black dark:stroke-white" />
-          <polyline points="12,11 17,16 22,11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-black dark:stroke-white" />
-        </g>
-      </svg>
-    </span>
-  );
-}
-
-function AdSenseInArticle() {
-  const _wrapRef   = _uR<HTMLDivElement>(null);
-  const _insRef    = _uR<HTMLModElement>(null);
-  const _pushed    = _uR(false);
-  const [_loaded, _setLoaded] = _s(false);
-
-  _e(() => {
-    if (!_pushed.current) {
-      /* Fix: only call push() once the <ins> has a non-zero rendered width.
-         Calling push() with availableWidth=0 throws "No slot size" TagError
-         and permanently breaks the ad slot for that page load.
-         requestAnimationFrame ensures layout has run at least once.        */
-      const _tryPush = () => {
-        if (_pushed.current) return;
-        const ins = _insRef.current;
-        const rect = ins ? ins.getBoundingClientRect() : null;
-        const pw = ins?.parentElement?.getBoundingClientRect().width ?? 0;
-        if (!ins || (rect && rect.width === 0 && pw === 0 && document.readyState !== 'complete')) {
-          requestAnimationFrame(_tryPush);
-          return;
-        }
-        _pushed.current = true;
-        try {
-          const win = window as any;
-          (win.adsbygoogle = win.adsbygoogle || []).push({});
-        } catch (_) {}
-      };
-      requestAnimationFrame(_tryPush);
-    }
-
-    const ins = _insRef.current;
-    if (!ins) return;
-
-    const _reveal = () => _setLoaded(true);
-
-    const mo = new MutationObserver(() => {
-      const h = parseInt(ins.style.height || "0", 10);
-      if (h > 0) { _reveal(); mo.disconnect(); }
-    });
-    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
-
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(([entry]) => {
-        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
-      });
-      ro.observe(ins);
-    }
-
-    const _t = setTimeout(_reveal, 8000);
-
-    return () => {
-      mo.disconnect();
-      ro?.disconnect();
-      clearTimeout(_t);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={_wrapRef}
-      className="my-10 md:my-14 max-w-[840px] mx-auto"
-      aria-label="Advertisement"
-    >
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
-        Advertisement
-      </p>
-
-      {!_loaded && (
-        <_AdSkeletonInArticle height={280} />
-      )}
-
-      <ins
-        ref={_insRef}
-        className="adsbygoogle"
-        style={{
-          display: "block",
-          textAlign: "center",
-          opacity: _loaded ? 1 : 0,
-          transition: "opacity 0.4s ease",
-        }}
-        data-ad-layout="in-article"
-        data-ad-format="fluid"
-        data-ad-client={ADSENSE_CLIENT}
-        data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
-      />
-    </div>
-  );
-}
-
-function AdSenseInArticleMobile() {
-  const _insRef = _uR<HTMLModElement>(null);
-  const _pushed = _uR(false);
-  const [_loaded, _setLoaded] = _s(false);
-
-  _e(() => {
-    if (!_pushed.current) {
-      /* Fix: only call push() once the <ins> has a non-zero rendered width.
-         Calling push() with availableWidth=0 throws "No slot size" TagError
-         and permanently breaks the ad slot for that page load.
-         requestAnimationFrame ensures layout has run at least once.        */
-      const _tryPush = () => {
-        if (_pushed.current) return;
-        const ins = _insRef.current;
-        const rect = ins ? ins.getBoundingClientRect() : null;
-        const pw = ins?.parentElement?.getBoundingClientRect().width ?? 0;
-        if (!ins || (rect && rect.width === 0 && pw === 0 && document.readyState !== 'complete')) {
-          requestAnimationFrame(_tryPush);
-          return;
-        }
-        _pushed.current = true;
-        try {
-          const win = window as any;
-          (win.adsbygoogle = win.adsbygoogle || []).push({});
-        } catch (_) {}
-      };
-      requestAnimationFrame(_tryPush);
-    }
-
-    const ins = _insRef.current;
-    if (!ins) return;
-
-    const _reveal = () => _setLoaded(true);
-
-    const mo = new MutationObserver(() => {
-      const h = parseInt(ins.style.height || "0", 10);
-      if (h > 0) { _reveal(); mo.disconnect(); }
-    });
-    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
-
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(([entry]) => {
-        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
-      });
-      ro.observe(ins);
-    }
-
-    const _t = setTimeout(_reveal, 8000);
-    return () => {
-      mo.disconnect();
-      ro?.disconnect();
-      clearTimeout(_t);
-    };
-  }, []);
-
-  return (
-    <div
-      className="my-8 md:my-12 lg:hidden"
-      aria-label="Advertisement"
-    >
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-300 dark:text-neutral-700 text-center mb-2 select-none">
-        Advertisement
-      </p>
-
-      {!_loaded && (
-        <_AdSkeletonInArticle height={250} />
-      )}
-
-      <ins
-        ref={_insRef}
-        className="adsbygoogle"
-        style={{
-          display: "block",
-          textAlign: "center",
-          width: "100%",
-          opacity: _loaded ? 1 : 0,
-          transition: "opacity 0.4s ease",
-        }}
-        data-ad-layout="in-article"
-        data-ad-format="fluid"
-        data-ad-client={ADSENSE_CLIENT}
-        data-ad-slot={ADSENSE_IN_ARTICLE_SLOT}
-      />
-    </div>
-  );
-}
-
-function AdSenseSidebar() {
-  const _insRef = _uR<HTMLModElement>(null);
-  const _pushed = _uR(false);
-  const [_loaded, _setLoaded] = _s(false);
-
-  _e(() => {
-    if (!_pushed.current) {
-      /* Fix: only call push() once the <ins> has a non-zero rendered width.
-         Calling push() with availableWidth=0 throws "No slot size" TagError
-         and permanently breaks the ad slot for that page load.
-         requestAnimationFrame ensures layout has run at least once.        */
-      const _tryPush = () => {
-        if (_pushed.current) return;
-        const ins = _insRef.current;
-        const rect = ins ? ins.getBoundingClientRect() : null;
-        const pw = ins?.parentElement?.getBoundingClientRect().width ?? 0;
-        if (!ins || (rect && rect.width === 0 && pw === 0 && document.readyState !== 'complete')) {
-          requestAnimationFrame(_tryPush);
-          return;
-        }
-        _pushed.current = true;
-        try {
-          const win = window as any;
-          (win.adsbygoogle = win.adsbygoogle || []).push({});
-        } catch (_) {}
-      };
-      requestAnimationFrame(_tryPush);
-    }
-
-    const ins = _insRef.current;
-    if (!ins) return;
-
-    const _reveal = () => _setLoaded(true);
-
-    const mo = new MutationObserver(() => {
-      const h = parseInt(ins.style.height || "0", 10);
-      if (h > 0) { _reveal(); mo.disconnect(); }
-    });
-    mo.observe(ins, { attributes: true, attributeFilter: ["style"] });
-
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(([entry]) => {
-        if (entry.contentRect.height > 0) { _reveal(); ro?.disconnect(); }
-      });
-      ro.observe(ins);
-    }
-
-    const _t = setTimeout(_reveal, 8000);
-    return () => {
-      mo.disconnect();
-      ro?.disconnect();
-      clearTimeout(_t);
-    };
-  }, []);
-
-  return (
-    <div
-      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111]"
-      aria-label="Advertisement"
-    >
-      <div className="h-1.5 w-full bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700" />
-
-      <div className="px-0 py-4">
-        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-3 text-center select-none">
-          Advertisement
-        </p>
-
-        {!_loaded && (
-          <div
-            aria-hidden="true"
-            style={{ height: 300 }}
-            className="w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 relative mx-auto"
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.36) 50%, rgba(255,255,255,0.18) 60%, transparent 100%)",
-                backgroundSize: "200% 100%",
-                animation: "adSkeletonShimmer 1.6s infinite linear",
-              }}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
-              <div className="w-14 h-14 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-60" />
-              <div className="w-3/5 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
-              <div className="w-2/5 h-2.5 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-40" />
-              <div className="mt-2 w-20 h-6 rounded-full bg-neutral-200 dark:bg-neutral-700 opacity-50" />
-            </div>
-          </div>
-        )}
-
-        <div style={{ minHeight: _loaded ? "auto" : 0, width: "100%", display: "block" }}>
-          <ins
-            ref={_insRef}
-            className="adsbygoogle"
-            style={{
-              display: "block",
-              width: "100%",
-              minWidth: "250px",
-              minHeight: "280px",
-              opacity: _loaded ? 1 : 0,
-              transition: "opacity 0.4s ease",
-            }}
-            data-ad-client={ADSENSE_CLIENT}
-            data-ad-slot={ADSENSE_SIDEBAR_SLOT}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ─── Suspense Fallbacks ──────────────────────────────────────────────────────
@@ -1191,7 +717,6 @@ function ClashRoyaleSEONode() {
 }
 
 // ─── Instagram Widget ────────────────────────────────────────────────────────
-// ✅ embed.js from instagram.com — whitelisted in adblocker.ts
 
 function InstagramWidget() {
   const _embedRef = _uR<HTMLDivElement>(null);
@@ -1311,9 +836,6 @@ function InstagramWidget() {
 }
 
 // ─── YouTube Widget — Live RSS Feed ─────────────────────────────────────────
-// ✅ window.open(YOUTUBE_CHANNEL_URL, "_blank", "noopener,noreferrer") — HAS features string
-//    → NOT blocked by adblocker.ts (only blocks _blank with NO features for non-whitelisted)
-//    → youtube.com is whitelisted anyway
 
 function YouTubeWidget() {
   const { items, loading } = useYouTubeFeed(YOUTUBE_CHANNEL_HANDLE, 4);
@@ -1790,9 +1312,6 @@ function PinterestWidget() {
 }
 
 // ─── Clash Royale Widget ──────────────────────────────────────────────────────
-// ✅ CR_ADD_FRIEND_URL (link.clashroyale.com) used as <a href> anchor only
-//    NOT via window.open. link.clashroyale.com has NO matching blocklist patterns
-//    or query fingerprints → NOT blocked by adblocker.ts click guard.
 
 function ClashRoyaleWidget() {
   return (
@@ -1974,7 +1493,6 @@ function SocialWidgetsDesktop() {
       <Suspense fallback={<SuspenseFallbackWidget />}>
         <PinterestWidget />
       </Suspense>
-      <AdSenseSidebar />
     </div>
   );
 }
@@ -2782,6 +2300,62 @@ function CommentSection({
   );
 }
 
+// ─── MotionCaptureSign ────────────────────────────────────────────────────────
+
+if (typeof document !== "undefined") {
+  const _sid = "__adSkeletonStyles__";
+  if (!document.getElementById(_sid)) {
+    const s = document.createElement("style");
+    s.id = _sid;
+    s.textContent = `
+      @keyframes mcSignBounce {
+        0%, 100% { transform: translateY(0px) rotate(-2deg); }
+        30%       { transform: translateY(-4px) rotate(1deg); }
+        60%       { transform: translateY(-2px) rotate(-1deg); }
+      }
+      @keyframes mcArrowDrop {
+        0%, 100% { transform: translateY(0px); opacity: 1; }
+        50%       { transform: translateY(3px); opacity: 0.6; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+}
+
+function _MotionCaptureSign() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 0,
+        marginLeft: 2,
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width="34"
+        height="46"
+        viewBox="0 0 34 46"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ animation: "mcSignBounce 2.4s ease-in-out infinite", display: "block" }}
+      >
+        <rect x="15.5" y="22" width="3" height="22" rx="1.5" className="fill-black dark:fill-white" fill="currentColor" />
+        <rect x="1" y="1" width="32" height="21" rx="4" className="fill-black dark:fill-white" fill="currentColor" />
+        <rect x="2" y="2" width="30" height="19" rx="3" fill="white" className="dark:fill-[#111]" />
+        <g style={{ animation: "mcArrowDrop 1.1s ease-in-out infinite" }}>
+          <line x1="17" y1="6" x2="17" y2="15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="stroke-black dark:stroke-white" />
+          <polyline points="12,11 17,16 22,11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-black dark:stroke-white" />
+        </g>
+      </svg>
+    </span>
+  );
+}
+
 // ─── Main ArticleDetail Component ────────────────────────────────────────────
 
 export default function ArticleDetail() {
@@ -2908,14 +2482,9 @@ export default function ArticleDetail() {
     [_extraMedia]
   );
 
-  const _rawParsedParagraphs = _uM(
+  const _parsedParagraphs = _uM(
     () => (_pD ? parseParagraphs(_pD.paragraphs) : []),
     [_pD]
-  );
-
-  const _parsedParagraphs = _uM<ParsedBlock[]>(
-    () => injectAdAfterParagraph(_rawParsedParagraphs, 3),
-    [_rawParsedParagraphs]
   );
 
   _e(() => {
@@ -3300,7 +2869,7 @@ export default function ArticleDetail() {
             <time dateTime={(_art as any).updated_at} itemProp="dateModified">{(_art as any).updated_at}</time>
           )}
           <div itemProp="articleBody">
-            {_rawParsedParagraphs.map((block, i) => {
+            {_parsedParagraphs.map((block, i) => {
               if (block.type === "text") {
                 return <p key={`seo-para-${i}`} dangerouslySetInnerHTML={{ __html: block.html }} />;
               }
@@ -3475,10 +3044,6 @@ export default function ArticleDetail() {
 
               <div className="max-w-[840px] mx-auto">
                 {_parsedParagraphs.map((block, i) => {
-                  if (block.type === "ad") {
-                    return <AdSenseInArticle key="adsense-in-article" />;
-                  }
-
                   if (block.type === "tweet") {
                     return (
                       <div
