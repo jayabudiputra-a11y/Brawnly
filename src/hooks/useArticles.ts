@@ -11,49 +11,46 @@ const _0xrepo = [
   'published_at'
 ] as const;
 
-const _r = (i: number) => _0xrepo[i] as string; 
-const CACHE_KEY = "brawnly_lib_cache";
+const _r = (i: number) => _0xrepo[i] as string;
+const _CK = "brawnly_lib_cache_v2";
 
-const _saveToSmartCache = (key: string, data: any) => {
+const _sC = (key: string, data: any) => {
   try {
     const payload = JSON.stringify(data);
     if (payload.length > 625000) {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith("brawnly_article_")) {
-          localStorage.removeItem(k);
-        }
+        if (k && k.startsWith("brawnly_article_")) localStorage.removeItem(k);
       }
     }
+    localStorage.removeItem("brawnly_lib_cache");
     localStorage.setItem(key, payload);
-  } catch (e) {
-    localStorage.clear(); 
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (err) { 
-      console.warn("Brawnly Cache is completely full.");
-    }
+  } catch {
+    localStorage.clear();
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
   }
 };
 
-const _getSmartCache = (key: string) => {
+const _gC = (key: string) => {
   try {
     const cached = localStorage.getItem(key);
     return cached ? JSON.parse(cached) : null;
-  } catch (e) {
-    return null;
-  }
+  } catch { return null; }
 };
+
+function _rFI(raw: string): string | null {
+  if (!raw) return null;
+  const lines = raw.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
+  return lines[0] || null;
+}
 
 export const useArticles = (tag?: string | null, initialData?: any[]) => {
   return useQuery({
     queryKey: ['articles', tag],
     queryFn: async () => {
-      const cachedData = _getSmartCache(CACHE_KEY);
-      
-      if (!navigator.onLine && cachedData) {
-        return cachedData;
-      }
+      const cachedData = _gC(_CK);
+
+      if (!navigator.onLine && cachedData) return cachedData;
 
       try {
         let articleQuery = supabase
@@ -61,9 +58,7 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
           .select('*')
           .not('published_at', 'is', null);
 
-        if (tag) {
-          articleQuery = articleQuery.contains(_r(2), [tag]);
-        }
+        if (tag) articleQuery = articleQuery.contains(_r(2), [tag]);
 
         const { data: rawArticles, error: articleError } = await articleQuery.order(_r(5), { ascending: false });
 
@@ -73,7 +68,6 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
             .select('*')
             .not('published_at', 'is', null)
             .order('published_at', { ascending: false });
-
           if (fallbackErr) throw fallbackErr;
           return fallback;
         }
@@ -82,50 +76,42 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
           .from(_r(1))
           .select(`${_r(3)}, ${_r(4)}`);
 
-        const viewsMap = (rawViews ?? []).reduce((acc: Record<string, number>, viewRow: any) => {
-          acc[viewRow[_r(3)]] = viewRow[_r(4)];
+        const viewsMap = (rawViews ?? []).reduce((acc: Record<string, number>, row: any) => {
+          acc[row[_r(3)]] = row[_r(4)];
           return acc;
         }, {});
 
         const processedData = (rawArticles ?? []).map((article: any) => {
           const liveViews = viewsMap[article.id];
-          
-          const rawPath = article.featured_image_url || article.featured_image || "";
-          
-          const validUrls = rawPath
-            .split(/[\r\n]+/)
-            .map((url: string) => url.trim())
-            .filter((url: string) => url.startsWith('http'));
 
-          const processedCover = validUrls.length > 0 ? generateFullImageUrl(validUrls[0]) : null;
+          const rawPath = article.featured_image_url || article.featured_image || "";
+          const firstUrl = _rFI(rawPath);
+          const processedCover = firstUrl ? generateFullImageUrl(firstUrl) : null;
 
           return {
-            ...article, 
-            featured_image: processedCover, 
-            thumbnail_url: processedCover,
+            ...article,
+            featured_image_url: processedCover,
+            featured_image:     processedCover,
+            thumbnail_url:      processedCover,
             views: liveViews !== undefined ? liveViews : (article.views || 0),
-            author: article.author && typeof article.author === 'object' ? article.author : { 
-              username: article.author || "Brawnly Editorial", 
-              avatar_url: article.author_avatar || null 
-            }
+            author: article.author && typeof article.author === 'object'
+              ? article.author
+              : { username: article.author || "Brawnly Editorial", avatar_url: article.author_avatar || null },
           };
         });
 
-        _saveToSmartCache(CACHE_KEY, processedData);
+        _sC(_CK, processedData);
         return processedData;
 
       } catch (error) {
-        if (cachedData) {
-          console.warn("Jaringan tidak stabil, menggunakan data cache...");
-          return cachedData;
-        }
+        if (cachedData) return cachedData;
         throw error;
       }
     },
-    initialData: initialData,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
+    initialData,
+    staleTime:           1000 * 60 * 5,
+    gcTime:              1000 * 60 * 10,
     refetchOnWindowFocus: false,
-    retry: 1
+    retry: 1,
   });
 };

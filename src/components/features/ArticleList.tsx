@@ -19,143 +19,42 @@ import { detectBestFormat } from "@/lib/imageFormat";
 import { wasmTranscodeImage } from "@/lib/wasmImagePipeline";
 import { wasmVideoToThumbnail } from "@/lib/wasmVideoPipeline";
 
-/* ============================================================
-   COPYRIGHT PROFILES
-   Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
-   Profile ini memenuhi field GSC: license, creator, copyrightNotice,
-   acquireLicensePage (wajib untuk Google Image Metadata rich results).
-   ============================================================ */
-const SITE_URL        = "https://www.brawnly.online";
-const SITE_NAME       = "Brawnly";
-const AUTHOR_NAME     = "Budi Putra Jaya";
-const OWN_LICENSE     = "https://creativecommons.org/licenses/by/4.0/";
-const OWN_COPYRIGHT   = `© 2026 ${AUTHOR_NAME}. All rights reserved.`;
-const OWN_ACQUIRE_URL = `${SITE_URL}/license`;
+const _SU        = "https://www.brawnly.online";
+const _SN        = "Brawnly";
+const _AN        = "Budi Putra Jaya";
+const _OL        = "https://creativecommons.org/licenses/by/4.0/";
+const _OC        = `© 2026 ${_AN}. All rights reserved.`;
+const _OAU       = `${_SU}/license`;
 
-const _SOURCE_PROFILES: Record<
-  string,
-  {
-    license: string;
-    copyright: string;
-    acquireUrl: string;
-    creatorName: string;
-    creatorType: "Person" | "Organization";
-    creatorUrl: string;
-  }
-> = {
-  instagram: {
-    license:     "https://www.instagram.com/legal/terms/",
-    copyright:   "© Instagram / Meta Platforms, Inc. All rights reserved.",
-    acquireUrl:  "https://www.instagram.com/legal/terms/",
-    creatorName: "Instagram / Meta Platforms, Inc.",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.instagram.com",
-  },
-  tiktok: {
-    license:     "https://www.tiktok.com/legal/page/us/terms-of-service/en",
-    copyright:   "© TikTok / ByteDance Ltd. All rights reserved.",
-    acquireUrl:  "https://www.tiktok.com/legal/page/us/terms-of-service/en",
-    creatorName: "TikTok / ByteDance Ltd.",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.tiktok.com",
-  },
-  tumblr: {
-    license:     "https://www.tumblr.com/policy/en/terms-of-service",
-    copyright:   "© Tumblr / Automattic Inc. / respective content creators. All rights reserved.",
-    acquireUrl:  "https://www.tumblr.com/policy/en/terms-of-service",
-    creatorName: "Tumblr / respective content creators",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.tumblr.com",
-  },
-  twitter: {
-    license:     "https://twitter.com/en/tos",
-    copyright:   "© X Corp. / respective tweet authors. All rights reserved.",
-    acquireUrl:  "https://twitter.com/en/tos",
-    creatorName: "X Corp. / respective tweet authors",
-    creatorType: "Organization",
-    creatorUrl:  "https://twitter.com",
-  },
-  pinterest: {
-    license:     "https://policy.pinterest.com/en/terms-of-service",
-    copyright:   "© Pinterest, Inc. / respective pin owners. All rights reserved.",
-    acquireUrl:  "https://policy.pinterest.com/en/terms-of-service",
-    creatorName: "Pinterest / respective content creators",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.pinterest.com",
-  },
-  google: {
-    license:     "https://policies.google.com/terms",
-    copyright:   "© Google LLC. All rights reserved.",
-    acquireUrl:  "https://policies.google.com/terms",
-    creatorName: "Google LLC",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.google.com",
-  },
-  flickr: {
-    license:     "https://www.flickr.com/creativecommons/",
-    copyright:   "© Respective photographers on Flickr. License varies per image.",
-    acquireUrl:  "https://www.flickr.com/help/terms",
-    creatorName: "Respective photographers on Flickr",
-    creatorType: "Person",
-    creatorUrl:  "https://www.flickr.com",
-  },
-  youtube: {
-    license:     "https://www.youtube.com/t/terms",
-    copyright:   "© YouTube / Google LLC / respective content creators. All rights reserved.",
-    acquireUrl:  "https://www.youtube.com/t/terms",
-    creatorName: "YouTube / respective content creators",
-    creatorType: "Organization",
-    creatorUrl:  "https://www.youtube.com",
-  },
-  cloudinary: {
-    license:     OWN_LICENSE,
-    copyright:   OWN_COPYRIGHT,
-    acquireUrl:  OWN_ACQUIRE_URL,
-    creatorName: AUTHOR_NAME,
-    creatorType: "Person",
-    creatorUrl:  SITE_URL,
-  },
+const _SP: Record<string, { license: string; copyright: string; acquireUrl: string; creatorName: string; creatorType: "Person" | "Organization"; creatorUrl: string }> = {
+  instagram: { license: "https://www.instagram.com/legal/terms/", copyright: "© Instagram / Meta Platforms, Inc. All rights reserved.", acquireUrl: "https://www.instagram.com/legal/terms/", creatorName: "Instagram / Meta Platforms, Inc.", creatorType: "Organization", creatorUrl: "https://www.instagram.com" },
+  tiktok:    { license: "https://www.tiktok.com/legal/page/us/terms-of-service/en", copyright: "© TikTok / ByteDance Ltd. All rights reserved.", acquireUrl: "https://www.tiktok.com/legal/page/us/terms-of-service/en", creatorName: "TikTok / ByteDance Ltd.", creatorType: "Organization", creatorUrl: "https://www.tiktok.com" },
+  tumblr:    { license: "https://www.tumblr.com/policy/en/terms-of-service", copyright: "© Tumblr / Automattic Inc. / respective content creators. All rights reserved.", acquireUrl: "https://www.tumblr.com/policy/en/terms-of-service", creatorName: "Tumblr / respective content creators", creatorType: "Organization", creatorUrl: "https://www.tumblr.com" },
+  twitter:   { license: "https://twitter.com/en/tos", copyright: "© X Corp. / respective tweet authors. All rights reserved.", acquireUrl: "https://twitter.com/en/tos", creatorName: "X Corp. / respective tweet authors", creatorType: "Organization", creatorUrl: "https://twitter.com" },
+  pinterest: { license: "https://policy.pinterest.com/en/terms-of-service", copyright: "© Pinterest, Inc. / respective pin owners. All rights reserved.", acquireUrl: "https://policy.pinterest.com/en/terms-of-service", creatorName: "Pinterest / respective content creators", creatorType: "Organization", creatorUrl: "https://www.pinterest.com" },
+  google:    { license: "https://policies.google.com/terms", copyright: "© Google LLC. All rights reserved.", acquireUrl: "https://policies.google.com/terms", creatorName: "Google LLC", creatorType: "Organization", creatorUrl: "https://www.google.com" },
+  flickr:    { license: "https://www.flickr.com/creativecommons/", copyright: "© Respective photographers on Flickr. License varies per image.", acquireUrl: "https://www.flickr.com/help/terms", creatorName: "Respective photographers on Flickr", creatorType: "Person", creatorUrl: "https://www.flickr.com" },
+  youtube:   { license: "https://www.youtube.com/t/terms", copyright: "© YouTube / Google LLC / respective content creators. All rights reserved.", acquireUrl: "https://www.youtube.com/t/terms", creatorName: "YouTube / respective content creators", creatorType: "Organization", creatorUrl: "https://www.youtube.com" },
+  cloudinary:{ license: _OL, copyright: _OC, acquireUrl: _OAU, creatorName: _AN, creatorType: "Person", creatorUrl: _SU },
 };
 
-type SourceProfile = typeof _SOURCE_PROFILES[keyof typeof _SOURCE_PROFILES];
+type _TPr = typeof _SP[keyof typeof _SP];
 
-/** Deteksi sumber gambar dari URL, return profil copyright yang sesuai */
-function _detectImageSource(url: string): SourceProfile {
+function _dIS(url: string): _TPr {
   const u = (url || "").toLowerCase();
-  if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net"))
-    return _SOURCE_PROFILES.instagram;
-  if (u.includes("tiktok.com") || u.includes("tiktokcdn.com") || u.includes("musical.ly"))
-    return _SOURCE_PROFILES.tiktok;
-  if (u.includes("tumblr.com") || u.includes("tumblr.co"))
-    return _SOURCE_PROFILES.tumblr;
-  if (u.includes("twitter.com") || u.includes("twimg.com") || u.includes("x.com"))
-    return _SOURCE_PROFILES.twitter;
-  if (u.includes("pinterest.com") || u.includes("pinimg.com"))
-    return _SOURCE_PROFILES.pinterest;
-  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com"))
-    return _SOURCE_PROFILES.google;
-  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com"))
-    return _SOURCE_PROFILES.flickr;
-  if (u.includes("youtube.com") || u.includes("ytimg.com") || u.includes("youtu.be"))
-    return _SOURCE_PROFILES.youtube;
-  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
-    return _SOURCE_PROFILES.cloudinary;
-  // fallback — own content
-  return {
-    license:     OWN_LICENSE,
-    copyright:   OWN_COPYRIGHT,
-    acquireUrl:  OWN_ACQUIRE_URL,
-    creatorName: AUTHOR_NAME,
-    creatorType: "Person",
-    creatorUrl:  SITE_URL,
-  };
+  if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net")) return _SP.instagram;
+  if (u.includes("tiktok.com") || u.includes("tiktokcdn.com") || u.includes("musical.ly")) return _SP.tiktok;
+  if (u.includes("tumblr.com") || u.includes("tumblr.co")) return _SP.tumblr;
+  if (u.includes("twitter.com") || u.includes("twimg.com") || u.includes("x.com")) return _SP.twitter;
+  if (u.includes("pinterest.com") || u.includes("pinimg.com")) return _SP.pinterest;
+  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com")) return _SP.google;
+  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com")) return _SP.flickr;
+  if (u.includes("youtube.com") || u.includes("ytimg.com") || u.includes("youtu.be")) return _SP.youtube;
+  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online")) return _SP.cloudinary;
+  return { license: _OL, copyright: _OC, acquireUrl: _OAU, creatorName: _AN, creatorType: "Person", creatorUrl: _SU };
 }
 
-/**
- * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
- * Mencegah "Invalid URL in field url/contentUrl" di GSC.
- */
-function _validateUrl(url: string | null | undefined): string | null {
+function _vU(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const u = new URL(url);
@@ -167,52 +66,48 @@ function _validateUrl(url: string | null | undefined): string | null {
   }
 }
 
-/**
- * Resolve URL gambar dari artikel — ambil baris pertama,
- * lalu validasi agar absolute HTTPS yang valid.
- * Mengembalikan null jika tidak valid.
- */
-function _resolveArticleImage(a: any): string | null {
-  const raw = a.featured_image || a.featured_image_url;
+function _rAI(a: any): string | null {
+  const raw = a.featured_image || a.featured_image_url || a.image || null;
   if (!raw) return null;
   const first = String(raw).split(/[\r\n]+/)[0].trim();
-  return _validateUrl(first);
+  return _vU(first);
 }
 
-/**
- * Bangun ImageObject schema.org lengkap (JSON-LD) dengan semua field GSC terpenuhi.
- * Mengembalikan undefined jika url tidak valid.
- */
-function _buildImageObject(
-  url: string | null | undefined,
-  name: string,
-  description?: string
-): object | undefined {
-  const validUrl = _validateUrl(url);
-  if (!validUrl) return undefined;
-  const p = _detectImageSource(validUrl);
+function _bIO(url: string | null | undefined, name: string, description?: string): object | undefined {
+  const vU = _vU(url);
+  if (!vU) return undefined;
+  const p = _dIS(vU);
   return {
-    "@type":               "ImageObject",
-    "url":                 validUrl,
-    "contentUrl":          validUrl,
-    "name":                name,
+    "@type":              "ImageObject",
+    "url":                vU,
+    "contentUrl":         vU,
+    "name":               name,
     ...(description ? { "description": description } : {}),
-    "license":             p.license,
-    "creator": {
-      "@type": p.creatorType,
-      "name":  p.creatorName,
-      "url":   p.creatorUrl,
-    },
-    "copyrightNotice":     p.copyright,
-    "acquireLicensePage":  p.acquireUrl,
-    "creditText":          p.creatorName,
-    "encodingFormat": validUrl.toLowerCase().match(/\.gif/i)
+    "license":            p.license,
+    "creator":            { "@type": p.creatorType, "name": p.creatorName, "url": p.creatorUrl },
+    "copyrightNotice":    p.copyright,
+    "acquireLicensePage": p.acquireUrl,
+    "creditText":         p.creatorName,
+    "encodingFormat": vU.toLowerCase().match(/\.gif/i)
       ? "image/gif"
-      : validUrl.toLowerCase().match(/\.webp/i)
+      : vU.toLowerCase().match(/\.webp/i)
       ? "image/webp"
       : "image/jpeg",
   };
 }
+
+const _LGO = {
+  "@type":              "ImageObject",
+  "url":                `${_SU}/masculineLogo.svg`,
+  "contentUrl":         `${_SU}/masculineLogo.svg`,
+  "name":               `${_SN} logo`,
+  "license":            _OL,
+  "creator":            { "@type": "Person", "name": _AN, "url": _SU },
+  "copyrightNotice":    _OC,
+  "acquireLicensePage": _OAU,
+};
+
+const _PUB = { "@type": "Organization", "name": _SN, "url": _SU, "logo": _LGO };
 
 interface Props {
   selectedTag: string | null;
@@ -226,13 +121,13 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
   _uE(() => {
     warmupEnterpriseStorage();
-    openDB().catch(() => console.warn("IDB initialization deferred"));
+    openDB().catch(() => {});
   }, []);
 
   const _snap = _uM(() => {
     if (_aA?.length) return _aA;
-    const _v1Snap = loadSnap();
-    if (_v1Snap?.length) return _v1Snap;
+    const _v1 = loadSnap();
+    if (_v1?.length) return _v1;
     return getArticlesSnap();
   }, [_aA]);
 
@@ -240,24 +135,19 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
     if (!_aA?.length) return;
 
     syncArticles(async () => _aA);
-
     saveArticlesSnap(_aA);
     saveSnap(_aA.slice(0, 15).map((a: any) => ({
       title: a.title,
-      slug: a.slug,
-      image: a.featured_image || a.featured_image_url
+      slug:  a.slug,
+      image: a.featured_image || a.featured_image_url || a.image || null,
     })));
 
     try {
       _aA.forEach((a: any) => {
-        mirrorQuery({
-          id: a.id,
-          slug: a.slug,
-          ts: Date.now()
-        });
+        mirrorQuery({ id: a.id, slug: a.slug, ts: Date.now() });
         if (a.slug) setCookieHash(a.slug);
       });
-    } catch (err) {
+    } catch {
       enqueue({ type: "MIRROR_ERR", msg: "Failed to mirror row", ts: Date.now() });
     }
   }, [_aA]);
@@ -267,214 +157,91 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
     let _cA = [..._snap];
     if (_sT) {
       const _lST = _sT.toLowerCase();
-      _cA = _cA.filter((_art: any) =>
-        _art.tags?.some((_t: string) => _t.toLowerCase() === _lST)
-      );
+      _cA = _cA.filter((_art: any) => _art.tags?.some((_t: string) => _t.toLowerCase() === _lST));
     }
     const _sSTm = _sTm || "";
     if (_sSTm.trim() === "") return _cA;
     const _lS = _sSTm.toLowerCase();
-    return _cA.filter((_art: any) => {
-      const _aTt = (_art.title || "").toLowerCase();
-      return _aTt.includes(_lS);
-    });
+    return _cA.filter((_art: any) => (_art.title || "").toLowerCase().includes(_lS));
   }, [_snap, _sT, _sTm]);
 
   _uE(() => {
     if (!_fA.length || !window.Worker) return;
-
-    const _optimizeBatch = async () => {
+    const _ob = async () => {
       const fmt = await detectBestFormat();
-      const targets = _fA.slice(0, 5);
-
-      for (const item of targets) {
-        const imgUrl = item.featured_image || item.featured_image_url;
+      for (const item of _fA.slice(0, 5)) {
+        const imgUrl = _rAI(item);
         if (!imgUrl || imgUrl.includes("blob:")) continue;
-
         try {
           const worker = new Worker(new URL('@/wasm/imageWorker.ts', import.meta.url), { type: 'module' });
-          const res = await fetch(imgUrl);
-          const blob = await res.blob();
-
-          worker.postMessage({
-            id: item.slug,
-            blob,
-            format: fmt,
-            quality: 0.7
-          });
-
+          const res    = await fetch(imgUrl);
+          const blob   = await res.blob();
+          worker.postMessage({ id: item.slug, blob, format: fmt, quality: 0.7 });
           worker.onmessage = (e) => {
-            if (e.data.result) {
-              enqueue({
-                type: "ASSET_OPTIMIZED",
-                slug: e.data.id,
-                size: e.data.result.size,
-                ts: Date.now()
-              });
-            }
+            if (e.data.result) enqueue({ type: "ASSET_OPTIMIZED", slug: e.data.id, size: e.data.result.size, ts: Date.now() });
             worker.terminate();
           };
-        } catch (err) {}
+        } catch {}
       }
     };
-
-    _optimizeBatch();
+    _ob();
   }, [_fA]);
 
-  // ─── JSON-LD: ItemList — image field tiap artikel pakai ImageObject penuh ──
   const _jLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "name": _sT
-      ? `Brawnly Articles — Tag: ${_sT}`
-      : _sTm?.trim()
-      ? `Brawnly Articles — Search: ${_sTm.trim()}`
-      : "Brawnly Articles",
-    "description": _sT
-      ? `Articles tagged with "${_sT}" on Brawnly.`
-      : _sTm?.trim()
-      ? `Search results for "${_sTm.trim()}" on Brawnly.`
-      : "Latest articles and editorial content from Brawnly.",
-    "url": `${SITE_URL}/articles`,
+    "@context":      "https://schema.org",
+    "@type":         "ItemList",
+    "name":          _sT ? `Brawnly Articles — Tag: ${_sT}` : _sTm?.trim() ? `Brawnly Articles — Search: ${_sTm.trim()}` : "Brawnly Articles",
+    "description":   _sT ? `Articles tagged with "${_sT}" on Brawnly.` : _sTm?.trim() ? `Search results for "${_sTm.trim()}" on Brawnly.` : "Latest articles and editorial content from Brawnly.",
+    "url":           `${_SU}/articles`,
     "numberOfItems": _fA.length,
-    "itemListElement": _fA.slice(0, 10).map((_a: any, _i: number) => {
-      const _imgUrl = _resolveArticleImage(_a);
-      return {
-        "@type":    "ListItem",
-        "position": _i + 1,
-        "url":      `${SITE_URL}/article/${_a.slug}`,
-        "name":     _a.title,
-        "item": {
-          "@type":          "BlogPosting",
-          "url":            `${SITE_URL}/article/${_a.slug}`,
-          "headline":       _a.title,
-          "name":           _a.title,
-          "description":    _a.excerpt || _a.description || `Read ${_a.title} on Brawnly.`,
-          // FIX: image sebagai ImageObject penuh dengan copyright per sumber + URL validation
-          "image": _buildImageObject(
-            _imgUrl,
-            `${_a.title} — thumbnail`,
-            `Thumbnail image for article: ${_a.title}`
-          ),
-          "author": {
-            "@type": "Person",
-            "name":  _a.author?.username || AUTHOR_NAME,
-            "url":   SITE_URL,
-          },
-          "publisher": {
-            "@type": "Organization",
-            "name":  SITE_NAME,
-            "url":   SITE_URL,
-            "logo": {
-              "@type":               "ImageObject",
-              "url":                 `${SITE_URL}/masculineLogo.svg`,
-              "contentUrl":          `${SITE_URL}/masculineLogo.svg`,
-              "name":                `${SITE_NAME} logo`,
-              "license":             OWN_LICENSE,
-              "creator":             { "@type": "Person", "name": AUTHOR_NAME, "url": SITE_URL },
-              "copyrightNotice":     OWN_COPYRIGHT,
-              "acquireLicensePage":  OWN_ACQUIRE_URL,
-            },
-          },
-          "datePublished":  _a.published_at || _a.created_at || undefined,
-          "dateModified":   _a.updated_at || _a.published_at || _a.created_at || undefined,
-          "articleSection": _a.category || "Brawnly Selection",
-          "interactionStatistic": {
-            "@type":               "InteractionCounter",
-            "interactionType":     "https://schema.org/ReadAction",
-            "userInteractionCount": _a.views ?? 0,
-          },
-        },
-      };
-    }),
-    "publisher": {
-      "@type": "Organization",
-      "name":  SITE_NAME,
-      "url":   SITE_URL,
-      "logo": {
-        "@type":               "ImageObject",
-        "url":                 `${SITE_URL}/masculineLogo.svg`,
-        "contentUrl":          `${SITE_URL}/masculineLogo.svg`,
-        "name":                `${SITE_NAME} logo`,
-        "license":             OWN_LICENSE,
-        "creator":             { "@type": "Person", "name": AUTHOR_NAME, "url": SITE_URL },
-        "copyrightNotice":     OWN_COPYRIGHT,
-        "acquireLicensePage":  OWN_ACQUIRE_URL,
+    "itemListElement": _fA.slice(0, 10).map((_a: any, _i: number) => ({
+      "@type":    "ListItem",
+      "position": _i + 1,
+      "url":      `${_SU}/article/${_a.slug}`,
+      "name":     _a.title,
+      "item": {
+        "@type":       "BlogPosting",
+        "url":         `${_SU}/article/${_a.slug}`,
+        "headline":    _a.title,
+        "name":        _a.title,
+        "description": _a.excerpt || _a.description || `Read ${_a.title} on Brawnly.`,
+        "image":       _bIO(_rAI(_a), `${_a.title} — thumbnail`, `Thumbnail image for article: ${_a.title}`),
+        "author":      { "@type": "Person", "name": _a.author?.username || _AN, "url": _SU },
+        "publisher":   _PUB,
+        "datePublished":  _a.published_at || _a.created_at || undefined,
+        "dateModified":   _a.updated_at || _a.published_at || _a.created_at || undefined,
+        "articleSection": _a.category || "Brawnly Selection",
+        "interactionStatistic": { "@type": "InteractionCounter", "interactionType": "https://schema.org/ReadAction", "userInteractionCount": _a.views ?? 0 },
       },
-    },
+    })),
+    "publisher": _PUB,
   };
 
-  // ─── JSON-LD: CollectionPage — hasPart image field juga penuh ────────────
-  const _jLdCollection = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    "name": _sT ? `Brawnly — ${_sT}` : _sTm?.trim() ? `Brawnly — "${_sTm.trim()}"` : "Brawnly Articles",
-    "description": _sT
-      ? `Browse all Brawnly articles tagged with "${_sT}".`
-      : _sTm?.trim()
-      ? `Search results for "${_sTm.trim()}" across all Brawnly articles.`
-      : "Browse all articles on Brawnly.",
-    "url": `${SITE_URL}/articles`,
-    "isPartOf": {
-      "@type": "WebSite",
-      "name":  SITE_NAME,
-      "url":   SITE_URL,
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name":  SITE_NAME,
-      "url":   SITE_URL,
-      "logo": {
-        "@type":               "ImageObject",
-        "url":                 `${SITE_URL}/masculineLogo.svg`,
-        "contentUrl":          `${SITE_URL}/masculineLogo.svg`,
-        "name":                `${SITE_NAME} logo`,
-        "license":             OWN_LICENSE,
-        "creator":             { "@type": "Person", "name": AUTHOR_NAME, "url": SITE_URL },
-        "copyrightNotice":     OWN_COPYRIGHT,
-        "acquireLicensePage":  OWN_ACQUIRE_URL,
-      },
-    },
+  const _jLdC = {
+    "@context":      "https://schema.org",
+    "@type":         "CollectionPage",
+    "name":          _sT ? `Brawnly — ${_sT}` : _sTm?.trim() ? `Brawnly — "${_sTm.trim()}"` : "Brawnly Articles",
+    "description":   _sT ? `Browse all Brawnly articles tagged with "${_sT}".` : _sTm?.trim() ? `Search results for "${_sTm.trim()}" across all Brawnly articles.` : "Browse all articles on Brawnly.",
+    "url":           `${_SU}/articles`,
+    "isPartOf":      { "@type": "WebSite", "name": _SN, "url": _SU },
+    "publisher":     _PUB,
     "numberOfItems": _fA.length,
-    // FIX: hasPart image field pakai ImageObject penuh + URL validation
-    "hasPart": _fA.slice(0, 5).map((_a: any) => {
-      const _imgUrl = _resolveArticleImage(_a);
-      return {
-        "@type":         "BlogPosting",
-        "url":           `${SITE_URL}/article/${_a.slug}`,
-        "headline":      _a.title,
-        "image":         _buildImageObject(
-          _imgUrl,
-          `${_a.title} — thumbnail`,
-          `Thumbnail image for article: ${_a.title}`
-        ),
-        "datePublished": _a.published_at || _a.created_at || undefined,
-      };
-    }),
+    "hasPart": _fA.slice(0, 5).map((_a: any) => ({
+      "@type":         "BlogPosting",
+      "url":           `${_SU}/article/${_a.slug}`,
+      "headline":      _a.title,
+      "image":         _bIO(_rAI(_a), `${_a.title} — thumbnail`, `Thumbnail image for article: ${_a.title}`),
+      "datePublished": _a.published_at || _a.created_at || undefined,
+    })),
   };
 
-  const _jLdBreadcrumb = {
+  const _jLdB = {
     "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
+    "@type":    "BreadcrumbList",
     "itemListElement": [
-      {
-        "@type":    "ListItem",
-        "position": 1,
-        "name":     "Home",
-        "item":     SITE_URL,
-      },
-      {
-        "@type":    "ListItem",
-        "position": 2,
-        "name":     _sT ? `Articles — ${_sT}` : "Articles",
-        "item":     `${SITE_URL}/articles`,
-      },
-      ...(_sT ? [{
-        "@type":    "ListItem",
-        "position": 3,
-        "name":     _sT,
-        "item":     `${SITE_URL}/articles?tag=${encodeURIComponent(_sT)}`,
-      }] : []),
+      { "@type": "ListItem", "position": 1, "name": "Home",    "item": _SU },
+      { "@type": "ListItem", "position": 2, "name": _sT ? `Articles — ${_sT}` : "Articles", "item": `${_SU}/articles` },
+      ...(_sT ? [{ "@type": "ListItem", "position": 3, "name": _sT, "item": `${_SU}/articles?tag=${encodeURIComponent(_sT)}` }] : []),
     ],
   };
 
@@ -513,54 +280,40 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
   return (
     <>
       <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
-      <script type="application/ld+json">{JSON.stringify(_jLdCollection)}</script>
-      <script type="application/ld+json">{JSON.stringify(_jLdBreadcrumb)}</script>
+      <script type="application/ld+json">{JSON.stringify(_jLdC)}</script>
+      <script type="application/ld+json">{JSON.stringify(_jLdB)}</script>
 
-      {/* ── CC BY 4.0 License — hidden from UI, visible to crawlers ── */}
-      <div
-        aria-hidden="true"
-        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-        itemScope
-        itemType="https://schema.org/CreativeWork"
-      >
+      <div aria-hidden="true" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }} itemScope itemType="https://schema.org/CreativeWork">
         <meta itemProp="license" content="https://creativecommons.org/licenses/by/4.0/" />
-        <a href="https://creativecommons.org/licenses/by/4.0/" itemProp="license" tabIndex={-1} rel="license noopener noreferrer">
-          This work is licensed under Creative Commons Attribution 4.0 International
-        </a>
+        <a href="https://creativecommons.org/licenses/by/4.0/" itemProp="license" tabIndex={-1} rel="license noopener noreferrer">This work is licensed under Creative Commons Attribution 4.0 International</a>
         <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
         <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style={{ maxWidth: "1em", maxHeight: "1em", marginLeft: ".2em" }} />
         <span itemProp="copyrightHolder" itemScope itemType="https://schema.org/Person">
-          <meta itemProp="name" content="Budi Putra Jaya" />
-          <a href="https://www.brawnly.online" itemProp="url" tabIndex={-1} rel="noopener noreferrer">Budi Putra Jaya</a>
+          <meta itemProp="name" content={_AN} />
+          <a href={_SU} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{_AN}</a>
         </span>
         <meta itemProp="copyrightYear" content="2026" />
       </div>
 
-      <div
-        aria-hidden="true"
-        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
-        itemScope
-        itemType="https://schema.org/ItemList"
-      >
-        <meta itemProp="name" content={_sT ? `Brawnly Articles — Tag: ${_sT}` : _sTm?.trim() ? `Brawnly Articles — Search: ${_sTm.trim()}` : "Brawnly Articles"} />
-        <meta itemProp="description" content={_sT ? `Articles tagged with "${_sT}" on Brawnly.` : "Latest articles from Brawnly."} />
-        <meta itemProp="url" content={`${SITE_URL}/articles`} />
+      <div aria-hidden="true" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }} itemScope itemType="https://schema.org/ItemList">
+        <meta itemProp="name"          content={_sT ? `Brawnly Articles — Tag: ${_sT}` : _sTm?.trim() ? `Brawnly Articles — Search: ${_sTm.trim()}` : "Brawnly Articles"} />
+        <meta itemProp="description"   content={_sT ? `Articles tagged with "${_sT}" on Brawnly.` : "Latest articles from Brawnly."} />
+        <meta itemProp="url"           content={`${_SU}/articles`} />
         <meta itemProp="numberOfItems" content={String(_fA.length)} />
 
-        {/* FIX: Publisher dengan logo ImageObject lengkap + own copyright */}
         <span itemScope itemType="https://schema.org/Organization" itemProp="publisher">
-          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{SITE_NAME}</a>
-          <span itemProp="name" content={SITE_NAME} />
+          <a href={_SU} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{_SN}</a>
+          <span itemProp="name" content={_SN} />
           <span itemScope itemType="https://schema.org/ImageObject" itemProp="logo">
-            <meta itemProp="url"                content={`${SITE_URL}/masculineLogo.svg`} />
-            <meta itemProp="contentUrl"         content={`${SITE_URL}/masculineLogo.svg`} />
-            <meta itemProp="name"               content={`${SITE_NAME} logo`} />
-            <meta itemProp="license"            content={OWN_LICENSE} />
-            <meta itemProp="copyrightNotice"    content={OWN_COPYRIGHT} />
-            <meta itemProp="acquireLicensePage" content={OWN_ACQUIRE_URL} />
+            <meta itemProp="url"                content={`${_SU}/masculineLogo.svg`} />
+            <meta itemProp="contentUrl"         content={`${_SU}/masculineLogo.svg`} />
+            <meta itemProp="name"               content={`${_SN} logo`} />
+            <meta itemProp="license"            content={_OL} />
+            <meta itemProp="copyrightNotice"    content={_OC} />
+            <meta itemProp="acquireLicensePage" content={_OAU} />
             <span itemScope itemType="https://schema.org/Person" itemProp="creator">
-              <meta itemProp="name" content={AUTHOR_NAME} />
-              <meta itemProp="url"  content={SITE_URL} />
+              <meta itemProp="name" content={_AN} />
+              <meta itemProp="url"  content={_SU} />
             </span>
           </span>
         </span>
@@ -569,24 +322,15 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
 
         <ol aria-label="Article list">
           {_fA.map((_a: any, _i: number) => {
-            // FIX: Validasi URL gambar — hanya emit jika URL valid
-            const _imgUrl = _resolveArticleImage(_a);
-            const _cp = _imgUrl ? _detectImageSource(_imgUrl) : null;
+            const _imgUrl = _rAI(_a);
+            const _cp     = _imgUrl ? _dIS(_imgUrl) : null;
             return (
-              <li
-                key={`seo-li-${_a.id || _a.slug || _i}`}
-                itemScope
-                itemType="https://schema.org/BlogPosting"
-                itemProp="itemListElement"
-              >
+              <li key={`seo-li-${_a.id || _a.slug || _i}`} itemScope itemType="https://schema.org/BlogPosting" itemProp="itemListElement">
                 <meta itemProp="position" content={String(_i + 1)} />
-                <a href={`${SITE_URL}/article/${_a.slug}`} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{_a.title}</a>
+                <a href={`${_SU}/article/${_a.slug}`} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{_a.title}</a>
                 <meta itemProp="headline" content={_a.title} />
                 <meta itemProp="name"     content={_a.title} />
-                {(_a.excerpt || _a.description) && (
-                  <meta itemProp="description" content={_a.excerpt || _a.description} />
-                )}
-                {/* FIX: ImageObject microdata dengan copyright per sumber — hanya jika URL valid */}
+                {(_a.excerpt || _a.description) && <meta itemProp="description" content={_a.excerpt || _a.description} />}
                 {_imgUrl && _cp && (
                   <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
                     <meta itemProp="url"                content={_imgUrl} />
@@ -603,11 +347,11 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
                   </span>
                 )}
                 <span itemScope itemType="https://schema.org/Person" itemProp="author">
-                  <span itemProp="name">{_a.author?.username || AUTHOR_NAME}</span>
+                  <span itemProp="name">{_a.author?.username || _AN}</span>
                 </span>
                 <span itemScope itemType="https://schema.org/InteractionCounter" itemProp="interactionStatistic">
-                  <meta itemProp="interactionType"      content="https://schema.org/ReadAction" />
-                  <meta itemProp="userInteractionCount" content={String(_a.views ?? 0)} />
+                  <meta itemProp="interactionType"       content="https://schema.org/ReadAction" />
+                  <meta itemProp="userInteractionCount"  content={String(_a.views ?? 0)} />
                 </span>
               </li>
             );
@@ -615,8 +359,8 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
         </ol>
 
         <span itemScope itemType="https://schema.org/WebSite" itemProp="isPartOf">
-          <a href={SITE_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{SITE_NAME}</a>
-          <span itemProp="name" content={SITE_NAME} />
+          <a href={_SU} itemProp="url" tabIndex={-1} rel="noopener noreferrer">{_SN}</a>
+          <span itemProp="name" content={_SN} />
         </span>
       </div>
 
@@ -629,14 +373,14 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
           itemScope
           itemType="https://schema.org/ItemList"
         >
-          <meta itemProp="name" content={_sT ? `Brawnly Articles — ${_sT}` : "Brawnly Articles"} />
+          <meta itemProp="name"          content={_sT ? `Brawnly Articles — ${_sT}` : "Brawnly Articles"} />
           <meta itemProp="numberOfItems" content={String(_fA.length)} />
 
           {_fA.map((_a: any, _idx: number) => {
-            const itemKey = _a.id || _a.slug || `article-idx-${_idx}`;
+            const _ik = _a.id || _a.slug || `article-idx-${_idx}`;
             return (
               <div
-                key={itemKey}
+                key={_ik}
                 role="listitem"
                 aria-label={`Article ${_idx + 1}: ${_a.title}`}
                 className="relative w-full group transition-all duration-300"
@@ -646,7 +390,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
                 itemProp="itemListElement"
               >
                 <meta itemProp="position" content={String(_idx + 1)} />
-                <meta itemProp="url"      content={`${SITE_URL}/article/${_a.slug}`} />
+                <meta itemProp="url"      content={`${_SU}/article/${_a.slug}`} />
                 <meta itemProp="name"     content={_a.title} />
 
                 <_AP>
@@ -665,10 +409,7 @@ export default function ArticleList({ selectedTag: _sT, searchTerm: _sTm, initia
                 </_AP>
 
                 <div className="relative z-10 py-1">
-                  <ArticleCard
-                    article={_a}
-                    priority={_idx < 2}
-                  />
+                  <ArticleCard article={_a} priority={_idx < 2} />
                 </div>
               </div>
             );
