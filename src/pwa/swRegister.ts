@@ -1,7 +1,3 @@
-/**
- * PWA Service Worker Registration
- * Mengelola registrasi SW dan Background Sync untuk antrean luring (offline queue).
- */
 export async function registerSW() {
   if (!("serviceWorker" in navigator)) return;
 
@@ -10,15 +6,16 @@ export async function registerSW() {
 
     await navigator.serviceWorker.ready;
 
-    // 3. Registrasi Background Sync
     if ("sync" in reg) {
       try {
-        // @ts-ignore - Background Sync API
-        await reg.sync.register("brawnly-sync");
-        // @ts-ignore
-        await reg.sync.register("sync-tag");
-        
-        console.log("PWA: Background Sync Registered");
+        if (reg.sync) {
+          await reg.sync.register("brawnly-sync");
+          await reg.sync.register("sync-tag");
+          
+          console.log("PWA: Background Sync Registered");
+        } else {
+          console.warn("PWA: Sync manager is not available on this registration.");
+        }
       } catch (syncErr) {
         console.warn("PWA: Sync registration failed (likely unsupported)", syncErr);
       }
