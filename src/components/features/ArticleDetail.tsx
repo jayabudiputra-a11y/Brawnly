@@ -47,7 +47,7 @@ import _mA from "@/assets/myAvatar.jpg";
 import ScrollToTopButton from "@/components/features/ScrollToTopButton";
 import ArticleCoverImage from "@/components/features/ArticleCoverImage";
 import TwitterEmbed from "@/components/features/TwitterEmbed";
-import InstagramWidget from "@/components/features/Instagramwidget";
+import InstagramWidget from "@/components/features/InstagramWidget";
 import { isTweetUrl } from "@/lib/utils";
 import _muscleLeft from "@/assets/119-1191125_muscle-arms-png-big-arm-muscles-transparent-png.png";
 import _muscleRight from "@/assets/634-6343275_muscle-arm-png-background-images-barechested-transparent-png.png";
