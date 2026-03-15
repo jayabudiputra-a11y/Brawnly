@@ -31,7 +31,7 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ['assets/**/*.{png,jpg,jpeg,svg,gif,ico}'],
+      includeAssets: ['assets/**/*.{png,jpg,jpeg,svg,ico}'],
       manifest: {
         name: "Brawnly App",
         short_name: "Brawnly",
@@ -65,11 +65,24 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 7 * 1024 * 1024,
-        globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,wasm}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,jpg,jpeg,webp,wasm}"],
         globIgnores: [
           "**/assets/Brawnly-favicon.svg",
           "**/assets/masculineLogo.svg",
-          "**/assets/Brawnly.gif"
+          "**/assets/Brawnly*.gif",
+          "**/*.gif",
+        ],
+        manifestTransforms: [
+          async (manifest) => {
+            const seen = new Set<string>();
+            const entries = manifest.filter((entry) => {
+              const base = entry.url.split("?")[0];
+              if (seen.has(base)) return false;
+              seen.add(base);
+              return true;
+            });
+            return { manifest: entries, warnings: [] };
+          },
         ],
         runtimeCaching: [
           {
