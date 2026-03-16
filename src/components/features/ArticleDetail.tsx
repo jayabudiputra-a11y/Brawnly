@@ -1,7 +1,3 @@
-/**
- * ArticleDetail.tsx
- */
-
 import React, {
   useState as _s,
   useEffect as _e,
@@ -67,6 +63,9 @@ import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enter
 import { enqueue } from "@/lib/idbQueue";
 import { saveAssetToShared, getAssetFromShared } from "@/lib/sharedStorage";
 import { registerSW } from "@/pwa/swRegister";
+import VideoShortsGrid from "@/components/features/VideoShortsGrid";
+import YouTubeShortsGrid from "@/components/features/YoutubeShortsGrid";
+import { buildVideoJsonLdList } from "@/lib/videoJsonLd";
 
 import type { CommentWithUser as _Cu } from "@/types";
 
@@ -94,14 +93,6 @@ const SUBSTACK_POST_TITLE =
 const SUBSTACK_POST_DESC =
   "Proyek open-source ini menggunakan sinyal WiFi biasa untuk mengestimasi pose tubuh secara real-time — dan hasilnya mengubah cara kita memandang privasi dan keamanan selamanya.";
 
-const TUMBLR_BLOG_URL = "https://deulo.tumblr.com/";
-const TUMBLR_RSS_URL = "https://deulo.tumblr.com/rss";
-const TUMBLR_POST_URL =
-  "https://www.tumblr.com/deulo/809804750475444224/blaze-deulo";
-const TUMBLR_EMBED_HREF =
-  "https://embed.tumblr.com/embed/post/t:N4M27bzOPUQnedC7_NFBnw/809804750475444224/v2";
-const TUMBLR_EMBED_DID = "84c833a47ca0c43fb4a94649fd8f8e01ef8d192e";
-
 const PINTEREST_PROFILE_URL =
   "https://ru.pinterest.com/mustbeloveonthebrain/";
 const PINTEREST_PIN_URL = "https://pin.it/54og3CaPN";
@@ -114,6 +105,10 @@ const CR_ADD_FRIEND_URL =
   "https://link.clashroyale.com/?supercell_id&p=34-325a499d-fa6d-436b-a6cd-1d592a8afdea";
 const CR_ROYALEAPI_BATTLES = `https://royaleapi.com/player/${CR_PLAYER_TAG}/battles`;
 const CR_ROYALEAPI_PROFILE = `https://royaleapi.com/player/${CR_PLAYER_TAG}`;
+
+const DANA_NAME = "Putra";
+const DANA_LINK_1 = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026031661814425";
+const DANA_LINK_2 = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012012022082292326653";
 
 type RSSItem = {
   title: string;
@@ -533,37 +528,6 @@ function YouTubeSEONode() {
   );
 }
 
-function TumblrSEONode() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        width: 1,
-        height: 1,
-        overflow: "hidden",
-        clip: "rect(0,0,0,0)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <span itemScope itemType="https://schema.org/Blog">
-        <a href={TUMBLR_BLOG_URL} itemProp="url" tabIndex={-1} rel="noopener noreferrer">
-          Tumblr Blog — deulo
-        </a>
-        <span itemProp="name" content="deulo" />
-        <span itemProp="author" content="deulo" />
-        <span
-          itemProp="description"
-          content="Tumblr blog by deulo — posts, reblogs, and creative content."
-        />
-        <span itemProp="sameAs" content={TUMBLR_BLOG_URL} />
-      </span>
-      <meta name="tumblr:blog" content="deulo" />
-      <meta name="tumblr:blog:url" content={TUMBLR_BLOG_URL} />
-    </div>
-  );
-}
-
 function SubstackSEONode() {
   return (
     <div
@@ -661,6 +625,106 @@ function ClashRoyaleSEONode() {
       <meta name="clashroyale:player:tag" content={CR_PLAYER_TAG} />
       <meta name="clashroyale:player:name" content={CR_PLAYER_NAME} />
       <meta name="clashroyale:player:id" content={CR_PLAYER_ID} />
+    </div>
+  );
+}
+
+function DanaWidget() {
+  const [_sent, _setSent] = _s(false);
+
+  const _handleSend = (link: string) => {
+    window.open(link, "_blank", "noopener,noreferrer");
+    _setSent(true);
+    toast.success("Membuka DANA — Terima kasih!");
+  };
+
+  return (
+    <div
+      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl"
+      style={{ background: "#118EEA" }}
+    >
+      <div className="h-1.5 w-full" style={{ background: "#0B6FBD" }} />
+
+      <div className="px-6 pt-6 pb-5 flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white/30"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+          >
+            <svg
+              viewBox="0 0 120 40"
+              className="w-12 h-auto"
+              aria-label="DANA"
+              role="img"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <text
+                x="50%"
+                y="30"
+                textAnchor="middle"
+                fill="white"
+                fontFamily="Arial, sans-serif"
+                fontWeight="900"
+                fontSize="28"
+                letterSpacing="2"
+              >
+                DANA
+              </text>
+            </svg>
+          </div>
+
+          <div className="text-center">
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/70 leading-none mb-1">
+              Kirim Dana ke
+            </p>
+            <p className="text-[22px] font-black uppercase tracking-tight text-white leading-none">
+              {DANA_NAME}
+            </p>
+          </div>
+
+          <p className="text-[11px] font-serif italic text-white/80 text-center leading-snug">
+            Kirim dana ke {DANA_NAME}?
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+          <a
+            href={DANA_LINK_1}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Kirim dana ke ${DANA_NAME} via DANA`}
+            onClick={() => _setSent(true)}
+            className="flex items-center justify-center gap-2 py-3 px-5 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-md transition-all duration-200 active:scale-95"
+            style={{ background: "white", color: "#118EEA" }}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0" aria-hidden="true">
+              <path d="M2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10S2 17.52 2 12zm11-1V7h-2v4H7l5 5 5-5h-4z" />
+            </svg>
+            Kirim Sekarang
+          </a>
+          <a
+            href={DANA_LINK_2}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Kirim dana ke ${DANA_NAME} via DANA (alternatif)`}
+            onClick={() => _setSent(true)}
+            className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all duration-200 active:scale-95"
+            style={{ background: "rgba(255,255,255,0.18)", color: "white", border: "1.5px solid rgba(255,255,255,0.4)" }}
+          >
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current flex-shrink-0" aria-hidden="true">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+            </svg>
+            Link Alternatif
+          </a>
+        </div>
+
+        {_sent && (
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/90 animate-pulse">
+            Terima kasih, {DANA_NAME}! 🙏
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -819,114 +883,6 @@ function YouTubeWidget() {
           className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 hover:text-[#FF0000] transition-colors duration-300"
         >
           <_Pc size={11} aria-hidden="true" /> Shorts ↗
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function TumblrWidget() {
-  const { items, loading } = useRSSFeed(TUMBLR_RSS_URL, 3);
-
-  return (
-    <div
-      className="rounded-[2rem] border-2 border-black dark:border-white overflow-hidden shadow-xl bg-white dark:bg-[#111] relative"
-      itemScope
-      itemType="https://schema.org/Blog"
-    >
-      <TumblrSEONode />
-      <meta itemProp="url" content={TUMBLR_BLOG_URL} />
-      <meta itemProp="author" content="deulo" />
-
-      <div className="h-1.5 w-full bg-[#35465D]" />
-
-      <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#35465D] flex items-center justify-center shadow-md flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-label="Tumblr" role="img">
-              <path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.747H5.116V6.648c3.63-1.313 4.512-4.596 4.71-6.469C9.84.051 9.941 0 9.999 0h3.517v6.114h4.801v3.633h-4.82v7.47c.016 1.001.375 2.371 2.207 2.371h.09c.631-.02 1.486-.205 1.936-.419l1.156 3.425c-.436.636-2.4 1.374-4.306 1.406z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-500 dark:text-neutral-400 leading-none mb-0.5">
-              Tumblr
-            </p>
-            <p className="text-[13px] font-black uppercase italic tracking-tight text-black dark:text-white leading-none">
-              deulo
-            </p>
-          </div>
-        </div>
-
-        <a
-          href={TUMBLR_BLOG_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Follow deulo on Tumblr"
-          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#35465D] text-white shadow-sm hover:opacity-80 transition-opacity flex-shrink-0"
-        >
-          Follow
-        </a>
-      </div>
-
-      <div className="px-4 pb-2">
-        {loading ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-full mb-1" />
-                <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded w-2/3" />
-              </div>
-            ))}
-          </div>
-        ) : items.length > 0 ? (
-          <div className="space-y-4">
-            {items.map((item, i) => (
-              <a
-                key={`tumblr-feed-${i}`}
-                href={item.link || TUMBLR_BLOG_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Read: ${item.title || "Tumblr post"}`}
-                className="block group hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-xl p-3 -mx-3 transition-colors duration-200 border-b border-neutral-100 dark:border-neutral-800 last:border-0"
-                itemScope
-                itemType="https://schema.org/BlogPosting"
-              >
-                <meta itemProp="url" content={item.link} />
-                <p className="text-[12px] font-black uppercase leading-tight line-clamp-2 text-black dark:text-white group-hover:text-[#35465D] dark:group-hover:text-[#6fa3d8] transition-colors mb-1">
-                  {item.title || "Untitled post"}
-                </p>
-                {item.description && (
-                  <p className="text-[10px] font-serif italic text-neutral-500 dark:text-neutral-400 line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
-                {item.pubDate && (
-                  <p className="text-[9px] font-bold text-neutral-400 mt-1 uppercase tracking-wider">
-                    {formatRSSDate(item.pubDate)}
-                  </p>
-                )}
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[12px] font-serif italic text-neutral-600 dark:text-neutral-400 py-4">
-            Posts from{" "}
-            <span className="font-black not-italic text-black dark:text-white">deulo</span>{" "}
-            on Tumblr ✦
-          </p>
-        )}
-      </div>
-
-      <div className="px-6 pb-5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
-        <a
-          href={TUMBLR_BLOG_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="View all posts on Tumblr by deulo"
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#35465D] dark:text-[#6fa3d8] hover:opacity-70 transition-opacity duration-300"
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
-          View all posts on Tumblr
         </a>
       </div>
     </div>
@@ -1344,402 +1300,6 @@ function SocialWidgetsMobileBottom() {
   );
 }
 
-function VideoShortsPlayer({
-  videoUrl,
-  title,
-  index,
-  articleDate,
-  description,
-  compact = false,
-}: {
-  videoUrl: string;
-  title: string;
-  index: number;
-  articleDate?: string;
-  description?: string;
-  compact?: boolean;
-}) {
-  const videoRef = _uR<HTMLVideoElement>(null);
-  const wrapRef = _uR<HTMLDivElement>(null);
-  const [muted, setMuted] = _s(true);
-  const [playing, setPlaying] = _s(false);
-  const [loaded, setLoaded] = _s(false);
-
-  _e(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!videoRef.current) return;
-        if (entry.isIntersecting) {
-          videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-        } else {
-          videoRef.current.pause();
-          setPlaying(false);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const handleTogglePlay = () => {
-    if (!videoRef.current) return;
-    if (playing) {
-      videoRef.current.pause();
-      setPlaying(false);
-    } else {
-      videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-    }
-  };
-
-  const handleUnmute = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!videoRef.current) return;
-    videoRef.current.muted = false;
-    setMuted(false);
-  };
-
-  const playerWidth = compact ? "min(280px, 90vw)" : "min(360px, 82vw)";
-
-  return (
-    <div
-      className={`flex flex-col items-center justify-center ${compact ? "mb-6" : "mb-16"}`}
-      itemScope
-      itemType="https://schema.org/VideoObject"
-    >
-      <meta itemProp="position" content={String(index + 1)} />
-      <meta itemProp="name" content={title} />
-      <meta itemProp="description" content={description || title} />
-      <meta itemProp="contentUrl" content={videoUrl} />
-      {articleDate && <meta itemProp="uploadDate" content={articleDate} />}
-      <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
-        <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
-      </span>
-
-      <div ref={wrapRef} className="relative w-full flex justify-center">
-        <div
-          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-40 pointer-events-none"
-          aria-hidden="true"
-        />
-
-        <div
-          className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black cursor-pointer"
-          style={{ width: playerWidth, aspectRatio: "9 / 16" }}
-          onClick={handleTogglePlay}
-          role="button"
-          aria-label={playing ? `Pause ${title}` : `Play ${title}`}
-        >
-          {!loaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 animate-pulse z-10">
-              <div className="w-14 h-14 rounded-full border-4 border-white/20 border-t-white animate-spin" />
-            </div>
-          )}
-
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            muted={muted}
-            loop
-            playsInline
-            preload="metadata"
-            className="w-full h-full object-cover"
-            aria-label={`${title} — Video ${index + 1}`}
-            onCanPlay={() => setLoaded(true)}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-          />
-
-          {!playing && loaded && (
-            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-              <div className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-2xl">
-                <_Pc size={28} className="text-white ml-1" aria-hidden="true" />
-              </div>
-            </div>
-          )}
-
-          {muted && playing && (
-            <button
-              onClick={handleUnmute}
-              aria-label="Tap to unmute video"
-              className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
-            >
-              <VolumeX size={12} aria-hidden="true" />
-              Unmute
-            </button>
-          )}
-
-          {!muted && playing && (
-            <div
-              className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
-              aria-hidden="true"
-            >
-              <Volume2 size={12} />
-              Live
-            </div>
-          )}
-
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20 pointer-events-none" aria-hidden="true" />
-        </div>
-      </div>
-
-      <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
-        <_Pc size={16} aria-hidden="true" />
-        Watch Video
-      </div>
-    </div>
-  );
-}
-
-function VideoShortsGrid({
-  videos,
-  title,
-  articleDate,
-  description,
-}: {
-  videos: string[];
-  title: string;
-  articleDate?: string;
-  description?: string;
-}) {
-  if (videos.length === 0) return null;
-
-  if (videos.length === 1) {
-    return (
-      <VideoShortsPlayer
-        videoUrl={videos[0]}
-        title={title}
-        index={0}
-        articleDate={articleDate}
-        description={description}
-      />
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 w-full" aria-label={`${videos.length} videos`}>
-      {videos.map((url, idx) => (
-        <VideoShortsPlayer
-          key={`mp4-grid-${idx}`}
-          videoUrl={url}
-          title={title}
-          index={idx}
-          articleDate={articleDate}
-          description={description}
-          compact
-        />
-      ))}
-    </div>
-  );
-}
-
-function YouTubeShortsPlayer({
-  videoUrl,
-  title,
-  index,
-  thumbUrl,
-  articleDate,
-  description,
-  compact = false,
-}: {
-  videoUrl: string;
-  title: string;
-  index: number;
-  thumbUrl?: string;
-  articleDate?: string;
-  description?: string;
-  compact?: boolean;
-}) {
-  const iframeRef = _uR<HTMLIFrameElement>(null);
-  const [muted, _setMuted] = _s(true);
-  const [playerReady, _setPlayerReady] = _s(false);
-
-  const videoId = _uM(() => {
-    try {
-      return (
-        videoUrl.match(/(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/)?.[1] || null
-      );
-    } catch {
-      return null;
-    }
-  }, [videoUrl]);
-
-  const embedBase = videoId
-    ? `https://www.youtube-nocookie.com/embed/${videoId}`
-    : null;
-
-  const ytThumbnailUrl = videoId
-    ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-    : thumbUrl;
-
-  const iframeSrc = _uM(() => {
-    if (!embedBase) return "";
-    const params = new URLSearchParams({
-      autoplay: "1",
-      mute: muted ? "1" : "0",
-      loop: "1",
-      playlist: videoId || "",
-      rel: "0",
-      modestbranding: "1",
-      playsinline: "1",
-      enablejsapi: "1",
-      origin: typeof window !== "undefined" ? window.location.origin : "",
-    });
-    return `${embedBase}?${params.toString()}`;
-  }, [embedBase, videoId, muted]);
-
-  _e(() => {
-    const handler = (e: MessageEvent) => {
-      if (!e.data) return;
-      try {
-        const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
-        if (d?.event === "onReady") _setPlayerReady(true);
-      } catch {}
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
-
-  const handleUnmute = () => {
-    if (iframeRef.current?.contentWindow) {
-      try {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "unMute", args: [] }),
-          "*"
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
-          "*"
-        );
-        _setMuted(false);
-        return;
-      } catch {}
-    }
-    _setMuted(false);
-  };
-
-  if (!embedBase || !videoId) return null;
-
-  const playerWidth = compact ? "min(280px, 90vw)" : "min(340px, 80vw)";
-
-  return (
-    <div
-      className={`flex flex-col items-center justify-center ${compact ? "mb-6" : "mb-16"}`}
-      itemScope
-      itemType="https://schema.org/VideoObject"
-    >
-      <meta itemProp="position" content={String(index + 1)} />
-      <meta itemProp="name" content={title} />
-      <meta itemProp="description" content={description || title} />
-      <meta itemProp="embedUrl" content={embedBase} />
-      <meta itemProp="contentUrl" content={videoUrl} />
-      {ytThumbnailUrl && <meta itemProp="thumbnailUrl" content={ytThumbnailUrl} />}
-      {articleDate && <meta itemProp="uploadDate" content={articleDate} />}
-      <span itemScope itemType="https://schema.org/Person" itemProp="author" style={{ display: "none" }}>
-        <meta itemProp="name" content={IMAGE_CREATOR_NAME} />
-      </span>
-
-      <div className="relative w-full flex justify-center">
-        <div
-          className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full transform scale-75 opacity-50 pointer-events-none"
-          aria-hidden="true"
-        />
-
-        <div
-          className="relative z-10 overflow-hidden rounded-2xl border-[4px] border-black dark:border-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] bg-black"
-          style={{ width: playerWidth, aspectRatio: "9 / 16" }}
-        >
-          <div style={{ position: "absolute", top: "-58px", left: "-2px", right: "-2px", bottom: "-64px" }}>
-            <iframe
-              ref={iframeRef}
-              key={`yt-shorts-${videoId}-${muted ? "m" : "u"}`}
-              src={iframeSrc}
-              title={`${title} — Video ${index + 1}`}
-              style={{ width: "100%", height: "100%", border: 0 }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-
-          {muted && (
-            <button
-              onClick={handleUnmute}
-              aria-label="Tap to unmute video"
-              className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm transition-all duration-200 border border-white/20"
-            >
-              <VolumeX size={12} aria-hidden="true" />
-              Unmute
-            </button>
-          )}
-
-          {!muted && (
-            <div
-              className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-green-600/80 text-white rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider pointer-events-none backdrop-blur-sm animate-pulse"
-              aria-hidden="true"
-            >
-              <Volume2 size={12} />
-              Live
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-5 flex items-center gap-2 text-red-600 dark:text-red-500 font-bold uppercase tracking-widest text-[11px]">
-        <_Pc size={16} aria-hidden="true" /> Watch Short
-      </div>
-    </div>
-  );
-}
-
-function YouTubeShortsGrid({
-  shorts,
-  title,
-  thumbUrl,
-  articleDate,
-  description,
-}: {
-  shorts: string[];
-  title: string;
-  thumbUrl?: string;
-  articleDate?: string;
-  description?: string;
-}) {
-  if (shorts.length === 0) return null;
-
-  if (shorts.length === 1) {
-    return (
-      <YouTubeShortsPlayer
-        videoUrl={shorts[0]}
-        title={title}
-        index={0}
-        thumbUrl={thumbUrl}
-        articleDate={articleDate}
-        description={description}
-      />
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 w-full" aria-label={`${shorts.length} YouTube Shorts`}>
-      {shorts.map((videoUrl, idx) => (
-        <YouTubeShortsPlayer
-          key={`yt-grid-${idx}`}
-          videoUrl={videoUrl}
-          title={title}
-          index={idx}
-          thumbUrl={thumbUrl}
-          articleDate={articleDate}
-          description={description}
-          compact
-        />
-      ))}
-    </div>
-  );
-}
-
 function CommentItem({
   comment,
   avatar,
@@ -2076,7 +1636,7 @@ function CommentSectionInner({
 
       <div className="mt-8">
         <Suspense fallback={<SuspenseFallbackWidget />}>
-          <TumblrWidget />
+          <DanaWidget />
         </Suspense>
       </div>
     </section>
@@ -2468,7 +2028,6 @@ export default function ArticleDetail() {
               INSTAGRAM_URL,
               YOUTUBE_CHANNEL_URL,
               SUBSTACK_ROOT_URL,
-              TUMBLR_BLOG_URL,
               PINTEREST_PROFILE_URL,
             ],
           },
@@ -2506,35 +2065,16 @@ export default function ArticleDetail() {
 
   const _jsonLdVideoObjects = _uM(() => {
     if (!_pD || !_art) return null;
-    const allVideos = [
-      ..._allYoutubeShorts.map((videoUrl: string) => {
-        const videoId = videoUrl.match(/(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{11})/)?.[1];
-        return JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "VideoObject",
-          "name": _pD.title,
-          "description": _pD.excerpt || _pD.title,
-          "thumbnailUrl": videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : undefined,
-          "uploadDate": _art.published_at,
-          "embedUrl": videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : undefined,
-          "contentUrl": videoUrl,
-          "author": { "@type": "Person", "name": IMAGE_CREATOR_NAME, "url": "https://www.brawnly.online" },
-        });
-      }),
-      ..._mp4Videos.map((videoUrl: string) =>
-        JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "VideoObject",
-          "name": _pD.title,
-          "description": _pD.excerpt || _pD.title,
-          "uploadDate": _art.published_at,
-          "contentUrl": videoUrl,
-          "author": { "@type": "Person", "name": IMAGE_CREATOR_NAME, "url": "https://www.brawnly.online" },
-        })
-      ),
-    ];
-    return allVideos.length > 0 ? allVideos : null;
-  }, [_pD, _art, _allYoutubeShorts, _mp4Videos]);
+    const list = buildVideoJsonLdList({
+      youtubeShortsUrls: _allYoutubeShorts,
+      mp4VideoUrls: _mp4Videos,
+      name: _pD.title,
+      description: _pD.excerpt || _pD.title,
+      uploadDate: _art.published_at,
+      thumbnailUrl: _rawImgSource ? _gOI(_rawImgSource, 600) : undefined,
+    });
+    return list.length > 0 ? list : null;
+  }, [_pD, _art, _allYoutubeShorts, _mp4Videos, _rawImgSource]);
 
   const _jsonLdBreadcrumb = _pD
     ? JSON.stringify({
@@ -2585,8 +2125,6 @@ export default function ArticleDetail() {
       YOUTUBE_CHANNEL_URL,
       SUBSTACK_ROOT_URL,
       SUBSTACK_URL,
-      TUMBLR_BLOG_URL,
-      TUMBLR_POST_URL,
       PINTEREST_PROFILE_URL,
       CR_ROYALEAPI_PROFILE,
     ],
@@ -2653,7 +2191,6 @@ export default function ArticleDetail() {
           <link rel="me" href={INSTAGRAM_URL} />
           <link rel="me" href={YOUTUBE_CHANNEL_URL} />
           <link rel="me" href={SUBSTACK_ROOT_URL} />
-          <link rel="me" href={TUMBLR_BLOG_URL} />
           <link rel="me" href={PINTEREST_PROFILE_URL} />
 
           {_jsonLdArticle && <script type="application/ld+json">{_jsonLdArticle}</script>}
@@ -2692,7 +2229,6 @@ export default function ArticleDetail() {
             <a href={INSTAGRAM_URL} rel="noopener noreferrer" tabIndex={-1}>Instagram: @{INSTAGRAM_USERNAME}</a>
             <a href={YOUTUBE_CHANNEL_URL} rel="noopener noreferrer" tabIndex={-1}>YouTube: @{YOUTUBE_CHANNEL_HANDLE}</a>
             <a href={SUBSTACK_ROOT_URL} rel="noopener noreferrer" tabIndex={-1}>Substack: deulo</a>
-            <a href={TUMBLR_BLOG_URL} rel="noopener noreferrer" tabIndex={-1}>Tumblr: deulo</a>
             <a href={PINTEREST_PROFILE_URL} rel="noopener noreferrer" tabIndex={-1}>Pinterest: mustbeloveonthebrain</a>
             <a href={CR_ROYALEAPI_PROFILE} rel="noopener noreferrer" tabIndex={-1}>Clash Royale: {CR_PLAYER_NAME} #{CR_PLAYER_TAG}</a>
           </nav>
@@ -2915,7 +2451,12 @@ export default function ArticleDetail() {
                       {_mp4Videos.length > 1 ? `Videos (${_mp4Videos.length})` : "Video"}
                     </span>
                   </div>
-                  <VideoShortsGrid videos={_mp4Videos} title={_pD.title} articleDate={_art.published_at} description={_pD.excerpt || _pD.title} />
+                  <VideoShortsGrid
+                    videos={_mp4Videos}
+                    title={_pD.title}
+                    articleDate={_art.published_at}
+                    description={_pD.excerpt || _pD.title}
+                  />
                 </section>
               )}
 
