@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { generateFullImageUrl } from '@/utils/helpers';
 
+const _SITE_URL = "https://www.brawnly.online";
+
 const _0xrepo = [
   'articles_denormalized',
   'article_view_counts',
@@ -43,6 +45,29 @@ function _rFI(raw: string): string | null {
   const lines = raw.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
   return lines[0] || null;
 }
+
+// ── TTL guard: skip if already submitted within 7 days ──────────────────────
+const _INDEX_TTL_KEY = "brawnly_index_submitted_v1";
+const _shouldSubmitIndex = (): boolean => {
+  try {
+    const last = localStorage.getItem(_INDEX_TTL_KEY);
+    if (!last) return true;
+    const diff = Date.now() - parseInt(last, 10);
+    return diff > 7 * 24 * 60 * 60 * 1000;
+  } catch { return true; }
+};
+const _markIndexSubmitted = () => {
+  try { localStorage.setItem(_INDEX_TTL_KEY, String(Date.now())); } catch {}
+};
+
+// ── Server-side IndexNow via Supabase Edge Function ──────────────────────────
+const _autoIndexViaEdge = async (urls: string[]): Promise<void> => {
+  if (!_shouldSubmitIndex()) return;
+  const { error } = await supabase.functions.invoke("auto-index", {
+    body: { urls },
+  });
+  if (!error) _markIndexSubmitted();
+};
 
 export const useArticles = (tag?: string | null, initialData?: any[]) => {
   return useQuery({
@@ -101,6 +126,19 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
         });
 
         _sC(_CK, processedData);
+
+        // ── Auto-index: submit via Edge Function (server-side, CORS-safe) ──
+        const slugs: string[] = (rawArticles ?? [])
+          .map((a: any) => a.slug)
+          .filter(Boolean);
+
+        if (slugs.length > 0) {
+          const urls = slugs.map((slug: string) => `${_SITE_URL}/article/${slug}`);
+          setTimeout(() => {
+            _autoIndexViaEdge(urls).catch(() => {});
+          }, 4000);
+        }
+
         return processedData;
 
       } catch (error) {
@@ -109,8 +147,8 @@ export const useArticles = (tag?: string | null, initialData?: any[]) => {
       }
     },
     initialData,
-    staleTime:           1000 * 60 * 5,
-    gcTime:              1000 * 60 * 10,
+    staleTime:            1000 * 60 * 5,
+    gcTime:               1000 * 60 * 10,
     refetchOnWindowFocus: false,
     retry: 1,
   });

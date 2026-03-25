@@ -1,6 +1,6 @@
 import { Link as _L } from "react-router-dom";
 import { Eye as _E, WifiOff as _Wo, Zap as _Zp } from "lucide-react";
-import { useEffect as _uE, useState as _uS } from "react";
+import { useEffect as _uE, useState as _uS, useRef as _uR } from "react";
 import _mA from "@/assets/myAvatar.jpg";
 import { getOptimizedImage as _gOI } from "@/lib/utils";
 import { useSaveData as _uSD } from "@/hooks/useSaveData";
@@ -100,6 +100,28 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
   const [_blobUrl, _sBU] = _uS<string | null>(null);
   const [_rC, _sRC] = _uS(() => _VC[Math.floor(Math.random() * _VC.length)]);
 
+  // ── FIX: Track the currently-live blob URL via ref ─────────────────────────
+  // Problem: the original cleanup did `if (_blobUrl) URL.revokeObjectURL(_blobUrl)`
+  // but `_blobUrl` is captured at effect-creation time (stale closure) — it was
+  // always `null` on first run, and on re-runs it revoked the URL still displayed.
+  //
+  // Solution: _liveBlobRef always holds the latest live blob URL.
+  // - New blob created → revoke OLD live ref → set new as live → setState
+  // - Effect cleanup → set cancelled flag only, NO revoke
+  // - Unmount effect → revoke live ref
+  // ───────────────────────────────────────────────────────────────────────────
+  const _liveBlobRef = _uR<string | null>(null);
+
+  // Unmount-only cleanup — revoke whatever blob is live at unmount time
+  _uE(() => {
+    return () => {
+      if (_liveBlobRef.current && _liveBlobRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(_liveBlobRef.current); } catch {}
+        _liveBlobRef.current = null;
+      }
+    };
+  }, []);
+
   const _authorName = resolveAuthorName(_a);
 
   _uE(() => {
@@ -139,15 +161,26 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
   _uE(() => {
     if (!_a.slug || !_hQ || !_cK) return;
     let _active = true;
+
     (async () => {
       try {
         mirrorQuery({ id: _a.id, slug: _a.slug, ts: Date.now(), type: "CARD_RENDER" });
         await setCookieHash(_a.slug);
+
         const cachedBlob = await getAssetFromShared(_cK);
         if (cachedBlob) {
-          if (_active) _sBU(URL.createObjectURL(cachedBlob));
+          if (_active) {
+            const url = URL.createObjectURL(cachedBlob);
+            // Revoke previous live blob before setting new one
+            if (_liveBlobRef.current && _liveBlobRef.current.startsWith("blob:") && _liveBlobRef.current !== url) {
+              try { URL.revokeObjectURL(_liveBlobRef.current); } catch {}
+            }
+            _liveBlobRef.current = url;
+            _sBU(url);
+          }
           return;
         }
+
         if (navigator.onLine && !_isLow && !_p) {
           const fmtStr = await detectBestFormat();
           const fmt    = (fmtStr.toLowerCase() === "avif" ? "avif" : "webp") as _IF;
@@ -161,14 +194,27 @@ export default function ArticleCard({ article: _a, priority: _p = false }: Artic
               worker.postMessage({ id: `card_${_a.slug}`, blob, format: fmt, quality: 0.6 });
             });
             await saveAssetToShared(_cK, optimized);
-            if (_active) _sBU(URL.createObjectURL(optimized));
+            if (_active) {
+              const url = URL.createObjectURL(optimized);
+              // Revoke previous live blob before setting new one
+              if (_liveBlobRef.current && _liveBlobRef.current.startsWith("blob:") && _liveBlobRef.current !== url) {
+                try { URL.revokeObjectURL(_liveBlobRef.current); } catch {}
+              }
+              _liveBlobRef.current = url;
+              _sBU(url);
+            } else {
+              // Effect cancelled before async resolved — revoke immediately, don't display
+              try { URL.revokeObjectURL(URL.createObjectURL(optimized)); } catch {}
+            }
           }
         }
       } catch {}
     })();
+
     return () => {
+      // Mark cancelled so async above skips setState.
+      // Do NOT revoke _liveBlobRef here — unmount effect handles it.
       _active = false;
-      if (_blobUrl) URL.revokeObjectURL(_blobUrl);
     };
   }, [_a.slug, _hQ, _cK, _isLow]);
 

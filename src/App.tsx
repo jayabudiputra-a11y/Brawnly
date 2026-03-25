@@ -1,13 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Ad blocker WAJIB di-import paling pertama — sebelum React, router, semua lib.
-// Self-executing: patches fetch, XHR, window.open, sendBeacon, createElement,
-// location.href/replace/assign, history.pushState/replaceState,
-// iframe.src, MutationObserver, click capture, dan CSP meta injection.
-// Blocks: v2006.com, hatcheskoeri, defacesirras.click, phiglerdail.net,
-//         nn125.com, rajabsyne.shop, /cx/ path, /afu.php path,
-//         doubleclick, popads, adcash, dll.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Routes as _Rs, Route as _Rt, useLocation as _uL, Navigate as _Nv } from "react-router-dom";
 import React, {
   useEffect as _e,
@@ -23,6 +13,7 @@ import _ST from "@/components/features/ScrollToTopButton";
 import _MT from "@/components/seo/MetaTags";
 import { useAuth } from "@/hooks/useAuth";
 import { _shouldBlock } from "@/lib/adblocker";
+import { useSWReload } from "@/hooks/useSWReload";
 
 import _mP from "@/assets/myPride.gif";
 
@@ -156,10 +147,6 @@ const _SI = _safeLazy(() => import("@/pages/SignIn"));
 const _Lc = _safeLazy(() => import("@/pages/License"));
 
 const _preloadRoute = (importer: () => Promise<any>) => {
-  const link = document.createElement("link");
-  link.rel = "prefetch";
-  link.as = "script";
-  document.head.appendChild(link);
   importer().catch(() => {});
 };
 
@@ -196,20 +183,12 @@ const _RouteTransition: React.FC<{
   <_Sp fallback={fallback ?? _PAGE_SHELL}>{children}</_Sp>
 ));
 
-// ─── Pop-under / focus-steal killer ──────────────────────────────────────────
-// When window loses focus unexpectedly (ad opened new tab), immediately refocus.
-// Also closes any ad window references we might track.
 function _usePopUnderKiller() {
   _e(() => {
-    let _lastFocusTime = Date.now();
     let _blurTimer: ReturnType<typeof setTimeout> | null = null;
 
     const _onBlur = () => {
-      _lastFocusTime = Date.now();
-      // Give legit clicks 300ms grace; then try to refocus if focus was stolen
       _blurTimer = setTimeout(() => {
-        // Only auto-refocus if the blur was NOT from user interacting with
-        // our own UI (e.g. typing in a form opened in another tab intentionally)
         if (document.visibilityState === "visible") {
           try { window.focus(); } catch { /* ignore */ }
         }
@@ -220,7 +199,6 @@ function _usePopUnderKiller() {
       if (_blurTimer) { clearTimeout(_blurTimer); _blurTimer = null; }
     };
 
-    // Kill any ad URLs that somehow got into the URL bar via postMessage tricks
     const _onMessage = (e: MessageEvent) => {
       try {
         const data = typeof e.data === "string" ? e.data : JSON.stringify(e.data ?? "");
@@ -231,10 +209,8 @@ function _usePopUnderKiller() {
       } catch { /* ignore */ }
     };
 
-    // Intercept any ad attempts to navigate via visibilitychange
     const _onVisibility = () => {
       if (document.visibilityState === "hidden") return;
-      // When page becomes visible again, scan for any new ad nodes
       document
         .querySelectorAll<HTMLElement>("script[src], iframe[src], a[href]")
         .forEach((node) => {
@@ -248,15 +224,15 @@ function _usePopUnderKiller() {
         });
     };
 
-    window.addEventListener("blur",             _onBlur,       { passive: true });
-    window.addEventListener("focus",            _onFocus,      { passive: true });
-    window.addEventListener("message",          _onMessage,    true);
+    window.addEventListener("blur",              _onBlur,       { passive: true });
+    window.addEventListener("focus",             _onFocus,      { passive: true });
+    window.addEventListener("message",           _onMessage,    true);
     document.addEventListener("visibilitychange", _onVisibility, { passive: true });
 
     return () => {
-      window.removeEventListener("blur",              _onBlur);
-      window.removeEventListener("focus",             _onFocus);
-      window.removeEventListener("message",           _onMessage, true);
+      window.removeEventListener("blur",               _onBlur);
+      window.removeEventListener("focus",              _onFocus);
+      window.removeEventListener("message",            _onMessage, true);
       document.removeEventListener("visibilitychange", _onVisibility);
       if (_blurTimer) clearTimeout(_blurTimer);
     };
@@ -268,8 +244,8 @@ function App() {
   const _prevPath = useRef(_p);
   const [mounted, setMounted] = useState(false);
 
-  // ── Pop-under / focus-steal killer ──
   _usePopUnderKiller();
+  useSWReload();
 
   _e(() => {
     setMounted(true);
@@ -286,28 +262,39 @@ function App() {
   _e(() => {
     if (typeof window === "undefined") return;
 
-    const _idle = (window as any).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
+    const _schedulePreload = () => {
+      const _idle = (window as any).requestIdleCallback
+        ?? ((cb: () => void, opts?: { timeout: number }) =>
+            setTimeout(cb, opts?.timeout ?? 200));
 
-    _idle(() => {
-      _preloadRoute(() => import("@/pages/Articles"));
-      _preloadRoute(() => import("@/pages/ArticlePage"));
-    });
+      _idle(() => {
+        _preloadRoute(() => import("@/pages/Articles"));
+        _preloadRoute(() => import("@/pages/ArticlePage"));
+      }, { timeout: 3000 });
+    };
+
+    if (document.readyState === "complete") {
+      _schedulePreload();
+    } else {
+      window.addEventListener("load", _schedulePreload, { once: true });
+    }
 
     const _handleMouseover = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest("a");
       if (!target) return;
       const href = target.getAttribute("href") || "";
-      if (href.startsWith("/article")) _preloadRoute(() => import("@/pages/ArticlePage"));
+      if (href.startsWith("/article"))  _preloadRoute(() => import("@/pages/ArticlePage"));
       if (href.startsWith("/articles")) _preloadRoute(() => import("@/pages/Articles"));
-      if (href.startsWith("/profile")) _preloadRoute(() => import("@/pages/Profile"));
-      if (href.startsWith("/library")) _preloadRoute(() => import("@/pages/Library"));
-      if (href.startsWith("/videos")) _preloadRoute(() => import("@/pages/Videos"));
+      if (href.startsWith("/profile"))  _preloadRoute(() => import("@/pages/Profile"));
+      if (href.startsWith("/library"))  _preloadRoute(() => import("@/pages/Library"));
+      if (href.startsWith("/videos"))   _preloadRoute(() => import("@/pages/Videos"));
     };
 
     document.addEventListener("mouseover", _handleMouseover, { passive: true });
 
     return () => {
       document.removeEventListener("mouseover", _handleMouseover);
+      window.removeEventListener("load", _schedulePreload);
     };
   }, []);
 

@@ -1,3 +1,8 @@
+/* index.css — Brawnly
+   Global reset ringan. Definisi canonical .db-html-document-wrapper,
+   prose, dan utility class ada di styles/globals.css (via Tailwind entry).
+   ─────────────────────────────────────────────────────────────────────── */
+
 :root {
   font-family: Inter, system-ui, sans-serif;
   line-height: 1.5;
@@ -18,17 +23,6 @@ button {
   font-family: inherit;
 }
 
-.goog-te-banner-frame,
-.goog-te-menu-frame,
-.goog-te-gadget,
-#google_translate_element,
-.goog-logo-link,
-.goog-te-gadget-simple {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-}
-
 body {
   top: 0 !important;
 }
@@ -38,7 +32,7 @@ img {
   -webkit-user-select: none;
   user-select: none;
   pointer-events: auto;
-  display: block !important;
+  display: block;
 }
 
 html {

@@ -1,4 +1,4 @@
-import React, { useState as _s, useMemo as _m, useEffect as _e } from 'react';
+import React, { useState as _s, useMemo as _m, useEffect as _e, useRef as _uR } from 'react';
 import { getOptimizedImage as _gOI } from '@/lib/utils';
 import { useSaveData as _uSD } from '@/hooks/useSaveData';
 import { setCookieHash, mirrorQuery } from '@/lib/enterpriseStorage';
@@ -69,6 +69,29 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
   const [_iL, _siL] = _s(false);
   const [_oW, _sOW] = _s<string | null>(null);
 
+  // ── FIX: Track the currently-live blob URL via ref ─────────────────────────
+  // Problem: the useEffect cleanup revoked `_activeBlob` even when it was
+  // still the URL being displayed (e.g. when `_iE` changed → effect re-ran
+  // → old blob revoked while <img> still pointed to it → ERR_FILE_NOT_FOUND).
+  //
+  // Solution:
+  // - _liveBlobRef tracks the URL currently shown in <img>
+  // - When a new blob is created: revoke the OLD live URL (if different), set new
+  // - On unmount: revoke the live URL via a dedicated unmount-only effect
+  // - Effect cleanup: intentionally empty (no revoke) — unmount handles it
+  // ───────────────────────────────────────────────────────────────────────────
+  const _liveBlobRef = _uR<string | null>(null);
+
+  // Unmount-only cleanup — revoke whatever blob is live at that moment
+  _e(() => {
+    return () => {
+      if (_liveBlobRef.current && _liveBlobRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(_liveBlobRef.current); } catch {}
+        _liveBlobRef.current = null;
+      }
+    };
+  }, []);
+
   const _mQ = async () => {
     try { return await navigator.storage?.estimate?.(); } catch { return null; }
   };
@@ -133,14 +156,40 @@ const ArticleCoverImage: React.FC<ArticleCoverImageProps> = ({
 
   _e(() => {
     if (!_sUrl) return;
-    let _activeBlob: string | null = null;
+
+    let cancelled = false;
+
     (async () => {
       const _srcForBlob = _isGif ? _sUrl : _gOI(_sUrl, 1200);
       const u = await _tOpt(_srcForBlob);
-      _activeBlob = u;
+      if (cancelled) {
+        // Effect was cancelled (deps changed) before async resolved.
+        // If a new blob was created, revoke it immediately — don't display it.
+        if (u && u.startsWith("blob:")) {
+          try { URL.revokeObjectURL(u); } catch {}
+        }
+        return;
+      }
+
+      // Revoke the previous live blob if it's different from the new one
+      if (
+        _liveBlobRef.current &&
+        _liveBlobRef.current.startsWith("blob:") &&
+        _liveBlobRef.current !== u
+      ) {
+        try { URL.revokeObjectURL(_liveBlobRef.current); } catch {}
+      }
+
+      // Track new live URL and show it
+      _liveBlobRef.current = u.startsWith("blob:") ? u : null;
       _sOW(u);
     })();
-    return () => { if (_activeBlob && _activeBlob.startsWith("blob:")) URL.revokeObjectURL(_activeBlob); };
+
+    return () => {
+      // Mark as cancelled so the async above skips setState and revokes
+      // any blob it created. Do NOT revoke _liveBlobRef here — unmount effect handles it.
+      cancelled = true;
+    };
   }, [_sUrl, _isGif, _iE]);
 
   if (!_sUrl) return null;

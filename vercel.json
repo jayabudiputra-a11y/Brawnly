@@ -14,6 +14,127 @@
       "statusCode": 301
     },
     {
+      "source": "/sitemap",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/sitemap.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/sitemap.xml",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/sitemap.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/robots",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/robots.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/robots.txt",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/robots.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/rss",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/rss.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/feed",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/rss.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/rss.xml",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/rss.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/ads",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/ads.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/ads.txt",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/ads.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/llms",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/llms.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/llms.txt",
+      "has": [
+        {
+          "type": "host",
+          "value": "brawnly.online"
+        }
+      ],
+      "destination": "https://www.brawnly.online/llms.txt",
+      "statusCode": 301
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -23,11 +144,116 @@
       ],
       "destination": "https://www.brawnly.online/:path*",
       "statusCode": 301
+    },
+    {
+      "source": "/sitemap",
+      "destination": "/sitemap.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/robots",
+      "destination": "/robots.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/rss",
+      "destination": "/rss.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/feed",
+      "destination": "/rss.xml",
+      "statusCode": 301
+    },
+    {
+      "source": "/ads",
+      "destination": "/ads.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/llms",
+      "destination": "/llms.txt",
+      "statusCode": 301
+    },
+    {
+      "source": "/favicon",
+      "destination": "/assets/Brawnly-favicon.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": "/assets/Brawnly-favicon.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/assets/Brawnly-favicon.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/Brawnly-favicon",
+      "destination": "/assets/Brawnly-favicon.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/Brawnly-favicon.svg",
+      "destination": "/assets/Brawnly-favicon.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/Brawnly",
+      "destination": "/assets/Brawnly.gif",
+      "statusCode": 301
+    },
+    {
+      "source": "/Brawnly.gif",
+      "destination": "/assets/Brawnly.gif",
+      "statusCode": 301
+    },
+    {
+      "source": "/masculineLogo",
+      "destination": "/assets/masculineLogo.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/masculineLogo.svg",
+      "destination": "/assets/masculineLogo.svg",
+      "statusCode": 301
+    },
+    {
+      "source": "/myAvatar",
+      "destination": "/assets/myAvatar.jpg",
+      "statusCode": 301
+    },
+    {
+      "source": "/myAvatar.jpg",
+      "destination": "/assets/myAvatar.jpg",
+      "statusCode": 301
+    },
+    {
+      "source": "/myPride",
+      "destination": "/assets/myPride.gif",
+      "statusCode": 301
+    },
+    {
+      "source": "/myPride.gif",
+      "destination": "/assets/myPride.gif",
+      "statusCode": 301
+    },
+    {
+      "source": "/ultra-simple-flat-vector-favicon-icon-for-matchflik",
+      "destination": "/assets/ultra-simple-flat-vector-favicon-icon-for-matchflik.png",
+      "statusCode": 301
+    },
+    {
+      "source": "/ultra-simple-flat-vector-favicon-icon-for-matchflik.png",
+      "destination": "/assets/ultra-simple-flat-vector-favicon-icon-for-matchflik.png",
+      "statusCode": 301
     }
   ],
   "rewrites": [
     {
-      "source": "/((?!assets/|robots.txt|ads.txt|sitemap.xml|favicon.svg|.*\\..*).*)",
+      "source": "/((?!assets/|_next/|robots\\.txt|robots|ads\\.txt|ads|sitemap\\.xml|sitemap|rss\\.xml|rss|feed|llms\\.txt|llms|favicon\\.svg|favicon\\.ico|favicon|Brawnly-favicon\\.svg|Brawnly-favicon|Brawnly\\.gif|Brawnly(?!-)|masculineLogo\\.svg|masculineLogo|myAvatar\\.jpg|myAvatar|myPride\\.gif|myPride|ultra-simple-flat-vector-favicon-icon-for-matchflik|sw\\.js|workbox-.*\\.js|.*\\..*).*)",
       "destination": "/"
     }
   ],
@@ -42,6 +268,75 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/rss.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/rss+xml; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.wasm",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     },
@@ -114,11 +409,41 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "value": "public, max-age=31536000, immutable"
         },
         {
           "key": "Content-Type",
           "value": "application/javascript; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/workbox-:hash.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
         }
       ]
     },

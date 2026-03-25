@@ -67,6 +67,16 @@ import VideoShortsGrid from "@/components/features/VideoShortsGrid";
 import YouTubeShortsGrid from "@/components/features/YoutubeShortsGrid";
 import { buildVideoJsonLdList } from "@/lib/videoJsonLd";
 
+// ── Journal theme CSS imports ─────────────────────────────────────────────────
+import { JOURNAL_CSS_OCEAN } from "./journalCssOcean";
+import { JOURNAL_CSS_FOREST } from "./journalCssForest";
+import { JOURNAL_CSS_ROSE } from "./journalCssRose";
+import { JOURNAL_CSS_SLATE } from "./journalCssSlate";
+import { JOURNAL_CSS_EMBER } from "./journalCssEmber";
+import { JOURNAL_CSS_DUSK } from "./journalCssDusk";
+import { JOURNAL_CSS_NOIR } from "./journalCssNoir";
+import { JOURNAL_CSS_SAGE } from "./journalCssSage";
+
 import type { CommentWithUser as _Cu } from "@/types";
 
 const IMAGE_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
@@ -109,6 +119,10 @@ const CR_ROYALEAPI_PROFILE = `https://royaleapi.com/player/${CR_PLAYER_TAG}`;
 const DANA_NAME = "Putra";
 const DANA_LINK_1 = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026031661814425";
 const DANA_LINK_2 = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012012022082292326653";
+
+// ── GIF fallback untuk URL slot yang kosong ───────────────────────────────────
+const GIF_FALLBACK =
+  "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3Y3V3eTd0N2tyMnV1MDM4Z3VwOGduY3NmanRtbHNnNTV6NmVmMHJ6aSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/xTiTnnfeulzLtBmE0w/giphy.gif";
 
 type RSSItem = {
   title: string;
@@ -371,10 +385,425 @@ function useYouTubeFeed(handle: string, count = 4) {
   return { items, loading, channelId: CHANNEL_ID };
 }
 
+// ── ParsedBlock type ──────────────────────────────────────────────────────────
 type ParsedBlock =
   | { type: "text"; html: string }
-  | { type: "tweet"; url: string };
+  | { type: "tweet"; url: string }
+  | { type: "fullhtml"; html: string; styles: string; scopeId: string; rawHtml: string }
+  | { type: "journalhtml"; html: string; scopeId: string };
 
+// ── FullHtmlBlockProps type ───────────────────────────────────────────────────
+type FullHtmlBlockProps = {
+  body: string;
+  styles: string;
+  scopeId: string;
+  rawHtml: string;
+  journalHtml?: string;
+};
+
+// ── YouTube URL helpers ───────────────────────────────────────────────────────
+function _extractYouTubeId(url: string): string | null {
+  return (
+    url.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/)([\w-]{11})/)?.[1] || null
+  );
+}
+
+function _isYouTubeUrl(url: string): boolean {
+  return /(?:youtube\.com|youtu\.be)/i.test(url);
+}
+
+// ── injectYouTubeCards ────────────────────────────────────────────────────────
+function injectYouTubeCards(html: string): string {
+  const pWithYtLink = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+
+  return html.replace(pWithYtLink, (pMatch, inner) => {
+    const linkMatches = [...inner.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+
+    const ytLinks = linkMatches.filter(m => _isYouTubeUrl(m[1]));
+    if (ytLinks.length === 0) return pMatch;
+
+    let result = pMatch;
+
+    for (const linkMatch of ytLinks) {
+      const fullAnchor = linkMatch[0];
+      const href = linkMatch[1];
+      const videoId = _extractYouTubeId(href);
+      const thumbUrl = videoId
+        ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        : "";
+
+      let displayUrl = href;
+      try {
+        const u = new URL(href);
+        displayUrl = u.hostname.replace("www.", "") + u.pathname + (u.search.slice(0, 20) || "");
+        if (displayUrl.length > 38) displayUrl = displayUrl.slice(0, 36) + "…";
+      } catch {}
+
+      const cardHtml = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="yt-card-wrap" aria-label="Watch on YouTube">
+  <div class="yt-card">
+    <div class="yt-card-thumb">
+      ${thumbUrl
+        ? `<img src="${thumbUrl}" alt="YouTube thumbnail" loading="lazy" />`
+        : `<div style="width:100%;height:100%;background:#111;"></div>`
+      }
+      <div class="yt-card-play">
+        <div class="yt-card-play-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="white" style="margin-left:3px"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      </div>
+      <span class="yt-card-badge">▶ YouTube</span>
+    </div>
+    <div class="yt-card-info">
+      <div class="yt-card-yt-icon">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      </div>
+      <div class="yt-card-text">
+        <span class="yt-card-label">Tonton di YouTube</span>
+        <span class="yt-card-url">${displayUrl}</span>
+      </div>
+      <span class="yt-card-arrow">↗</span>
+    </div>
+  </div>
+</a>`;
+
+      result = result.replace(fullAnchor, cardHtml);
+    }
+
+    return result;
+  });
+}
+
+// ── isHtmlContent ─────────────────────────────────────────────────────────────
+function isFullHtmlDocument(text: string): boolean {
+  return /<!doctype\s+html/i.test(text) || /<html[\s>]/i.test(text);
+}
+
+function isHtmlContent(text: string): boolean {
+  return /<(p|h[1-6]|ul|ol|li|blockquote|strong|em|a|br|div|span|table|thead|tbody|tr|td|th|img|hr|pre|code)[^>]*>/i.test(text);
+}
+
+// ── extractBodyWithStyles ─────────────────────────────────────────────────────
+function extractBodyWithStyles(html: string): { body: string; styles: string } {
+  const styleBlocks: string[] = [];
+  const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+  let styleMatch: RegExpExecArray | null;
+  while ((styleMatch = styleRegex.exec(html)) !== null) {
+    styleBlocks.push(styleMatch[1]);
+  }
+
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let body = "";
+  if (bodyMatch) {
+    body = bodyMatch[1]
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .trim();
+  } else {
+    body = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<!doctype[^>]*>/gi, "")
+      .replace(/<html[^>]*>/gi, "")
+      .replace(/<\/html>/gi, "")
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+      .replace(/<body[^>]*>/gi, "")
+      .replace(/<\/body>/gi, "")
+      .trim();
+  }
+
+  const styles = styleBlocks.join("\n");
+  return { body, styles };
+}
+
+function fmtHtml(text: string): string {
+  if (isFullHtmlDocument(text)) {
+    const { body } = extractBodyWithStyles(text);
+    return injectYouTubeCards(body);
+  }
+  if (isHtmlContent(text)) {
+    return injectYouTubeCards(text);
+  }
+  return text
+    .replace(
+      /\*\*(.*?)\*\*/g,
+      `<strong class="font-black text-black dark:text-white">$1</strong>`
+    )
+    .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
+}
+
+// ── Default Journal CSS (cream/gold palette) ──────────────────────────────────
+const JOURNAL_CSS = `:root{--ink:#0d0d0d;--ink-mid:#1a1a1a;--ink-soft:#2c2c2c;--cream:#f5f0e8;--cream-deep:#ede6d6;--gold:#b8952a;--gold-light:#d4aa40;--rust:#8b3a2a;--steel:#4a5568;--mist:#9ca3af;--rule:#c9b882;--font-display:'Playfair Display',Georgia,serif;--font-body:'Cormorant Garamond',Georgia,serif;--font-mono:'Space Mono',monospace;}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}body{background:var(--cream);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.75;font-weight:300;-webkit-font-smoothing:antialiased;width:100%;max-width:100%;overflow-x:hidden;}img{display:block;max-width:100%;height:auto;}a{color:var(--gold);text-decoration:none;}a:hover{color:var(--rust);}.masthead{background:var(--ink);color:var(--cream);padding:0;position:relative;overflow:hidden;}.masthead::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.015) 2px,rgba(255,255,255,0.015) 4px);pointer-events:none;}.masthead-inner{max-width:100%;margin:0 auto;padding:0 1rem;}.masthead-topbar{display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid rgba(184,149,42,0.4);font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.12em;color:var(--mist);text-transform:uppercase;}.masthead-topbar .issue-tag{background:var(--gold);color:var(--ink);padding:0.2em 0.7em;font-weight:700;}.masthead-logo{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:3px double rgba(184,149,42,0.5);}.masthead-logo .journal-name{font-family:var(--font-display);font-size:clamp(2.8rem,7vw,5.5rem);font-weight:900;color:var(--cream);line-height:1;}.masthead-logo .journal-tagline{font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.3em;color:var(--gold);text-transform:uppercase;margin-top:0.5rem;}.hero{background:var(--ink);display:grid;grid-template-columns:1fr 1fr;}.hero-image{position:relative;overflow:hidden;min-height:280px;}.hero-image img{width:100%;height:100%;object-fit:cover;object-position:center top;filter:grayscale(30%) contrast(1.1);transition:transform 6s ease;}.hero-image:hover img{transform:scale(1.04);}.hero-image::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,transparent 60%,var(--ink));}.hero-content{padding:3.5rem 3rem 3.5rem 2.5rem;display:flex;flex-direction:column;justify-content:center;}.hero-category{font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.3em;color:var(--gold);text-transform:uppercase;margin-bottom:1.2rem;display:flex;align-items:center;gap:0.8rem;}.hero-category::before{content:'';display:block;width:30px;height:1px;background:var(--gold);}.hero-headline{font-family:var(--font-display);font-size:clamp(2rem,4vw,3.4rem);font-weight:700;color:var(--cream);line-height:1.15;margin-bottom:1.5rem;}.hero-headline em{font-style:italic;color:var(--gold-light);}.hero-deck{font-family:var(--font-body);font-size:1.05rem;color:rgba(245,240,232,0.75);line-height:1.6;font-style:italic;margin-bottom:2rem;border-left:2px solid var(--gold);padding-left:1rem;}.hero-byline{display:flex;align-items:center;gap:1rem;font-family:var(--font-mono);font-size:0.62rem;color:var(--mist);letter-spacing:0.1em;text-transform:uppercase;}.hero-byline .author-name{color:var(--gold-light);font-weight:700;}.journal-wrapper{max-width:100%;margin:0 auto;padding:0 1rem;}.rule-divider{display:flex;align-items:center;gap:1rem;padding:2rem 0;color:var(--rule);font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.25em;text-transform:uppercase;}.rule-divider::before,.rule-divider::after{content:'';flex:1;height:1px;background:linear-gradient(to right,transparent,var(--rule),transparent);}.section-opening{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid var(--ink);margin:2.5rem 0;}.opening-text{padding:2.8rem 2.5rem;border-right:1.5px solid var(--ink);}.opening-text p{font-size:1.12rem;line-height:1.8;margin-bottom:1.2rem;}.opening-image{position:relative;overflow:hidden;min-height:200px;}.opening-image img{width:100%;height:100%;object-fit:cover;filter:sepia(15%) contrast(1.05);}.opening-image .img-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(13,13,13,0.85));color:rgba(245,240,232,0.8);font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;padding:1.5rem 1rem 0.8rem;}.pull-quote-box{border:1.5px solid var(--ink);margin:2.5rem 0;padding:2.5rem 3rem;background:var(--ink);position:relative;}.pull-quote-box blockquote{font-family:var(--font-display);font-size:clamp(1.4rem,3vw,2rem);font-style:italic;color:var(--cream);line-height:1.45;position:relative;z-index:1;}.pull-quote-box cite{display:block;font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-top:1.2rem;font-style:normal;}.three-col-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid var(--ink);margin:2.5rem 0;}.col-box{padding:2rem 1.8rem;border-right:1.5px solid var(--ink);}.col-box:last-child{border-right:none;}.col-box h3{font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid var(--rule);}.col-box p{font-size:0.95rem;line-height:1.7;color:var(--ink-soft);}.image-strip{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--ink);margin:2.5rem 0;}.strip-item{position:relative;overflow:hidden;border-right:1.5px solid var(--ink);aspect-ratio:3/4;}.strip-item:last-child{border-right:none;}.strip-item img{width:100%;height:100%;object-fit:cover;filter:grayscale(20%);}.strip-item .strip-label{position:absolute;bottom:0;left:0;right:0;background:var(--ink);color:var(--gold);font-family:var(--font-mono);font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;padding:0.5rem;text-align:center;}.body-section{border:1.5px solid var(--ink);display:grid;grid-template-columns:2fr 1fr;gap:0;margin:2.5rem 0;}.body-main{padding:2.8rem 2.5rem;border-right:1.5px solid var(--ink);}.body-main h2{font-family:var(--font-display);font-size:1.9rem;font-weight:700;margin-bottom:1.2rem;}.body-main p{font-size:1.05rem;line-height:1.85;margin-bottom:1.3rem;color:var(--ink-soft);}.body-sidebar{padding:2.5rem 1.8rem;background:var(--cream-deep);display:flex;flex-direction:column;gap:2rem;}.sidebar-fact{border-left:3px solid var(--gold);padding-left:1rem;}.sidebar-fact .fact-num{font-family:var(--font-display);font-size:2.5rem;font-weight:900;color:var(--gold);line-height:1;}.sidebar-fact .fact-label{font-family:var(--font-mono);font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--steel);margin-top:0.3rem;}.sidebar-fact .fact-desc{font-size:0.88rem;color:var(--ink-soft);line-height:1.5;margin-top:0.5rem;}.full-width-image{border:1.5px solid var(--ink);margin:2.5rem 0;position:relative;overflow:hidden;}.full-width-image img{width:100%;aspect-ratio:16/7;object-fit:cover;object-position:center 30%;filter:contrast(1.05) saturate(0.9);}.full-width-image .overlay-text{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(13,13,13,0.9) 60%);padding:4rem 3rem 2rem;}.full-width-image .overlay-text h2{font-family:var(--font-display);font-size:clamp(1.5rem,4vw,2.8rem);font-weight:900;color:var(--cream);letter-spacing:-0.02em;line-height:1.2;}.full-width-image .overlay-text h2 em{color:var(--gold-light);font-style:italic;}.two-col-story{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--ink);margin:2.5rem 0;}.story-image{overflow:hidden;min-height:200px;}.story-image img{width:100%;height:100%;object-fit:cover;}.story-text{padding:2.5rem 2.2rem;border-left:1.5px solid var(--ink);display:flex;flex-direction:column;justify-content:center;}.story-text h2{font-family:var(--font-display);font-size:1.7rem;font-weight:700;margin-bottom:1.2rem;line-height:1.25;}.story-text p{font-size:1rem;line-height:1.8;color:var(--ink-soft);margin-bottom:1.1rem;}.twitter-grid{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--ink);margin:2.5rem 0;}.twitter-box{padding:2rem 1.8rem;border-right:1.5px solid var(--ink);background:var(--cream-deep);}.twitter-box:last-child{border-right:none;background:var(--ink);}.tw-card{border:1px solid rgba(0,0,0,0.15);border-radius:2px;padding:1.2rem;background:white;margin-bottom:0.8rem;}.gallery-grid{display:grid;grid-template-columns:1fr 1fr 1fr;border:1.5px solid var(--ink);margin:2.5rem 0;}.gallery-item{overflow:hidden;border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);}.gallery-item:nth-child(3n){border-right:none;}.gallery-item:nth-last-child(-n+3){border-bottom:none;}.gallery-item.span-2{grid-column:span 2;}.gallery-item img{width:100%;height:260px;object-fit:cover;}.essay-block{border:1.5px solid var(--ink);margin:2.5rem 0;}.essay-header{padding:1.5rem 2.5rem;background:var(--ink);border-bottom:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:center;}.essay-header h2{font-family:var(--font-display);font-size:1.4rem;font-weight:700;font-style:italic;color:var(--cream);}.essay-body{padding:2.5rem;}.essay-body p{font-size:1.08rem;line-height:1.9;margin-bottom:1.4rem;color:var(--ink-soft);}.essay-body .italic-line{font-style:italic;color:var(--gold);font-size:1.12rem;font-family:var(--font-display);}.final-image-row{display:grid;grid-template-columns:3fr 2fr;border:1.5px solid var(--ink);margin:2.5rem 0;}.final-image-row .img-left{overflow:hidden;min-height:200px;}.final-image-row .img-left img{width:100%;height:100%;object-fit:cover;}.final-image-row .img-right-stack{display:flex;flex-direction:column;border-left:1.5px solid var(--ink);}.final-image-row .img-right-stack .img-top{border-bottom:1.5px solid var(--ink);overflow:hidden;flex:1;}.final-image-row .img-right-stack .img-top img{width:100%;height:100%;object-fit:cover;}.final-image-row .img-right-stack .img-bottom{overflow:hidden;flex:1;}.final-image-row .img-right-stack .img-bottom img{width:100%;height:100%;object-fit:cover;} .article-footer{border:1.5px solid var(--ink);margin:2.5rem 0 0.5rem;background:var(--ink);padding:2.5rem;display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:start;}.article-footer h4{font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--cream);margin-bottom:0.5rem;}.article-footer .author-role{font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;}.article-footer p{font-size:0.9rem;color:rgba(245,240,232,0.75);line-height:1.7;}.article-footer .tags-list{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:1rem;}.article-footer .tag{font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;padding:0.3em 0.8em;border:1px solid rgba(184,149,42,0.5);color:var(--gold);}.section-title-box{border:1.5px solid var(--ink);border-bottom:none;padding:1rem 2rem;background:var(--cream-deep);display:flex;align-items:center;gap:1.5rem;}.reading-meta{display:flex;align-items:center;gap:1.5rem;padding:0.8rem 0;font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--steel);}.drop-cap::first-letter{font-family:var(--font-display);font-size:5rem;font-weight:900;float:left;line-height:0.75;margin:0.1em 0.12em 0 0;color:var(--gold);border-bottom:3px solid var(--gold);padding-bottom:0.05em;}.tw-header{display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;}.tw-icon{width:18px;height:18px;flex-shrink:0;}.tw-label{font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);}.tw-handle{font-family:var(--font-mono);font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:0.4rem;}.tw-text{font-size:0.9rem;line-height:1.6;color:#1a1a1a;margin-bottom:0.5rem;}.tw-date{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.6rem;color:#666;}.tw-link{color:var(--gold);text-decoration:none;}.col-number{font-family:var(--font-mono);font-size:2.5rem;font-weight:700;color:var(--cream-deep);line-height:1;margin-bottom:0.5rem;-webkit-text-stroke:1.5px var(--ink);}@media(max-width:700px){.hero{grid-template-columns:1fr;}.hero-image{min-height:200px;}.section-opening,.body-section,.two-col-story{grid-template-columns:1fr;}.opening-text{border-right:none;border-bottom:1.5px solid var(--ink);}.story-text{border-left:none;border-top:1.5px solid var(--ink);}.body-sidebar{border-top:1.5px solid var(--ink);}.three-col-grid{grid-template-columns:1fr;}.col-box{border-right:none;border-bottom:1.5px solid var(--ink);}.col-box:last-child{border-bottom:none;}.image-strip{grid-template-columns:1fr 1fr;}.strip-item:nth-child(2n){border-right:none;}.twitter-grid{grid-template-columns:1fr;}.twitter-box{border-right:none;border-bottom:1.5px solid var(--ink);}.gallery-grid{grid-template-columns:1fr 1fr;}.gallery-item.span-2{grid-column:span 2;}.final-image-row{grid-template-columns:1fr;}.final-image-row .img-right-stack{border-left:none;border-top:1.5px solid var(--ink);flex-direction:row;}.final-image-row .img-right-stack .img-top{border-right:1.5px solid var(--ink);border-bottom:none;}.article-footer{grid-template-columns:1fr;}}@media(max-width:860px){.hero{grid-template-columns:1fr;}.section-opening,.body-section,.two-col-story{grid-template-columns:1fr;}.three-col-grid{grid-template-columns:1fr;}.image-strip{grid-template-columns:1fr 1fr;}.twitter-grid{grid-template-columns:1fr;}.gallery-grid{grid-template-columns:1fr 1fr;}.final-image-row{grid-template-columns:1fr;}.article-footer{grid-template-columns:1fr;}}@media(max-width:560px){body{font-size:16px;}.gallery-grid{grid-template-columns:1fr;}}`;
+
+// ── Theme selector — picks CSS based on class name found in HTML fragment ─────
+function _selectJournalCss(html: string): string {
+  if (/journal-theme-ocean/i.test(html))  return JOURNAL_CSS_OCEAN;
+  if (/journal-theme-forest/i.test(html)) return JOURNAL_CSS_FOREST;
+  if (/journal-theme-rose/i.test(html))   return JOURNAL_CSS_ROSE;
+  if (/journal-theme-slate/i.test(html))  return JOURNAL_CSS_SLATE;
+  if (/journal-theme-ember/i.test(html))  return JOURNAL_CSS_EMBER;
+  if (/journal-theme-dusk/i.test(html))   return JOURNAL_CSS_DUSK;
+  if (/journal-theme-noir/i.test(html))   return JOURNAL_CSS_NOIR;
+  if (/journal-theme-sage/i.test(html))   return JOURNAL_CSS_SAGE;
+  return JOURNAL_CSS;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FullHtmlBlock — renders full HTML document content inside a sandboxed iframe.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FullHtmlBlock({ body, styles, scopeId, rawHtml, journalHtml }: FullHtmlBlockProps) {
+  const iframeRef = _uR<HTMLIFrameElement>(null);
+  const [iframeHeight, setIframeHeight] = _s<number>(0);
+
+  // Inject Google Fonts ke parent document
+  _e(() => {
+    const fontsNeeded = [
+      "Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600",
+      "Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400",
+      "Space+Mono:wght@400;700",
+    ];
+    fontsNeeded.forEach((font) => {
+      const href = `https://fonts.googleapis.com/css2?family=${font}&display=swap`;
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href;
+        document.head.appendChild(link);
+      }
+    });
+  }, []);
+
+  const srcdoc = _uM(() => {
+    const heightScript = `<script>
+(function(){
+  var lastH = 0;
+  var stableCount = 0;
+  var STABLE_THRESHOLD = 3;
+  var scopeId = '${scopeId}';
+  var roActive = true;
+
+  function send(h) {
+    if (!h || h < 20) return;
+    if (Math.abs(h - lastH) < 2) {
+      stableCount++;
+      return;
+    }
+    lastH = h;
+    stableCount = 0;
+    window.parent.postMessage({ type: 'iframeHeight', scopeId: scopeId, height: h }, '*');
+  }
+
+  function measure() {
+    var body  = document.body;
+    var docEl = document.documentElement;
+    if (!body) return 0;
+    var h = Math.max(
+      body.offsetHeight   || 0,
+      docEl.offsetHeight  || 0
+    );
+    if (h === 0) {
+      h = Math.max(body.scrollHeight || 0, docEl.scrollHeight || 0);
+    }
+    return Math.ceil(h);
+  }
+
+  function poll() {
+    if (stableCount >= STABLE_THRESHOLD) return;
+    var h = measure();
+    if (h > 0) send(h);
+  }
+
+  function setupObserver() {
+    if (typeof ResizeObserver === 'undefined') return;
+    var ro = new ResizeObserver(function(entries) {
+      if (!roActive) return;
+      var bodyEntry = entries.find(function(e){ return e.target === document.body; });
+      if (!bodyEntry) return;
+      requestAnimationFrame(function(){
+        var h = measure();
+        if (Math.abs(h - lastH) > 4) {
+          stableCount = 0;
+          send(h);
+        }
+      });
+    });
+    if (document.body) ro.observe(document.body);
+  }
+
+  function watchImages() {
+    function attachToImg(img) {
+      if (img.complete) {
+        setTimeout(poll, 50);
+      } else {
+        img.addEventListener('load',  function() { stableCount = 0; setTimeout(poll, 50); }, { once: true });
+        img.addEventListener('error', function() { setTimeout(poll, 50); }, { once: true });
+      }
+    }
+    var imgs = document.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) attachToImg(imgs[i]);
+
+    if (typeof MutationObserver !== 'undefined') {
+      var mo = new MutationObserver(function(mutations) {
+        for (var m = 0; m < mutations.length; m++) {
+          var added = mutations[m].addedNodes;
+          for (var n = 0; n < added.length; n++) {
+            var node = added[n];
+            if (node.nodeName === 'IMG') attachToImg(node);
+            if (node.querySelectorAll) {
+              var nested = node.querySelectorAll('img');
+              for (var k = 0; k < nested.length; k++) attachToImg(nested[k]);
+            }
+          }
+        }
+      });
+      mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  function waitFonts(cb) {
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function() { cb(); });
+    } else {
+      setTimeout(cb, 400);
+    }
+  }
+
+  function init() {
+    poll();
+    requestAnimationFrame(poll);
+    setupObserver();
+    watchImages();
+    waitFonts(function() {
+      stableCount = 0;
+      poll();
+      requestAnimationFrame(poll);
+    });
+
+    var pollTimes = [100, 300, 600, 1000, 1600, 2400, 3500, 5000];
+    for (var t = 0; t < pollTimes.length; t++) {
+      (function(delay){ 
+        setTimeout(function(){ 
+          if (stableCount < STABLE_THRESHOLD) poll(); 
+        }, delay); 
+      })(pollTimes[t]);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { init(); }, { once: true });
+  } else {
+    init();
+  }
+
+  window.addEventListener('load', function() {
+    stableCount = 0;
+    poll();
+    setTimeout(poll, 300);
+    setTimeout(poll, 1000);
+  }, { once: true });
+})();
+<\/script>`;
+
+    // ── Case 1: Journal HTML fragment — inject theme-selected CSS ────────────
+    if (journalHtml) {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>${_selectJournalCss(journalHtml)}</style>
+</head>
+<body>
+${journalHtml}
+${heightScript}
+</body>
+</html>`;
+    }
+
+    const isFullDoc = /<!doctype\s+html/i.test(rawHtml) || /<html[\s>]/i.test(rawHtml);
+
+    if (isFullDoc) {
+      if (/<\/body>/i.test(rawHtml)) {
+        return rawHtml.replace(/<\/body>/i, `${heightScript}</body>`);
+      }
+      return rawHtml + heightScript;
+    }
+
+    // Plain HTML fragment: wrap in full HTML shell with injected styles
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Cormorant Garamond',Georgia,serif;}
+img{max-width:100%;height:auto;display:block;}
+${styles}
+</style>
+</head>
+<body>
+${body}
+${heightScript}
+</body>
+</html>`;
+  }, [rawHtml, body, styles, scopeId, journalHtml]);
+
+  // ── Listener postMessage ──────────────────────────────────────────────────
+  _e(() => {
+    const handler = (ev: MessageEvent) => {
+      if (
+        ev.data &&
+        ev.data.type === "iframeHeight" &&
+        ev.data.scopeId === scopeId &&
+        typeof ev.data.height === "number" &&
+        ev.data.height > 20
+      ) {
+        setIframeHeight((prev) => {
+          const next = Math.ceil(ev.data.height);
+          if (Math.abs(next - prev) < 4) return prev;
+          if (next < prev && prev - next < 20) return prev;
+          return next;
+        });
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [scopeId]);
+
+  return (
+    <div
+      data-db-scope={scopeId}
+      className="db-html-document-wrapper w-full"
+      style={{ contain: "layout", willChange: "contents" }}
+    >
+      <iframe
+        ref={iframeRef}
+        srcDoc={srcdoc}
+        title="Article layout content"
+        sandbox="allow-scripts allow-popups allow-forms allow-top-navigation-by-user-activation"
+        style={{
+          width: "100%",
+          height: iframeHeight > 0 ? `${iframeHeight}px` : "1px",
+          minHeight: iframeHeight > 0 ? 0 : "100vh",
+          border: "none",
+          display: "block",
+          overflow: "hidden",
+        }}
+        scrolling="no"
+        aria-label="Article layout content"
+      />
+    </div>
+  );
+}
+
+// ── parseParagraphs ───────────────────────────────────────────────────────────
 function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
   const result: ParsedBlock[] = [];
 
@@ -386,6 +815,32 @@ function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
 
   for (const raw of paragraphs) {
     const trimmed = raw.trim();
+    if (!trimmed) continue;
+
+    if (isFullHtmlDocument(trimmed)) {
+      const { body, styles } = extractBodyWithStyles(trimmed);
+      const hash = Array.from(trimmed.slice(0, 128))
+        .reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)
+        .toString(36)
+        .replace(/-/g, "n");
+      const scopeId = `dbscope_${hash}`;
+      result.push({ type: "fullhtml", html: body, styles, scopeId, rawHtml: trimmed });
+      continue;
+    }
+
+    if (isHtmlContent(trimmed)) {
+      if (needsJournalIframe(trimmed)) {
+        const hash = Array.from(trimmed.slice(0, 128))
+          .reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)
+          .toString(36)
+          .replace(/-/g, "n");
+        const scopeId = `jscope_${hash}`;
+        result.push({ type: "journalhtml", html: trimmed, scopeId });
+      } else {
+        result.push({ type: "text", html: fmtHtml(trimmed) });
+      }
+      continue;
+    }
 
     const standaloneMatch = trimmed.match(standaloneTweetRe);
     if (standaloneMatch) {
@@ -415,14 +870,16 @@ function parseParagraphs(paragraphs: string[]): ParsedBlock[] {
   return result;
 }
 
-function fmtHtml(text: string): string {
-  if (/<[a-zA-Z!]/.test(text)) return text;
-  return text
-    .replace(
-      /\*\*(.*?)\*\*/g,
-      `<strong class="font-black text-black dark:text-white">$1</strong>`
-    )
-    .replace(/\*(.*?)\*/g, `<em class="italic text-red-700">$1</em>`);
+// ── needsJournalIframe ────────────────────────────────────────────────────────
+// Detect HTML fragments that use journal layout classes (including all 8 themes)
+// and therefore need to be rendered inside an iframe with journal CSS injected.
+function needsJournalIframe(html: string): boolean {
+  const journalPatterns = [
+    /class=["'][^"']*(?:masthead|hero|section-opening|pull-quote|three-col-grid|image-strip|body-section|gallery-grid|essay-block|article-footer|journal-wrapper|rule-divider|drop-cap)/,
+    /class=["'][^"']*journal/,
+    /journal-theme-(?:ocean|forest|rose|slate|ember|dusk|noir|sage)/,
+  ];
+  return journalPatterns.some(pattern => pattern.test(html));
 }
 
 function safeBlobRevoke(url: string | null) {
@@ -631,12 +1088,6 @@ function ClashRoyaleSEONode() {
 
 function DanaWidget() {
   const [_sent, _setSent] = _s(false);
-
-  const _handleSend = (link: string) => {
-    window.open(link, "_blank", "noopener,noreferrer");
-    _setSent(true);
-    toast.success("Membuka DANA — Terima kasih!");
-  };
 
   return (
     <div
@@ -1154,63 +1605,6 @@ function ClashRoyaleWidget() {
         </div>
       </div>
 
-      <div className="px-3 pb-2">
-        <div
-          className="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-gradient-to-b from-[#001530] via-[#002244] to-[#003366] flex flex-col items-center justify-center p-10 text-center gap-5"
-          style={{ minHeight: 320 }}
-        >
-          <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden="true">
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#00C3FF] blur-[80px] animate-pulse" />
-            <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full bg-[#0070DD] blur-[60px] animate-pulse delay-700" />
-          </div>
-
-          <div className="relative z-10 flex flex-col items-center gap-5">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-xl border-2 border-[#CC8800]">
-                <_Sw size={36} className="text-white drop-shadow-lg" aria-hidden="true" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#00C3FF] flex items-center justify-center border-2 border-white shadow-md">
-                <span className="text-[12px]" aria-hidden="true">👑</span>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-[16px] font-black uppercase text-white tracking-tight mb-1">
-                {CR_PLAYER_NAME}
-              </h4>
-              <p className="text-[11px] font-bold text-[#00C3FF] uppercase tracking-[0.2em]">
-                #{CR_PLAYER_TAG}
-              </p>
-            </div>
-
-            <p className="text-[11px] font-serif italic text-neutral-400 leading-relaxed max-w-[240px]">
-              View recent battles, deck stats & trophies on RoyaleAPI ⚔️
-            </p>
-
-            <div className="flex flex-col gap-3 w-full max-w-[220px]">
-              <a
-                href={CR_ROYALEAPI_BATTLES}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`View battle log for ${CR_PLAYER_NAME} on RoyaleAPI`}
-                className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0070DD] to-[#00C3FF] text-white font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-              >
-                <_Sw size={14} aria-hidden="true" /> View Battles
-              </a>
-              <a
-                href={CR_ADD_FRIEND_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Add ${CR_PLAYER_NAME} as friend in Clash Royale`}
-                className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-              >
-                <_Up size={14} aria-hidden="true" /> Add Friend
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="px-6 pb-5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
         <div className="flex flex-col gap-2">
           <a
@@ -1421,6 +1815,15 @@ function CommentSectionInner({
   const [_localComments, _setLocalComments] = _s<_Cu[]>([]);
   const [_blobCache, _sBlobCache] = _s<Record<string, string>>({});
 
+  const _blobCacheRef = _uR<Record<string, string>>({});
+
+  _e(() => {
+    return () => {
+      Object.values(_blobCacheRef.current).forEach(safeBlobRevoke);
+      _blobCacheRef.current = {};
+    };
+  }, []);
+
   const _hydrateAvatar = async (url: string | null | undefined, userId: string) => {
     if (!url || url.startsWith("blob:") || _blobCache[userId]) return;
     try {
@@ -1429,12 +1832,14 @@ function CommentSectionInner({
       const blob = await response.blob();
       const optimized = await _wTI(blob, _fmt, 0.4);
       const blobUrl = URL.createObjectURL(optimized);
+      _blobCacheRef.current[userId] = blobUrl;
       _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
     } catch (e) {
       try {
         const response = await fetch(url);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
+        _blobCacheRef.current[userId] = blobUrl;
         _sBlobCache((prev) => ({ ...prev, [userId]: blobUrl }));
       } catch (err) {}
     }
@@ -1726,12 +2131,81 @@ function _MotionCaptureSign() {
   );
 }
 
+// ── ArticleContentBlock ───────────────────────────────────────────────────────
+function ArticleContentBlock({
+  block,
+  index,
+}: {
+  block: ParsedBlock;
+  index: number;
+}) {
+  if (block.type === "tweet") {
+    return (
+      <div
+        key={`para-tweet-${index}`}
+        className="my-10 md:my-14"
+        itemScope
+        itemType="https://schema.org/SocialMediaPosting"
+      >
+        <meta itemProp="url" content={block.url} />
+        <Suspense fallback={<div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />}>
+          <TwitterEmbed url={block.url} align="center" />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (block.type === "fullhtml") {
+    return (
+      <div
+        key={`para-fullhtml-${index}`}
+        className="w-full my-6 md:my-10"
+      >
+        <FullHtmlBlock
+          body={block.html}
+          styles={block.styles}
+          scopeId={block.scopeId}
+          rawHtml={block.rawHtml}
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "journalhtml") {
+    return (
+      <div
+        key={`para-jhtml-${index}`}
+        className="w-full my-4 md:my-6"
+      >
+        <FullHtmlBlock
+          body={block.html}
+          styles=""
+          scopeId={block.scopeId}
+          rawHtml=""
+          journalHtml={block.html}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      key={`para-text-${index}`}
+      className="prose prose-neutral dark:prose-invert prose-lg md:prose-xl max-w-none mb-8 md:mb-10 font-serif text-neutral-800 dark:text-neutral-300 [&>p]:leading-[1.8] [&>p]:md:leading-[1.85] [&>h1]:font-black [&>h2]:font-black [&>h3]:font-black [&>ul]:list-disc [&>ol]:list-decimal [&>blockquote]:border-l-4 [&>blockquote]:border-red-600 [&>blockquote]:pl-4 [&>blockquote]:italic [&>a]:text-red-600 [&>a]:underline [&>img]:rounded-xl [&>img]:shadow-lg [&>pre]:rounded-xl [&>code]:bg-neutral-100 [&>code]:dark:bg-neutral-900 [&>code]:px-1 [&>code]:rounded"
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: block.html }}
+    />
+  );
+}
+
 export default function ArticleDetail() {
   const { slug: _sl } = _uP<{ slug: string }>();
   const _slV = _sl ?? "unknown";
 
   const [_blobUrl, _setBlobUrl] = _s<string | null>(null);
   const [_blurUrl, _setBlurUrl] = _s<string | null>(null);
+
+  const _liveCoverBlobRef = _uR<string | null>(null);
 
   const [_isOff, _sOff] = _s(false);
   const [_iS, _siS] = _s(false);
@@ -1746,10 +2220,14 @@ export default function ArticleDetail() {
 
   const { processedData: _pD, isLoading: _iL, article: _art } = _uAD();
 
+  // ── _allMedia: split media URLs, replace empty slots with GIF_FALLBACK ──────
   const _allMedia = _uM(() => {
     const sourceStr = _art?.featured_image_url || _art?.featured_image;
     if (!sourceStr) return [];
-    return sourceStr.split(/[\r\n]+/).filter(Boolean);
+    return sourceStr
+      .split(/[\r\n]+/)
+      .map((u) => u.trim() || GIF_FALLBACK)
+      .filter(Boolean);
   }, [_art?.featured_image_url, _art?.featured_image]);
 
   const _rawImgSource = _uM(
@@ -1907,13 +2385,25 @@ export default function ArticleDetail() {
     let _active = true;
     let _createdBlobUrls: string[] = [];
 
+    const _setLive = (url: string) => {
+      if (
+        _liveCoverBlobRef.current &&
+        _liveCoverBlobRef.current.startsWith("blob:") &&
+        _liveCoverBlobRef.current !== url
+      ) {
+        safeBlobRevoke(_liveCoverBlobRef.current);
+      }
+      _liveCoverBlobRef.current = url;
+      _setBlobUrl(url);
+    };
+
     (async () => {
       try {
         const cached = await getAssetFromShared(`cover_${_slV}`);
         if (cached && _active) {
           const url = URL.createObjectURL(cached);
           _createdBlobUrls.push(url);
-          _setBlobUrl(url);
+          _setLive(url);
           return;
         }
 
@@ -1949,7 +2439,7 @@ export default function ArticleDetail() {
           }
         }
 
-        if (_active) _setBlobUrl(final);
+        if (_active) _setLive(final);
       } catch (e) {
         if (_active) _setBlobUrl(_rawImgSource);
       }
@@ -1957,9 +2447,20 @@ export default function ArticleDetail() {
 
     return () => {
       _active = false;
-      _createdBlobUrls.forEach(safeBlobRevoke);
+      _createdBlobUrls
+        .filter((u) => u !== _liveCoverBlobRef.current)
+        .forEach(safeBlobRevoke);
     };
   }, [_rawImgSource, _slV]);
+
+  _e(() => {
+    return () => {
+      if (_liveCoverBlobRef.current && _liveCoverBlobRef.current.startsWith("blob:")) {
+        safeBlobRevoke(_liveCoverBlobRef.current);
+        _liveCoverBlobRef.current = null;
+      }
+    };
+  }, []);
 
   _e(() => {
     if (_art?.id && !_hasTracked) {
@@ -2215,8 +2716,11 @@ export default function ArticleDetail() {
           )}
           <div itemProp="articleBody">
             {_parsedParagraphs.map((block, i) => {
-              if (block.type === "text") {
+              if (block.type === "text" || block.type === "fullhtml") {
                 return <p key={`seo-para-${i}`} dangerouslySetInnerHTML={{ __html: block.html }} />;
+              }
+              if (block.type === "journalhtml") {
+                return <p key={`seo-jhtml-${i}`} dangerouslySetInnerHTML={{ __html: block.html }} />;
               }
               return (
                 <a key={`seo-tweet-${i}`} href={block.url} rel="noopener noreferrer" tabIndex={-1}>
@@ -2387,31 +2891,9 @@ export default function ArticleDetail() {
               </Suspense>
 
               <div className="max-w-[840px] mx-auto">
-                {_parsedParagraphs.map((block, i) => {
-                  if (block.type === "tweet") {
-                    return (
-                      <div
-                        key={`para-tweet-${i}`}
-                        className="my-10 md:my-14"
-                        itemScope
-                        itemType="https://schema.org/SocialMediaPosting"
-                      >
-                        <meta itemProp="url" content={block.url} />
-                        <Suspense fallback={<div className="h-32 w-full max-w-[550px] mx-auto bg-neutral-100 dark:bg-neutral-900 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />}>
-                          <TwitterEmbed url={block.url} align="center" />
-                        </Suspense>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={`para-text-${i}`}
-                      className="text-[18px] md:text-[22px] leading-[1.8] md:leading-[1.85] mb-8 md:mb-10 font-serif text-neutral-800 dark:text-neutral-300"
-                      dangerouslySetInnerHTML={{ __html: block.html }}
-                    />
-                  );
-                })}
+                {_parsedParagraphs.map((block, i) => (
+                  <ArticleContentBlock key={`block-${i}`} block={block} index={i} />
+                ))}
               </div>
 
               {_allTweetUrls.length > 0 && (

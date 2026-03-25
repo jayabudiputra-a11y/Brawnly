@@ -1,0 +1,93 @@
+# Brawnly
+
+> Brawnly adalah media digital berbahasa Indonesia yang membahas teknologi, sains, fitness, dan budaya internet — ditulis oleh Budi Putra Jaya (alias deulo).
+
+Situs ini menerbitkan artikel panjang berformat editorial dengan embedding konten multimedia (YouTube Shorts, video MP4, tweet, galeri gambar, GIF animasi). Artikel ditulis dalam Bahasa Indonesia dan ditujukan untuk pembaca yang tertarik pada sains terapan, open-source, gaming, dan gaya hidup digital.
+
+## Halaman Utama
+
+- [Beranda](https://www.brawnly.online): Artikel terbaru dan konten pilihan
+- [Semua Artikel](https://www.brawnly.online/articles): Arsip lengkap artikel
+- [Detail Artikel](https://www.brawnly.online/article/{slug}): Format URL — /article/[slug-artikel]
+- [Lisensi Konten](https://www.brawnly.online/license): Informasi lisensi gambar dan konten
+
+## Topik yang Dibahas
+
+- **Teknologi**: WiFi DensePose, open-source, AI, privasi digital, computer vision
+- **Fitness & Kesehatan**: Olahraga, tubuh manusia, biomekanik, pose estimation
+- **Gaming**: Clash Royale, strategi, statistik pemain, battle log
+- **Sains Terapan**: Signal processing, machine learning, real-time systems
+- **Budaya Internet**: Media sosial, konten kreator, digital lifestyle
+
+## Contoh Artikel
+
+- [WiFi DensePose: Melacak Tubuh Manusia Menembus Tembok, Tanpa Kamera](https://deulo.substack.com/p/wifi-densepose-melacak-tubuh-manusia): Proyek open-source yang menggunakan sinyal WiFi biasa untuk mengestimasi pose tubuh secara real-time — mengubah cara kita memandang privasi dan keamanan.
+
+## Penulis / Publisher
+
+- **Nama lengkap**: Budi Putra Jaya
+- **Alias**: deulo
+- **Brand**: Brawnly
+- **Situs**: https://www.brawnly.online
+- **Bahasa konten**: Bahasa Indonesia (id-ID)
+- **Jenis konten**: Artikel editorial panjang, eksplanasi teknologi, opini berbasis riset
+- **Lisensi konten**: Creative Commons BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+- **Copyright**: © 2026 Budi Putra Jaya. All rights reserved.
+
+## Profil Media Sosial
+
+- [Instagram](https://www.instagram.com/deul.umm/): @deul.umm
+- [YouTube](https://www.youtube.com/@rudayaDIR): @rudayaDIR — Channel ID: UCCtKrAzh4V8u573Is973jzA — video dan YouTube Shorts
+- [Substack](https://deulo.substack.com): Newsletter & artikel panjang — RSS: https://deulo.substack.com/feed
+- [Pinterest](https://ru.pinterest.com/mustbeloveonthebrain/): Kurasi visual oleh mustbeloveonthebrain
+
+## Gaming — Clash Royale
+
+- **Nama pemain**: bmjpdam9
+- **Tag**: #RY9J2RC2Y
+- **ID**: 7-54051567
+- **Level**: 53 — 109K+ Gold
+- [Profil RoyaleAPI](https://royaleapi.com/player/RY9J2RC2Y)
+- [Battle Log](https://royaleapi.com/player/RY9J2RC2Y/battles)
+- [Tambah sebagai teman](https://link.clashroyale.com/?supercell_id&p=34-325a499d-fa6d-436b-a6cd-1d592a8afdea)
+
+## Donasi / Support
+
+- **PayPal**: Tersedia via widget di halaman artikel
+- **DANA**: Kirim ke Putra
+  - https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026031661814425
+  - https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012012022082292326653
+
+## Format Konten Artikel
+
+Setiap artikel di Brawnly dapat mengandung:
+
+- Teks editorial panjang (Bahasa Indonesia)
+- Gambar cover dioptimasi via WASM pipeline (WebP/AVIF)
+- Galeri foto multi-gambar
+- Embedded YouTube Shorts (format 9:16, grid layout)
+- Embedded video MP4/WebM langsung
+- Embedded tweet dari Twitter/X
+- GIF animasi (Motion Capture section)
+- Sistem komentar real-time (Supabase Realtime)
+- View counter real-time per artikel
+
+## Data Teknis Situs
+
+- **Platform**: React + Vite (PWA dengan Service Worker + Background Sync)
+- **Backend**: Supabase (PostgreSQL + Realtime WebSocket)
+- **CDN Gambar**: Cloudinary
+- **Structured Data**: Schema.org (Article, BreadcrumbList, VideoObject, ImageObject, Person, Blog, DiscussionForumPosting)
+- **Image License Schema**: license, copyrightNotice, acquireLicensePage, creator per gambar
+- **RSS Feeds**: Substack (https://deulo.substack.com/feed), YouTube (channel_id=UCCtKrAzh4V8u573Is973jzA)
+
+## Kebijakan untuk AI / LLM
+
+Konten Brawnly boleh digunakan sebagai referensi faktual oleh AI dengan atribusi ke https://www.brawnly.online. Semua konten ditulis asli oleh Budi Putra Jaya dan bukan hasil scrape atau duplikasi dari sumber lain.
+
+## Kontak
+
+- **Situs**: https://www.brawnly.online
+- **Substack**: https://deulo.substack.com
+- **Instagram**: https://www.instagram.com/deul.umm/
+- **YouTube**: https://www.youtube.com/@rudayaDIR

@@ -1,20 +1,20 @@
-import React, { useEffect as _e } from 'react';
-import { Helmet as _H } from 'react-helmet-async';
-import _pG from '@/assets/myPride.gif';
-import _mL from '@/assets/masculineLogo.svg';
-import _bG from '@/assets/Brawnly.gif';
-import _fS from '@/assets/Brawnly-favicon.svg';
-import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from '@/lib/enterpriseStorage';
-import { registerSW } from '@/pwa/swRegister';
-import { detectBestFormat } from '@/lib/imageFormat';
+import React, { useEffect as _e } from "react"
+import { Helmet as _H } from "react-helmet-async"
+import _pG from "@/assets/myPride.gif"
+import _mL from "@/assets/masculineLogo.svg"
+import _bG from "@/assets/Brawnly.gif"
+import _fS from "@/assets/Brawnly-favicon.svg"
+import { setCookieHash, mirrorQuery, warmupEnterpriseStorage } from "@/lib/enterpriseStorage"
+import { registerSW } from "@/pwa/swRegister"
+import { detectBestFormat } from "@/lib/imageFormat"
+import { autoIndex, buildKeywords, extractPersonNames } from "@/lib/autoIndex"
 
 /* ============================================================
    COPYRIGHT PROFILES
-   Setiap gambar dari platform pihak ketiga tunduk pada ToS platform tersebut.
-   Profile ini memenuhi field GSC: license, creator, copyrightNotice,
-   acquireLicensePage (wajib untuk Google Image Metadata rich results).
-   Blog ini menggunakan konten dari IG, TikTok, Tumblr, dll. sebagai
-   sumber editorial — setiap gambar dikreditkan ke platform asalnya.
+   Setiap gambar dari platform pihak ketiga tunduk pada ToS
+   platform tersebut. Profile ini memenuhi field GSC:
+   license, creator, copyrightNotice, acquireLicensePage,
+   creditText — wajib untuk Google Image Metadata rich results.
    ============================================================ */
 const _SITE_URL        = "https://www.brawnly.online"
 const _SITE_NAME       = "Brawnly"
@@ -98,6 +98,14 @@ const _SOURCE_PROFILES: Record<
     creatorType: "Organization",
     creatorUrl:  "https://www.youtube.com",
   },
+  supabase: {
+    license:     _OWN_LICENSE,
+    copyright:   _OWN_COPYRIGHT,
+    acquireUrl:  _OWN_ACQUIRE_URL,
+    creatorName: _AUTHOR_NAME,
+    creatorType: "Person",
+    creatorUrl:  _SITE_URL,
+  },
   cloudinary: {
     license:     _OWN_LICENSE,
     copyright:   _OWN_COPYRIGHT,
@@ -110,7 +118,7 @@ const _SOURCE_PROFILES: Record<
 
 type _SourceProfile = typeof _SOURCE_PROFILES[keyof typeof _SOURCE_PROFILES]
 
-/** Deteksi sumber gambar dari URL, return profil copyright yang sesuai */
+/** Detect copyright source profile from image URL */
 function _detectImageSource(url: string): _SourceProfile {
   const u = (url || "").toLowerCase()
   if (u.includes("instagram.com") || u.includes("cdninstagram.com") || u.includes("fbcdn.net"))
@@ -123,15 +131,28 @@ function _detectImageSource(url: string): _SourceProfile {
     return _SOURCE_PROFILES.twitter
   if (u.includes("pinterest.com") || u.includes("pinimg.com"))
     return _SOURCE_PROFILES.pinterest
-  if (u.includes("googleusercontent.com") || u.includes("ggpht.com") || u.includes("gstatic.com"))
+  if (
+    u.includes("googleusercontent.com") ||
+    u.includes("ggpht.com") ||
+    u.includes("gstatic.com")
+  )
     return _SOURCE_PROFILES.google
-  if (u.includes("flickr.com") || u.includes("staticflickr.com") || u.includes("live.staticflickr.com"))
+  if (
+    u.includes("flickr.com") ||
+    u.includes("staticflickr.com") ||
+    u.includes("live.staticflickr.com")
+  )
     return _SOURCE_PROFILES.flickr
   if (u.includes("youtube.com") || u.includes("ytimg.com") || u.includes("youtu.be"))
     return _SOURCE_PROFILES.youtube
-  if (u.includes("cloudinary.com") || u.includes("res.cloudinary.com") || u.includes("brawnly.online"))
+  if (u.includes("supabase.co") || u.includes("supabase.io"))
+    return _SOURCE_PROFILES.supabase
+  if (
+    u.includes("cloudinary.com") ||
+    u.includes("res.cloudinary.com") ||
+    u.includes("brawnly.online")
+  )
     return _SOURCE_PROFILES.cloudinary
-  // fallback — own content (logo, gif internal, dll.)
   return {
     license:     _OWN_LICENSE,
     copyright:   _OWN_COPYRIGHT,
@@ -143,24 +164,51 @@ function _detectImageSource(url: string): _SourceProfile {
 }
 
 /**
- * FIX: Validasi URL — pastikan URL adalah absolute HTTPS/HTTP yang valid.
- * Mencegah "Invalid URL in field url/contentUrl" di GSC.
+ * Validate and sanitize a URL to absolute HTTPS/HTTP.
+ * FIX: "Invalid URL in field url / contentUrl" in Google Search Console.
+ * - Rejects relative paths, blob:, data: URIs
+ * - Normalizes encoding via URL constructor
  */
 function _validateUrl(url: string | null | undefined): string | null {
   if (!url) return null
+  const trimmed = url.trim()
+  if (!trimmed) return null
+  // Reject obvious non-absolute URLs
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("javascript:") ||
+    !trimmed.includes("://")
+  )
+    return null
   try {
-    const u = new URL(url)
+    const u = new URL(trimmed)
     if (u.protocol !== "https:" && u.protocol !== "http:") return null
     if (!u.hostname || u.hostname.length < 4) return null
-    return url
+    return u.href // normalized by URL constructor
   } catch {
-    return null
+    // Try encoding spaces / special chars then re-validate
+    try {
+      const enc = trimmed
+        .replace(/\s+/g, "%20")
+        .replace(/[^\x00-\x7F]/g, (c) => encodeURIComponent(c))
+      const u2 = new URL(enc)
+      if (u2.protocol !== "https:" && u2.protocol !== "http:") return null
+      if (!u2.hostname || u2.hostname.length < 4) return null
+      return u2.href
+    } catch {
+      return null
+    }
   }
 }
 
 /**
- * Bangun ImageObject schema.org lengkap (JSON-LD) dengan semua field GSC terpenuhi.
- * Mengembalikan undefined jika url tidak valid.
+ * Build a fully-compliant schema.org ImageObject.
+ * FIX: "Invalid URL in field url/contentUrl", "Missing creditText", "Missing creator"
+ * Returns undefined if URL is invalid — prevents bad data in JSON-LD.
  */
 function _buildImageObject(
   url: string | null | undefined,
@@ -171,70 +219,150 @@ function _buildImageObject(
   const validUrl = _validateUrl(url)
   if (!validUrl) return undefined
   const p = _detectImageSource(validUrl)
+  const ext = validUrl.toLowerCase()
+  const encodingFormat = ext.match(/\.gif/)
+    ? "image/gif"
+    : ext.match(/\.webp/)
+    ? "image/webp"
+    : ext.match(/\.png/)
+    ? "image/png"
+    : ext.match(/\.svg/)
+    ? "image/svg+xml"
+    : "image/jpeg"
+
   return {
-    "@type":               "ImageObject",
-    "url":                 validUrl,
-    "contentUrl":          validUrl,
-    "name":                name,
+    "@type":              "ImageObject",
+    "url":                validUrl,           // FIX: always validated absolute
+    "contentUrl":         validUrl,           // FIX: always validated absolute
+    "name":               name || _SITE_NAME,
     ...(description ? { "description": description } : {}),
-    "license":             p.license,
-    "creator": {
+    "license":            p.license,
+    "creator": {                              // FIX: always Person/Organization object
       "@type": p.creatorType,
       "name":  p.creatorName,
       "url":   p.creatorUrl,
     },
-    "copyrightNotice":     p.copyright,
-    "acquireLicensePage":  p.acquireUrl,
-    "creditText":          p.creatorName,
+    "copyrightNotice":    p.copyright,
+    "acquireLicensePage": p.acquireUrl,
+    "creditText":         p.creatorName,      // FIX: always present
     ...(representative !== undefined ? { "representativeOfPage": representative } : {}),
-    "encodingFormat": validUrl.toLowerCase().match(/\.gif/i)
-      ? "image/gif"
-      : validUrl.toLowerCase().match(/\.webp/i)
-      ? "image/webp"
-      : "image/jpeg",
+    "encodingFormat":     encodingFormat,
   }
 }
 
-// ─── Own-content assets (logo, gif site) selalu pakai own copyright ──────────
+// ── Own-content asset objects ─────────────────────────────────────────────────
 const _LOGO_OBJECT = _buildImageObject(
   `${_SITE_URL}/masculineLogo.svg`,
   `${_SITE_NAME} logo`,
-  `Official logo of ${_SITE_NAME}`,
+  `Official logo of ${_SITE_NAME}`
 )
 
 const _PRIDE_GIF_OBJECT = _buildImageObject(
-  // myPride.gif adalah asset internal Brawnly
   `${_SITE_URL}/myPride.gif`,
   `${_SITE_NAME} — Pride GIF`,
-  `Brawnly editorial pride visual`,
+  `Brawnly editorial pride visual`
 )
 
 const _BRAWNLY_GIF_OBJECT = _buildImageObject(
   `${_SITE_URL}/Brawnly.gif`,
   `${_SITE_NAME} animated logo`,
-  `Brawnly animated brand logo`,
+  `Brawnly animated brand logo`
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Component ─────────────────────────────────────────────────────────────────
 interface MetaTagsProps {
-  title: string
+  title:        string
   description?: string
-  url?: string
-  image?: string
+  url?:         string
+  image?:       string
+  /** Article tags from database for keyword injection */
+  tags?:        string[]
+  /** Raw article/page content for person name extraction */
+  content?:     string
+  /** Explicitly disable auto-indexing for this page (e.g. /signin) */
+  noIndex?:     boolean
 }
 
-const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsProps) => {
-  const _bU  = _SITE_URL
-  const _fT  = `${_t} | ${_SITE_NAME}`
-  const _fD  = _d || "Brawnly 2026: Smart Fitness and Wellness Tracker Intelligence."
-  // FIX: Validasi URL canonical dan image — mencegah "Invalid URL" di GSC
-  const _fU  = _validateUrl(_u) || _bU
-  const _fI  = _validateUrl(_i) || `${_bU}/Brawnly.gif`
+const MetaTags = ({
+  title:       _t,
+  description: _d,
+  url:         _u,
+  image:       _i,
+  tags:        _tags      = [],
+  content:     _content   = "",
+  noIndex:     _noIndex   = false,
+}: MetaTagsProps) => {
+  const _bU = _SITE_URL
+  const _fT = `${_t} | ${_SITE_NAME}`
+  const _fD = _d || "Brawnly 2026: Smart Fitness and Wellness Tracker Intelligence."
 
-  // ─── Copyright profile untuk og:image ────────────────────────────────────
+  // FIX: Always produce valid absolute URLs for canonical and og:image
+  const _fU = _validateUrl(_u) || _bU
+  const _fI = _validateUrl(_i) || `${_bU}/Brawnly.gif`
+
+  // ── Copyright profile for og:image ─────────────────────────────────────────
   const _ogCp = _detectImageSource(_fI)
 
+  // ── Keywords: brawnly always first + tags + person names from content ────────
+  const _keywords = buildKeywords(
+    _tags,
+    _t,
+    _content,
+    [_AUTHOR_NAME, _SITE_NAME, "brawnly.online", "fitness", "wellness"]
+  )
+
+  // Extract person names for <meta name="subject"> and JSON-LD "mentions"
+  const _personNames = extractPersonNames(`${_t} ${_content}`.slice(0, 3000))
+
+  // ── WebSite JSON-LD ──────────────────────────────────────────────────────────
+  const _jLd = {
+    "@context":    "https://schema.org",
+    "@type":       "WebSite",
+    "name":        _SITE_NAME,
+    "alternateName": "Brawnly Online",
+    "url":         _bU,
+    "description": _fD,
+    "keywords":    _keywords,
+
+    // FIX: image as fully-compliant ImageObject
+    "image": _buildImageObject(
+      `${_bU}/myPride.gif`,
+      `${_SITE_NAME} — Pride visual`,
+      _fD,
+      true
+    ),
+
+    // FIX: logo as fully-compliant ImageObject
+    "logo": _LOGO_OBJECT,
+
+    // FIX: author always Person object (not string)
+    "author": {
+      "@type": "Person",
+      "name":  _AUTHOR_NAME,
+      "url":   _bU,
+    },
+
+    "publisher": {
+      "@type": "Organization",
+      "name":  _SITE_NAME,
+      "url":   _bU,
+      "logo":  _LOGO_OBJECT,
+    },
+
+    // Person mentions from page title/content
+    ...(
+      _personNames.length > 0
+        ? {
+            "mentions": _personNames.slice(0, 10).map((name) => ({
+              "@type": "Person",
+              "name":  name,
+            })),
+          }
+        : {}
+    ),
+  }
+
+  // ── Side effects ──────────────────────────────────────────────────────────────
   _e(() => {
     warmupEnterpriseStorage()
     registerSW()
@@ -246,40 +374,20 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
         type:  "META_LOAD",
         title: _t,
         url:   _fU,
-        ts:    Date.now()
+        ts:    Date.now(),
       })
     }
-  }, [_t, _fU])
 
-  // ─── JSON-LD: WebSite — image + logo sebagai ImageObject penuh ───────────
-  const _jLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name":          _SITE_NAME,
-    "alternateName": "Brawnly Online",
-    "url":           _bU,
-    "description":   _fD,
-    // FIX: image sebagai ImageObject penuh dengan copyright own content
-    "image":  _buildImageObject(
-      `${_bU}/myPride.gif`,
-      `${_SITE_NAME} — Pride visual`,
-      _fD,
-      true
-    ),
-    // FIX: logo sebagai ImageObject penuh dengan copyright own content
-    "logo": _LOGO_OBJECT,
-    "author": {
-      "@type": "Person",
-      "name":  _AUTHOR_NAME,
-      "url":   _bU,
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name":  _SITE_NAME,
-      "url":   _bU,
-      "logo":  _LOGO_OBJECT,
-    },
-  }
+    // ── Auto-indexing: submit page URL to IndexNow + ping Google/Bing sitemaps
+    // Skipped for noIndex pages (signin, signup, admin)
+    if (!_noIndex && _fU && _fU !== _bU) {
+      // Delay slightly to not block page render
+      const timer = setTimeout(() => {
+        autoIndex(_fU).catch(() => {})
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [_t, _fU, _noIndex])
 
   return (
     <>
@@ -289,65 +397,86 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
         <meta name="description"  content={_fD} />
         <meta name="author"       content={_AUTHOR_NAME} />
 
+        {/* FIX: keywords meta tag — always includes "brawnly" + person names + tags */}
+        <meta name="keywords"     content={_keywords} />
+
+        {/* Person names as subject for entity recognition */}
+        {_personNames.length > 0 && (
+          <meta name="subject" content={_personNames.slice(0, 5).join(", ")} />
+        )}
+
+        {/* Open Graph */}
         <meta property="og:type"        content="website" />
         <meta property="og:title"       content={_fT} />
         <meta property="og:description" content={_fD} />
         <meta property="og:image"       content={_fI} />
+        <meta property="og:image:alt"   content={`${_t} — ${_SITE_NAME}`} />
         <meta property="og:url"         content={_fU} />
         <meta property="og:site_name"   content={_SITE_NAME} />
 
-        {/* FIX: og:image copyright fields untuk social media sharing */}
-        <meta property="og:image:alt"   content={`${_t} — ${_SITE_NAME}`} />
+        {/* Twitter Card */}
+        <meta name="twitter:card"        content="summary_large_image" />
+        <meta name="twitter:title"       content={_fT} />
+        <meta name="twitter:description" content={_fD} />
+        <meta name="twitter:image"       content={_fI} />
+        <meta name="twitter:image:alt"   content={`${_t} — ${_SITE_NAME}`} />
+        <meta name="twitter:site"        content="@brawnly" />
 
+        {/* Canonical */}
         <link rel="canonical" href={_fU} />
 
-        <script type="application/ld+json">
-          {JSON.stringify(_jLd)}
-        </script>
+        {/* JSON-LD */}
+        <script type="application/ld+json">{JSON.stringify(_jLd)}</script>
       </_H>
 
-      {/* Trik SEO SPA:
-        sr-only menyembunyikan teks dari layar, tapi LLM & Google Bot
-        akan membacanya sebagai hierarki konten utama di halaman ini.
+      {/*
+        sr-only: hidden from screen but read by Googlebot & LLMs
+        as main content hierarchy for this page.
       */}
-      <h1 className="sr-only">{_t || `${_SITE_NAME} - Smart Fitness Intelligence`}</h1>
+      <h1 className="sr-only">
+        {_t || `${_SITE_NAME} - Smart Fitness Intelligence`}
+      </h1>
       <p className="sr-only">{_fD}</p>
+      {_keywords && (
+        <p className="sr-only" aria-hidden="true">
+          Topics: {_keywords}
+        </p>
+      )}
 
-      {/* FIX: WebSite microdata dengan image copyright per sumber */}
-      <div
-        className="sr-only"
-        itemScope
-        itemType="https://schema.org/WebSite"
-      >
+      {/* WebSite microdata — with all GSC-required image fields ────────────── */}
+      <div className="sr-only" itemScope itemType="https://schema.org/WebSite">
         <meta itemProp="name"        content={_SITE_NAME} />
         <meta itemProp="url"         content={_bU} />
         <meta itemProp="description" content={_fD} />
+        {_keywords && <meta itemProp="keywords" content={_keywords} />}
 
-        {/* FIX: image ImageObject dengan copyright per sumber (bisa IG/TikTok/Tumblr/own) */}
-        {_validateUrl(_fI) && (() => {
-          const _cp = _detectImageSource(_fI)
-          return (
-            <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
-              <meta itemProp="url"                content={_fI} />
-              <meta itemProp="contentUrl"         content={_fI} />
-              <meta itemProp="name"               content={`${_t} — ${_SITE_NAME}`} />
-              <meta itemProp="license"            content={_cp.license} />
-              <meta itemProp="copyrightNotice"    content={_cp.copyright} />
-              <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
-              <meta itemProp="creditText"         content={_cp.creatorName} />
-              <span
-                itemScope
-                itemType={`https://schema.org/${_cp.creatorType}`}
-                itemProp="creator"
-              >
-                <meta itemProp="name" content={_cp.creatorName} />
-                <meta itemProp="url"  content={_cp.creatorUrl} />
+        {/* FIX: image ImageObject with ALL required GSC fields per source */}
+        {_validateUrl(_fI) &&
+          (() => {
+            const _cp = _detectImageSource(_fI)
+            return (
+              <span itemScope itemType="https://schema.org/ImageObject" itemProp="image">
+                <meta itemProp="url"                content={_fI} />
+                <meta itemProp="contentUrl"         content={_fI} />
+                <meta itemProp="name"               content={`${_t} — ${_SITE_NAME}`} />
+                <meta itemProp="representativeOfPage" content="true" />
+                <meta itemProp="license"            content={_cp.license} />
+                <meta itemProp="copyrightNotice"    content={_cp.copyright} />
+                <meta itemProp="acquireLicensePage" content={_cp.acquireUrl} />
+                <meta itemProp="creditText"         content={_cp.creatorName} />
+                <span
+                  itemScope
+                  itemType={`https://schema.org/${_cp.creatorType}`}
+                  itemProp="creator"
+                >
+                  <meta itemProp="name" content={_cp.creatorName} />
+                  <meta itemProp="url"  content={_cp.creatorUrl} />
+                </span>
               </span>
-            </span>
-          )
-        })()}
+            )
+          })()}
 
-        {/* FIX: logo own copyright */}
+        {/* FIX: logo ImageObject with own copyright */}
         <span itemScope itemType="https://schema.org/ImageObject" itemProp="logo">
           <meta itemProp="url"                content={`${_bU}/masculineLogo.svg`} />
           <meta itemProp="contentUrl"         content={`${_bU}/masculineLogo.svg`} />
@@ -355,13 +484,14 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
           <meta itemProp="license"            content={_OWN_LICENSE} />
           <meta itemProp="copyrightNotice"    content={_OWN_COPYRIGHT} />
           <meta itemProp="acquireLicensePage" content={_OWN_ACQUIRE_URL} />
+          <meta itemProp="creditText"         content={_AUTHOR_NAME} />
           <span itemScope itemType="https://schema.org/Person" itemProp="creator">
             <meta itemProp="name" content={_AUTHOR_NAME} />
             <meta itemProp="url"  content={_bU} />
           </span>
         </span>
 
-        {/* Author */}
+        {/* FIX: author always Person object */}
         <span itemScope itemType="https://schema.org/Person" itemProp="author">
           <meta itemProp="name" content={_AUTHOR_NAME} />
           <meta itemProp="url"  content={_bU} />
@@ -372,6 +502,13 @@ const MetaTags = ({ title: _t, description: _d, url: _u, image: _i }: MetaTagsPr
           <meta itemProp="name" content={_SITE_NAME} />
           <meta itemProp="url"  content={_bU} />
         </span>
+
+        {/* Person mentions — entity recognition for Google */}
+        {_personNames.slice(0, 10).map((name, i) => (
+          <span key={i} itemScope itemType="https://schema.org/Person" itemProp="mentions">
+            <meta itemProp="name" content={name} />
+          </span>
+        ))}
       </div>
     </>
   )

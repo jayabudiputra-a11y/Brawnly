@@ -8,10 +8,12 @@
     "prebuild": "node scripts/generate-sitemap.js",
     "dev": "vite",
     "sitemap": "node scripts/generate-sitemap.js",
-    "postbuild": "node scripts/generate-sitemap.js",
+    "postbuild": "node scripts/generate-sitemap.js && node -e \"require('fs').copyFileSync('public/sw.js','dist/sw.js'); require('fs').copyFileSync('public/sw-reset.js','dist/sw-reset.js'); console.log('✅ sw.js & sw-reset.js copied to dist');\"",
     "build": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ping": "node scripts/ping.mjs",
+    "deploy": "vercel --prod && node scripts/ping.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

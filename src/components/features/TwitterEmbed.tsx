@@ -1,30 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 
-/**
- * TwitterEmbed.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Fixes applied vs previous version:
- *
- * 1. video.twimg.com 403 proxy spam FIXED
- *    twimg.com blocks ALL CORS proxies (allorigins, codetabs, corsproxy → 403).
- *    _fetchVideoBlobClean now returns null immediately for twimg.com URLs.
- *    _VideoPlayer._onErr also skips blob fetch for twimg URLs and goes straight
- *    to st=4 (Watch on X fallback link).
- *
- * 2. allorigins.win CORS for tweet API FIXED
- *    allorigins.win/raw is now last resort; allorigins.win/get (JSON wrapper)
- *    is tried first because its CORS headers are more reliable.
- *    codetabs is promoted to first proxy (no CORS issues for tweet API).
- *
- * 3. Blob iframe binary handler wiring FIXED
- *    _pending map and _binPending map are now cleanly separated — no
- *    accidental cross-resolution between text and binary requests.
- *
- * All other logic (custom card, video player, SEO node, widget loader,
- * escape-hatch iframe, token derivation) is unchanged.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 interface TwitterEmbedProps {
   url: string;
   align?: "left" | "center" | "right";
@@ -35,30 +10,49 @@ const _d = (u: string) => u.match(new RegExp(`(?:${_a}|${_b})\\/[A-Za-z0-9_]+\\/
 const _f = (u: string) => u.match(new RegExp(`(?:${_a}|${_b})\\/([A-Za-z0-9_]+)\\/status`, "i"))?.[1] || null;
 const _g = (id: string) => ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, "");
 
+const _isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
 type _M = { type: "photo" | "video" | "animated_gif"; url: string; poster?: string; width: number; height: number; variants?: { url: string; content_type: string; bitrate?: number }[] };
 type _T = { text: string; created_at: string; user: { name: string; screen_name: string; profile_image_url_https: string; is_blue_verified: boolean }; mediaDetails?: _M[]; favorite_count: number; conversation_count: number; lang: string; id_str: string; photos?: { url: string; width: number; height: number }[]; video?: { poster: string; variants: { src: string; type: string }[] } };
 
 const _h = new Map<string, _T>();
 const _i = [atob("aHR0cHM6Ly9jZG4uc3luZGljYXRpb24udHdpbWcuY29tL3R3ZWV0LXJlc3VsdA==")];
 
-// ── CORS proxy chain for TWEET DATA (not video blobs) ────────────────────────
-// Order matters: codetabs is most reliable, allorigins/get wraps JSON,
-// allorigins/raw has stricter CORS, corsproxy last.
-const _j: Array<(u: string) => string> = [
+// ── CORS proxy chain for TWEET DATA ──────────────────────────────────────────
+// In prod: full external proxy chain.
+// In dev: gunakan Vite local proxy (/dev-proxy/*) → lewat Node.js, no CORS.
+//
+// FIX proxy chain:
+// - Hapus thingproxy.freeboard.io  → ERR_NAME_NOT_RESOLVED (domain mati)
+// - Hapus corsproxy.io dari syndication chain → return 403 untuk twimg
+// - Hapus allorigins.win dari syndication chain → return 500 + no CORS header
+//   untuk endpoint twimg (production). allorigins tetap dipakai di _fxPx
+//   karena fxtwitter endpoint tidak ada masalah CORS.
+// - Syndication production kini hanya via codetabs — fxtwitter race paralel
+//   menghandle sisanya (age-restricted, dll).
+// ─────────────────────────────────────────────────────────────────────────────
+const _jAll: Array<(u: string) => string> = [
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
 ];
 
-// ── twimg.com guard ───────────────────────────────────────────────────────────
-// video.twimg.com blocks ALL CORS proxies with 403.
-// Direct <video src> also fails (no Twitter auth cookies on brawnly.online).
-// Skip any proxy attempt for twimg URLs — go straight to Watch on X fallback.
+const _jDev: Array<(u: string) => string> = [
+  // Syndication proxy: hanya untuk URL yang memang mengandung twimg.com/syndication
+  // Skip (return empty string) jika URL bukan syndication endpoint
+  (u) => {
+    if (!u.includes("twimg.com")) return "";
+    try {
+      const parsed = new URL(u);
+      return `/dev-proxy/syndication${parsed.pathname}${parsed.search}`;
+    } catch { return ""; }
+  },
+  (u) => `/dev-proxy/codetabs?quest=${encodeURIComponent(u)}`,
+  (u) => `/dev-proxy/allorigins?url=${encodeURIComponent(u)}`,
+];
+
+const _j = _isDev ? _jDev : _jAll;
+
 const _isTwimg = (url: string) => url.includes("twimg.com");
 
-// ─── Blob-iframe escape hatch ────────────────────────────────────────────────
 let _ifrWin: Window | null = null;
 let _ifrReady = false;
 const _pending = new Map<string, { resolve: (v: string) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
@@ -107,18 +101,13 @@ function _buildIframe() {
 
   window.addEventListener("message", (e: MessageEvent) => {
     if (!e.data) return;
-
-    // iframe ready signal
     if (e.data.__twReady) {
       _ifrWin = ifr.contentWindow;
       _ifrReady = true;
       URL.revokeObjectURL(blobUrl);
       return;
     }
-
     if (!e.data.__tw || !e.data.id) return;
-
-    // Binary (video blob) response
     if (e.data.bin !== undefined && Array.isArray(e.data.bin)) {
       const bp = _binPending.get(e.data.id);
       if (bp) {
@@ -133,8 +122,6 @@ function _buildIframe() {
       }
       return;
     }
-
-    // Text response
     const p = _pending.get(e.data.id);
     if (!p) return;
     _pending.delete(e.data.id);
@@ -185,24 +172,131 @@ async function _plainFetch(url: string, timeout = 9000): Promise<string> {
   } catch (e) { clearTimeout(t); throw e; }
 }
 
+// ── FIX: Normalize relative URLs to absolute before passing to iframe XHR ──
+// Iframe di-load dari blob: URL sehingga tidak punya base origin.
+// URL relatif seperti "/dev-proxy/..." tidak bisa di-resolve oleh XHR di dalam iframe.
+// Solusi: prefix window.location.origin jika URL dimulai dengan "/".
+// ───────────────────────────────────────────────────────────────────────────
 async function _get(url: string, timeout = 9000): Promise<string> {
   _ensureIfr();
+  const absUrl = url.startsWith("/") ? `${window.location.origin}${url}` : url;
   try {
-    if (_ifrReady) return await _escapedXhr(url, timeout);
+    if (_ifrReady) return await _escapedXhr(absUrl, timeout);
   } catch { /* fall through */ }
-  return _plainFetch(url, timeout);
+  return _plainFetch(absUrl, timeout);
 }
 
-// ── Tweet data fetcher ────────────────────────────────────────────────────────
-async function _k(id: string): Promise<_T | null> {
-  if (_h.has(id)) return _h.get(id)!;
+// ── fxtwitter / vxtwitter fallback — untuk konten age-restricted ─────────────
+// Syndication API X mengembalikan tombstone untuk konten age-restricted.
+// fxtwitter dan vxtwitter bisa mengambil konten tersebut tanpa login.
+// Endpoint: https://api.fxtwitter.com/{username}/status/{id}
+//
+// FIX SPEED: fxtwitter sekarang dijalankan PARALEL dengan syndication chain,
+// bukan setelah semua proxy syndication timeout. Race condition: siapapun
+// yang berhasil pertama langsung dipakai, yang lain di-cancel.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _mapFx(d: any): _T | null {
+  const t = d?.tweet;
+  if (!t || !t.text || !t.author) return null;
+
+  const mapped: _T = {
+    text: t.text || "",
+    created_at: t.created_at || "",
+    user: {
+      name: t.author.name || "",
+      screen_name: t.author.screen_name || "",
+      profile_image_url_https: t.author.avatar_url || "",
+      is_blue_verified: t.author.verified || false,
+    },
+    favorite_count: t.likes || 0,
+    conversation_count: t.replies || 0,
+    lang: t.lang || "en",
+    id_str: t.id || "",
+  };
+
+  // Map photos
+  if (t.media?.photos?.length) {
+    mapped.photos = t.media.photos.map((p: any) => ({
+      url: p.url,
+      width: p.width || 0,
+      height: p.height || 0,
+    }));
+  }
+
+  // Map videos — ambil kualitas tertinggi
+  if (t.media?.videos?.length) {
+    const v = t.media.videos[0];
+    const variants = (v.variants || []).map((vr: any) => ({
+      src: vr.url,
+      type: vr.type || "video/mp4",
+    }));
+    if (!variants.length && v.url) variants.push({ src: v.url, type: "video/mp4" });
+    mapped.video = { poster: v.thumbnail_url || v.poster || "", variants };
+  }
+
+  // fxtwitter kadang gabung semua media dalam media.all
+  if (!mapped.photos && !mapped.video && t.media?.all?.length) {
+    const photos: NonNullable<_T["photos"]> = [];
+    for (const item of t.media.all) {
+      if (item.type === "photo") {
+        photos.push({ url: item.url, width: item.width || 0, height: item.height || 0 });
+      } else if ((item.type === "video" || item.type === "gif") && !mapped.video) {
+        const variants = (item.variants || []).map((vr: any) => ({ src: vr.url, type: vr.type || "video/mp4" }));
+        if (!variants.length && item.url) variants.push({ src: item.url, type: "video/mp4" });
+        mapped.video = { poster: item.thumbnail_url || "", variants };
+      }
+    }
+    if (photos.length) mapped.photos = photos;
+  }
+
+  return mapped;
+}
+
+// fxtwitter endpoints — dicoba berurutan
+const _fxEps = [
+  (u: string, i: string) => `https://api.fxtwitter.com/${u}/status/${i}`,
+  (u: string, i: string) => `https://api.vxtwitter.com/${u}/status/${i}`,
+];
+
+// Proxy chain untuk fxtwitter (direct dulu karena fxtwitter punya CORS header)
+const _fxPx: Array<(u: string) => string> = [
+  (u) => u,
+  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+];
+
+async function _kFx(id: string, username: string): Promise<_T | null> {
+  for (const ep of _fxEps) {
+    const epUrl = ep(username, id);
+    for (const px of _fxPx) {
+      try {
+        const txt = await _plainFetch(px(epUrl), 10000);
+        let d: any;
+        try { d = JSON.parse(txt); } catch { continue; }
+        if (d && typeof d.contents === "string") {
+          try { d = JSON.parse(d.contents); } catch { continue; }
+        }
+        const mapped = _mapFx(d);
+        if (mapped) return mapped;
+      } catch { continue; }
+    }
+  }
+  return null;
+}
+
+// ── Syndication-only fetch (serial proxy chain) ───────────────────────────────
+async function _kSyndication(id: string): Promise<_T | null> {
   const tk = _g(id);
   for (const base of _i) {
     for (const lang of ["id", "en"]) {
       const ep = `${base}?id=${id}&lang=${lang}&token=${tk}`;
       for (const px of _j) {
         try {
-          const txt = await _get(px(ep));
+          const proxyUrl = px(ep);
+          if (!proxyUrl) continue;
+          const txt = await _get(proxyUrl);
           let d: any;
           try { d = JSON.parse(txt); } catch { continue; }
           if (d && typeof d.contents === "string") {
@@ -210,7 +304,6 @@ async function _k(id: string): Promise<_T | null> {
           }
           if (d && (d.text || d.full_text) && d.user) {
             d.text = d.text || d.full_text || "";
-            _h.set(id, d as _T);
             return d as _T;
           }
         } catch { continue; }
@@ -220,33 +313,70 @@ async function _k(id: string): Promise<_T | null> {
   return null;
 }
 
+// ── _k: Race syndication vs fxtwitter (paralel) ──────────────────────────────
+// FIX SPEED: jalankan kedua sumber secara paralel.
+// - Jika username tersedia: race syndication vs fxtwitter → siapa cepat menang
+// - Jika tidak ada username: hanya syndication
+// Hasil pertama yang valid langsung dikembalikan.
+// ─────────────────────────────────────────────────────────────────────────────
+async function _k(id: string, username?: string): Promise<_T | null> {
+  if (_h.has(id)) return _h.get(id)!;
+
+  let result: _T | null = null;
+
+  if (username) {
+    // Jalankan syndication dan fxtwitter secara paralel
+    // Promise.any → ambil yang pertama resolve dengan nilai non-null
+    const syndicationPromise = _kSyndication(id);
+    const fxPromise = _kFx(id, username);
+
+    // Helper: wrap promise agar hanya resolve jika hasilnya non-null
+    const nonNull = (p: Promise<_T | null>): Promise<_T> =>
+      p.then((v) => {
+        if (v) return v;
+        return Promise.reject(new Error("null"));
+      });
+
+    try {
+      result = await Promise.any([nonNull(syndicationPromise), nonNull(fxPromise)]);
+    } catch {
+      // Semua gagal — coba tunggu keduanya selesai untuk memastikan
+      result = await syndicationPromise.catch(() => null) ?? await fxPromise.catch(() => null);
+    }
+  } else {
+    // Tidak ada username → hanya syndication
+    result = await _kSyndication(id);
+  }
+
+  if (result) _h.set(id, result);
+  return result;
+}
+
 const _l = (s: string) => { try { return new Date(s).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }); } catch { return s; } };
 const _m = (n: number) => { if (!n || n <= 0) return ""; if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`; if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`; return String(n); };
 
-// ── Video blob fetcher ────────────────────────────────────────────────────────
-// ⚠️  twimg.com → return null immediately (all proxies return 403 for twimg).
-//     Show "Watch on X" link instead of wasting network requests.
 const _vBlobCache = new Map<string, string>();
 
-// CORS proxies suitable for video blobs (NOT tweet API)
-const _videoPx: Array<(u: string) => string> = [
+const _videoPxAll: Array<(u: string) => string> = [
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
 ];
+const _videoPxDev: Array<(u: string) => string> = [
+  (u) => `/dev-proxy/codetabs?quest=${encodeURIComponent(u)}`,
+];
+const _videoPx = _isDev ? _videoPxDev : _videoPxAll;
 
 async function _fetchVideoBlobClean(src: string): Promise<string | null> {
-  // twimg.com blocks all CORS proxies — bail immediately
   if (_isTwimg(src)) return null;
-
   if (_vBlobCache.has(src)) return _vBlobCache.get(src)!;
-
   _ensureIfr();
-
   for (const px of _videoPx) {
-    // Try iframe binary fetch first (bypasses fetch interceptor)
+    const proxyUrl = px(src);
+    // Normalize relative URL to absolute for iframe XHR
+    const absProxyUrl = proxyUrl.startsWith("/") ? `${window.location.origin}${proxyUrl}` : proxyUrl;
     if (_ifrReady && _ifrWin) {
       try {
-        const blob = await _escapedXhrBin(px(src), 18000);
+        const blob = await _escapedXhrBin(absProxyUrl, 18000);
         if (blob.size >= 1000) {
           const url = URL.createObjectURL(blob);
           _vBlobCache.set(src, url);
@@ -254,11 +384,10 @@ async function _fetchVideoBlobClean(src: string): Promise<string | null> {
         }
       } catch { /* try plain fetch */ }
     }
-    // Fallback: plain fetch
     try {
       const c = new AbortController();
       const t = setTimeout(() => c.abort(), 18000);
-      const r = await window.fetch(px(src), { signal: c.signal });
+      const r = await window.fetch(absProxyUrl, { signal: c.signal });
       clearTimeout(t);
       if (!r.ok) continue;
       const blob = await r.blob();
@@ -271,7 +400,6 @@ async function _fetchVideoBlobClean(src: string): Promise<string | null> {
   return null;
 }
 
-// ─── Video Player ─────────────────────────────────────────────────────────────
 function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string; tweetUrl: string }) {
   const vRef = useRef<HTMLVideoElement>(null);
   const wRef = useRef<HTMLDivElement>(null);
@@ -279,18 +407,13 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   const [mt, setMt] = useState(true);
   const [vSrc, setVSrc] = useState(src);
   const triedBlob = useRef(false);
-
-  // If src is twimg.com, immediately go to "Watch on X" without trying anything
   const isTwimgSrc = _isTwimg(src);
 
   useEffect(() => {
     if (isTwimgSrc) { setSt(4); return; }
-
     const w = wRef.current, v = vRef.current;
     if (!w || !v) return;
-
     const _onErr = async () => {
-      // twimg URLs never succeed via proxy — skip directly to fallback
       if (_isTwimg(src) || _isTwimg(vSrc)) { setSt(4); return; }
       if (!triedBlob.current) {
         triedBlob.current = true;
@@ -303,12 +426,10 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
     const _onPlay = () => setSt(2);
     const _onPause = () => setSt((p) => (p === 4 ? 4 : 3));
     const _onLoaded = () => { if (st === 1) setSt(0); };
-
     v.addEventListener("error", _onErr);
     v.addEventListener("play", _onPlay);
     v.addEventListener("pause", _onPause);
     v.addEventListener("loadeddata", _onLoaded);
-
     const obs = new IntersectionObserver(([e]) => {
       if (!vRef.current) return;
       if (e.isIntersecting && vRef.current.readyState >= 2) {
@@ -319,7 +440,6 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
       }
     }, { threshold: 0.3 });
     obs.observe(w);
-
     return () => {
       obs.disconnect();
       v.removeEventListener("error", _onErr);
@@ -350,7 +470,6 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   const _toggle = () => { if (!vRef.current) return; if (st === 2) vRef.current.pause(); else _play(); };
   const _mute = (e: React.MouseEvent) => { e.stopPropagation(); if (!vRef.current) return; const n = !mt; vRef.current.muted = n; setMt(n); };
 
-  // Watch on X fallback (always shown for twimg, or after all retries fail)
   if (st === 4 || isTwimgSrc) {
     return (
       <a href={tweetUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 relative group">
@@ -407,7 +526,6 @@ function _VideoPlayer({ src, poster, tweetUrl }: { src: string; poster?: string;
   );
 }
 
-// ─── Media Grid ───────────────────────────────────────────────────────────────
 function _MediaGrid({ media, photos, video, tweetUrl }: { media?: _M[]; photos?: _T["photos"]; video?: _T["video"]; tweetUrl: string }) {
   const ap = useMemo(() => {
     if (photos && photos.length > 0) return photos.map((p) => ({ url: p.url, w: p.width, h: p.height }));
@@ -448,7 +566,6 @@ function _MediaGrid({ media, photos, video, tweetUrl }: { media?: _M[]; photos?:
   );
 }
 
-// ─── Tweet Card ───────────────────────────────────────────────────────────────
 function _Card({ tweet, tweetUrl }: { tweet: _T; tweetUrl: string }) {
   const dk = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
   const txt = useMemo(() => {
@@ -492,7 +609,6 @@ function _Card({ tweet, tweetUrl }: { tweet: _T; tweetUrl: string }) {
   );
 }
 
-// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProps) {
   const cRef = useRef<HTMLDivElement>(null);
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -509,12 +625,11 @@ export default function TwitterEmbed({ url, align = "center" }: TwitterEmbedProp
   useEffect(() => {
     if (!id) { _us(3); return; }
     let alive = true;
-
     _ensureIfr();
-
     const fetchDelay = setTimeout(() => {
       if (!alive) return;
-      _k(id)
+      // ── Teruskan username (au) ke _k agar bisa race syndication vs fxtwitter ──
+      _k(id, au ?? undefined)
         .then((d) => {
           if (!alive) return;
           if (d) {

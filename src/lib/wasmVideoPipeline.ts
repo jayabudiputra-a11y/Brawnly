@@ -1,4 +1,17 @@
-import { encode as encodeWebp } from "@jsquash/webp";
+// ─── WASM import is DYNAMIC (lazy) ───────────────────────────────────────────
+// Previously: top-level `import { encode as encodeWebp } from "@jsquash/webp"`
+//
+// Same fix as wasmImagePipeline.ts — WASM only compiled on first actual call,
+// not at module evaluation time. Saves ~85KB JS evaluation on startup.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Module-level lazy cache — shared with wasmImagePipeline if bundled together
+let _webpModule: typeof import("@jsquash/webp") | null = null;
+
+async function _getWebp() {
+  if (!_webpModule) _webpModule = await import("@jsquash/webp");
+  return _webpModule;
+}
 
 /* ======================
     VIDEO FRAME EXTRACTOR
@@ -19,7 +32,6 @@ async function extractFrameFromVideo(file: Blob): Promise<ImageData> {
     video.playsInline = true;
 
     video.onloadeddata = () => {
-      // Ambil frame pada detik ke-1 agar tidak hitam (biasanya awal video hitam)
       video.currentTime = 1;
     };
 
@@ -27,7 +39,7 @@ async function extractFrameFromVideo(file: Blob): Promise<ImageData> {
       const canvas = new OffscreenCanvas(video.videoWidth, video.videoHeight);
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(video, 0, 0);
-      
+
       const imgData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
       URL.revokeObjectURL(url);
       resolve(imgData);
@@ -56,8 +68,8 @@ export async function wasmVideoToThumbnail(
     // 1. Ekstrak Frame dari Video
     const frameData = await extractFrameFromVideo(videoFile);
 
-    // 2. Transcode ke WebP menggunakan WASM jSquash
-    // Kita gunakan kualitas rendah (1/4 MB) sesuai request
+    // 2. Transcode ke WebP menggunakan WASM jSquash (lazy-loaded)
+    const { encode: encodeWebp } = await _getWebp();
     const _q = quality * 100;
 
     const buf = await encodeWebp(frameData, {
@@ -68,7 +80,6 @@ export async function wasmVideoToThumbnail(
 
   } catch (error) {
     console.error("WASM Video Pipeline Failed:", error);
-    // Fallback: Kembalikan blob kosong atau handle error di UI
     return new Blob([], { type: "image/webp" });
   }
 }
