@@ -1,4 +1,6 @@
 {
+  "buildCommand": "echo 'using prebuilt dist'",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
@@ -254,7 +256,7 @@
   "rewrites": [
     {
       "source": "/((?!assets/|_next/|robots\\.txt|robots|ads\\.txt|ads|sitemap\\.xml|sitemap|rss\\.xml|rss|feed|llms\\.txt|llms|favicon\\.svg|favicon\\.ico|favicon|Brawnly-favicon\\.svg|Brawnly-favicon|Brawnly\\.gif|Brawnly(?!-)|masculineLogo\\.svg|masculineLogo|myAvatar\\.jpg|myAvatar|myPride\\.gif|myPride|ultra-simple-flat-vector-favicon-icon-for-matchflik|sw\\.js|workbox-.*\\.js|.*\\..*).*)",
-      "destination": "/"
+      "destination": "/index.html"
     }
   ],
   "headers": [
