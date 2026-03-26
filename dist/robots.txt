@@ -1,0 +1,75 @@
+User-agent: *
+Allow: /
+Allow: /article/
+Allow: /articles/
+Allow: /sitemap.xml
+Allow: /sitemap-articles.xml
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.webp$
+Allow: /*.svg$
+Allow: /*.mp4$
+Disallow: /api/
+Disallow: /admin/
+Disallow: /signin
+Disallow: /signup
+Disallow: /__pwa/
+Disallow: /sw.js
+
+User-agent: Googlebot
+Allow: /
+Allow: /article/
+Allow: /articles/
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.webp$
+Allow: /*.svg$
+Allow: /*.gifv$
+Allow: /*.mp4$
+Crawl-delay: 1
+
+User-agent: Googlebot-Image
+Allow: /
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.webp$
+Allow: /*.svg$
+Allow: /*.gifv$
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 2
+
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: facebot
+Allow: /
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.webp$
+
+User-agent: Twitterbot
+Allow: /
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.webp$
+
+# Sitemap locations
+Sitemap: https://www.brawnly.online/sitemap.xml
+Sitemap: https://www.brawnly.online/sitemap-articles.xml
