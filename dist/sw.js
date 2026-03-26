@@ -70,6 +70,21 @@ function isExternalImage(url) {
   );
 }
 
+// FIX: Jangan cache request yang real-time/mutable:
+// - RPC calls (increment_article_views dll)
+// - article_view_counts (angka views harus selalu fresh)
+// - viewCount query
+// Kalau di-cache, UI akan tampil angka lama meski DB sudah update.
+function isNoCacheApiRequest(url) {
+  return (
+    url.includes('/rest/v1/rpc/') ||
+    url.includes('article_view_counts') ||
+    url.includes('article_views') ||
+    url.includes('viewCount') ||
+    url.includes('increment_')
+  );
+}
+
 self.addEventListener("install", e => {
   self.skipWaiting();
 });
@@ -155,8 +170,9 @@ async function imageStrategy(req) {
   return cached || netFetch;
 }
 
-// FIX: sync dari sw.ts — apiStrategy hilang di public/sw.js versi sebelumnya.
-// Supabase REST API → cache-with-network-fallback dengan TTL.
+// FIX: apiStrategy hanya untuk Supabase REST yang aman di-cache (bukan real-time).
+// Request yang masuk ke sini sudah dipastikan bukan RPC/view counts
+// oleh guard isNoCacheApiRequest() di fetch handler.
 async function apiStrategy(req) {
   const cache = await caches.open(API_CACHE);
   const cached = await cache.match(req);
@@ -186,8 +202,10 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // FIX: sync dari sw.ts — Supabase REST API caching, hilang di versi sebelumnya
+  // FIX: Supabase REST API — skip cache untuk RPC dan view counts,
+  // biarkan browser fetch langsung ke network agar selalu dapat data terbaru.
   if (req.url.includes('/rest/v1/')) {
+    if (isNoCacheApiRequest(req.url)) return; // bypass SW, langsung ke network
     event.respondWith(apiStrategy(req));
     return;
   }
